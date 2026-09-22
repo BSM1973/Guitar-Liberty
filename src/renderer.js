@@ -19,12 +19,16 @@ async function loadGuitarSample(string){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
  if(sampleCache.has(string)) return sampleCache.get(string);
  try{
-   const response=await fetch(`${SAMPLE_ROOT}/${encodeURIComponent(GUITAR_SAMPLES[string])}`);
+   const sampleUrl=new URL(`${SAMPLE_ROOT}/${GUITAR_SAMPLES[string]}`,window.location.href);
+   const response=await fetch(sampleUrl.href);
    if(!response.ok) throw new Error('sample missing');
    const buffer=await audio.decodeAudioData(await response.arrayBuffer());
    sampleCache.set(string,buffer);
    return buffer;
- }catch(e){ return null; }
+ }catch(e){
+   console.error('Guitar sample load failed:',GUITAR_SAMPLES[string],e);
+   return null;
+ }
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 function render(){
