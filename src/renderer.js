@@ -11,6 +11,24 @@ const exercises={
 };
 let current='chromatic',playing=false,timer=null,audio,index=0;
 const sampleCache=new Map();
+const activeVoices=new Map();
+let masterGain=null,masterComp=null;
+function ensureOutput(){
+ audio ||= new (window.AudioContext||window.webkitAudioContext)();
+ if(masterGain) return;
+ masterGain=audio.createGain(); masterGain.gain.value=.72;
+ masterComp=audio.createDynamicsCompressor();
+ masterComp.threshold.value=-14; masterComp.knee.value=12; masterComp.ratio.value=3;
+ masterComp.attack.value=.003; masterComp.release.value=.18;
+ masterGain.connect(masterComp).connect(audio.destination);
+}
+function stopVoice(string,fade=.025){
+ const v=activeVoices.get(string); if(!v||!audio)return;
+ const now=audio.currentTime;
+ try{v.gain.gain.cancelScheduledValues(now);v.gain.gain.setValueAtTime(Math.max(.0001,v.gain.gain.value),now);v.gain.gain.exponentialRampToValueAtTime(.0001,now+fade);v.source.stop(now+fade+.01)}catch(e){}
+ activeVoices.delete(string);
+}
+function stopAllVoices(){[...activeVoices.keys()].forEach(s=>stopVoice(s,.035));}
 const SAMPLE_ROOT='../assets/guitar/clean';
 const GUITAR_SAMPLES=['E aigue0.aiff','B0.aiff','G0.aiff','D0.aiff','A0.aiff','E0.aiff'];
 const openMidi=[64,59,55,50,45,40];
@@ -78,31 +96,35 @@ function render(){
 }
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
 function playNote(string,fret){
- audio ||= new (window.AudioContext||window.webkitAudioContext)();
+ ensureOutput();
  loadGuitarSample(string).then(buffer=>{
-   if(!buffer){
-     console.error('No playable guitar sample for string',string+1);
-     return;
-   }
-   const now=audio.currentTime;
-   const source=audio.createBufferSource();
-   const gain=audio.createGain();
-   const tone=audio.createBiquadFilter();
-   source.buffer=buffer;
-   source.playbackRate.value=2**(fret/12);
-   tone.type='lowpass'; tone.frequency.value=8000; tone.Q.value=.15;
+   if(!buffer) return;
+   stopVoice(string,.018);
+   const now=audio.currentTime,rate=2**(fret/12);
+   const source=audio.createBufferSource(),gain=audio.createGain(),tone=audio.createBiquadFilter();
+   source.buffer=buffer; source.playbackRate.value=rate;
+   tone.type='lowpass';
+   // Compensate some of the unnatural brightness caused by pitching an open string upward.
+   tone.frequency.value=Math.max(4200,10500-fret*420); tone.Q.value=.12;
+   const velocity=.72+(Math.random()*.10-.05);
    gain.gain.setValueAtTime(.0001,now);
-   gain.gain.linearRampToValueAtTime(.32,now+.008);
-   gain.gain.setValueAtTime(.32,now+.18);
-   gain.gain.exponentialRampToValueAtTime(.001,now+Math.min(2.2,buffer.duration/source.playbackRate.value));
-   source.connect(tone).connect(gain).connect(audio.destination);
-   source.start(now);
-   source.stop(now+Math.min(2.25,buffer.duration/source.playbackRate.value));
+   gain.gain.linearRampToValueAtTime(velocity,now+.004);
+   // Keep the recorded decay instead of imposing the old synthetic 2.2 s envelope.
+   const natural=Math.min(buffer.duration/rate,4.8);
+   gain.gain.setValueAtTime(velocity,now+Math.min(.06,natural*.15));
+   gain.gain.exponentialRampToValueAtTime(.0001,now+natural);
+   source.connect(tone).connect(gain).connect(masterGain);
+   activeVoices.set(string,{source,gain});
+   source.onended=()=>{if(activeVoices.get(string)?.source===source)activeVoices.delete(string)};
+   source.start(now); source.stop(now+natural+.02);
  });
 }
-function stop(){playing=false;clearInterval(timer);document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
+function stop(){playing=false;clearInterval(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
 function tick(){const e=exercises[current];document.querySelectorAll('.note').forEach(n=>n.classList.toggle('active',+n.dataset.i===index));const [s,f]=e.notes[index];playNote(s,f);progress.style.width=((index+1)/e.notes.length*100)+'%';index++;if(index>=e.notes.length){index=0}}
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
 tempo.oninput=()=>{syncTempo();if(playing){clearInterval(timer);timer=setInterval(tick,60000/+tempo.value/2)}};
-document.querySelector('#play').onclick=()=>{if(playing){stop();return}playing=true;document.querySelector('#play').textContent='■ STOP';tick();timer=setInterval(tick,60000/+tempo.value/2)};
+document.querySelector('#play').onclick=async()=>{if(playing){stop();return}
+ ensureOutput(); if(audio.state==='suspended')await audio.resume();
+ await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
+ playing=true;document.querySelector('#play').textContent='■ STOP';tick();timer=setInterval(tick,60000/+tempo.value/2)};
 render();
