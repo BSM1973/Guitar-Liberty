@@ -140,6 +140,58 @@ if(importButton) importButton.onclick=async()=>{
   alert('Pour importer cette tablature Guitar Pro dans Guitar Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
   return;
  }
- importStatus.textContent=file.name+' chargé';
- window.pendingImportedScore=file;
+ try{
+  if(!['.musicxml','.xml'].includes(file.ext)){
+   importStatus.textContent=file.name+' chargé — lecture visuelle bientôt disponible pour ce format';
+   window.pendingImportedScore=file;
+   return;
+  }
+  const xmlText=atob(file.data);
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('XML invalide');
+  const part=doc.querySelector('part');
+  if(!part) throw new Error('Aucune partie musicale trouvée');
+  const imported=[];
+  const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+  const open=[64,59,55,50,45,40];
+  let importedTempo=90;
+  const soundTempo=doc.querySelector('sound[tempo]');
+  if(soundTempo) importedTempo=Math.round(+soundTempo.getAttribute('tempo'))||90;
+  part.querySelectorAll('measure').forEach(measure=>{
+   measure.querySelectorAll(':scope > note').forEach(note=>{
+    if(note.querySelector('rest')) return;
+    const pitch=note.querySelector('pitch');
+    if(!pitch) return;
+    const step=pitch.querySelector('step')?.textContent||'C';
+    const alter=+(pitch.querySelector('alter')?.textContent||0);
+    const octave=+(pitch.querySelector('octave')?.textContent||4);
+    const midi=(octave+1)*12+stepSemis[step]+alter;
+    const tech=note.querySelector('notations technical');
+    let stringNo=+(tech?.querySelector('string')?.textContent||0);
+    let fret=+(tech?.querySelector('fret')?.textContent||-1);
+    let s=-1;
+    if(stringNo>=1&&stringNo<=6&&fret>=0){s=stringNo-1;}
+    else{
+     for(let candidate=0;candidate<6;candidate++){
+      const f=midi-open[candidate];
+      if(f>=0&&f<=24){s=candidate;fret=f;break;}
+     }
+    }
+    if(s<0||fret<0)return;
+    const finger=+(tech?.querySelector('fingering')?.textContent||0);
+    imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4))]);
+   });
+  });
+  if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
+  const key='imported';
+  exercises[key]={title:file.name.replace(/\.(musicxml|xml)$/i,''),subtitle:'Tablature importée • MusicXML',tempo:importedTempo,repeat:1,notes:imported};
+  current=key; stop(); render();
+  document.querySelectorAll('.exercise').forEach(b=>b.classList.remove('active'));
+  importStatus.textContent=file.name+' — '+imported.length+' notes affichées';
+  window.pendingImportedScore=file;
+ }catch(err){
+  console.error('MusicXML import failed',err);
+  importStatus.textContent='Erreur import : '+err.message;
+  alert('Impossible d’afficher cette tablature : '+err.message);
+ }
 };
