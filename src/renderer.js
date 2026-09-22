@@ -87,12 +87,18 @@ const tab=document.querySelector('#tab'),progress=document.querySelector('#progr
 function render(){
  const e=exercises[current];document.querySelector('#title').textContent=e.title;document.querySelector('#subtitle').textContent=e.subtitle;
  tempo.value=e.tempo;syncTempo();
- const n=e.notes.length, measures=Math.max(4,Math.ceil(n/4));
- let html='<div class="system"><div class="tab-word">TAB</div><div class="time-signature">4<br>4</div><div class="strings">';
- for(let s=0;s<6;s++)html+=`<div class="string" style="top:${s*22}px"></div>`;
- for(let m=0;m<=measures;m++){const x=m/measures*100;html+=`<div class="measure-line" style="left:${x}%"></div>`;if(m<measures)html+=`<div class="measure-number" style="left:calc(${x}% + 6px)">${m+1}</div>`;}
- e.notes.forEach((v,i)=>{const [s,fingerFret,finger]=v,x=(i+.5)/n*100,y=s*22;html+=`<span class="pick" style="left:${x}%">${i%2?'∨':'∧'}</span><span class="note" data-i="${i}" style="left:${x}%;top:${y}px">${fingerFret}</span><span class="beat-stem" style="left:${x}%;top:${y+7}px;height:${Math.max(15,116-y)}px"></span><span class="finger" style="left:${x}%">${finger}</span>`;});
- html+=`<span class="repeat">${e.repeat}x</span></div></div>`;tab.innerHTML=html;index=0;progress.style.width='0';
+ const n=e.notes.length, notesPerMeasure=4, measures=Math.max(1,Math.ceil(n/notesPerMeasure)), measuresPerSystem=4, systemCount=Math.ceil(measures/measuresPerSystem);
+ let html='<div class="score-systems">';
+ for(let sys=0;sys<systemCount;sys++){
+  const firstMeasure=sys*measuresPerSystem, measureCount=Math.min(measuresPerSystem,measures-firstMeasure), firstNote=firstMeasure*notesPerMeasure, lastNote=Math.min(n,(firstMeasure+measureCount)*notesPerMeasure);
+  html+='<div class="system"><div class="tab-word">TAB</div><div class="time-signature">4<br>4</div><div class="strings">';
+  for(let s=0;s<6;s++)html+='<div class="string" style="top:'+(s*22)+'px"></div>';
+  for(let m=0;m<=measureCount;m++){const x=m/measureCount*100;html+='<div class="measure-line" style="left:'+x+'%"></div>';if(m<measureCount)html+='<div class="measure-number" style="left:calc('+x+'% + 7px)">'+(firstMeasure+m+1)+'</div>';}
+  for(let i=firstNote;i<lastNote;i++){const v=e.notes[i],s=v[0],fret=v[1],finger=v[2],local=i-firstNote,slots=measureCount*notesPerMeasure,x=(local+.5)/slots*100,y=s*22;html+='<span class="pick" style="left:'+x+'%">'+(i%2?'∨':'∧')+'</span><span class="note" data-i="'+i+'" style="left:'+x+'%;top:'+y+'px">'+fret+'</span><span class="finger" style="left:'+x+'%">'+finger+'</span>';}
+  if(sys===systemCount-1)html+='<span class="repeat">'+e.repeat+'x</span>';
+  html+='</div></div>';
+ }
+ html+='</div>';tab.innerHTML=html;index=0;progress.style.width='0';
 }
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
 function playNote(string,fret){
