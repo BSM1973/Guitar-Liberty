@@ -128,3 +128,18 @@ document.querySelector('#play').onclick=async()=>{if(playing){stop();return}
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
  playing=true;document.querySelector('#play').textContent='■ STOP';tick();timer=setInterval(tick,60000/+tempo.value/2)};
 render();
+
+const importButton=document.querySelector('#importScore');
+const importStatus=document.querySelector('#importStatus');
+if(importButton) importButton.onclick=async()=>{
+ const file=await window.guitarAudio.importScore();
+ if(!file)return;
+ const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
+ if(!supported.includes(file.ext)){
+  importStatus.textContent='Guitar Pro : export MusicXML requis';
+  alert('Pour importer cette tablature Guitar Pro dans Guitar Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
+  return;
+ }
+ importStatus.textContent=file.name+' chargé';
+ window.pendingImportedScore=file;
+};
