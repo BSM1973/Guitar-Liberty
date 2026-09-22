@@ -44,31 +44,25 @@ function render(){
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
 function playNote(string,fret){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
- const now=audio.currentTime;
  loadGuitarSample(string).then(buffer=>{
-   if(buffer){
-     const source=audio.createBufferSource();
-     const gain=audio.createGain();
-     const tone=audio.createBiquadFilter();
-     source.buffer=buffer;
-     source.playbackRate.value=2**(fret/12);
-     tone.type='lowpass'; tone.frequency.value=6500; tone.Q.value=.2;
-     gain.gain.setValueAtTime(.9,now);
-     gain.gain.exponentialRampToValueAtTime(.001,now+2.6);
-     source.connect(tone).connect(gain).connect(audio.destination);
-     source.start();
+   if(!buffer){
+     console.error('No playable guitar sample for string',string+1);
      return;
    }
-   // Fallback until the six real-guitar WAV samples are installed.
-   const freq=440*2**((tuning[string]+fret-69)/12);
-   const duration=1.8,sampleRate=audio.sampleRate;
-   const burst=audio.createBuffer(1,Math.max(2,Math.floor(sampleRate/freq)),sampleRate);
-   const data=burst.getChannelData(0);
-   for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*(1-i/data.length*.35);
-   const source=audio.createBufferSource(),delay=audio.createDelay(1),feedback=audio.createGain(),damp=audio.createBiquadFilter(),gain=audio.createGain();
-   source.buffer=burst;source.loop=true;delay.delayTime.value=1/freq;feedback.gain.value=.985;damp.type='lowpass';damp.frequency.value=3500;
-   gain.gain.setValueAtTime(.18,now);gain.gain.exponentialRampToValueAtTime(.001,now+duration);
-   source.connect(delay);delay.connect(damp);damp.connect(feedback);feedback.connect(delay);damp.connect(gain).connect(audio.destination);source.start(now);source.stop(now+.045);
+   const now=audio.currentTime;
+   const source=audio.createBufferSource();
+   const gain=audio.createGain();
+   const tone=audio.createBiquadFilter();
+   source.buffer=buffer;
+   source.playbackRate.value=2**(fret/12);
+   tone.type='lowpass'; tone.frequency.value=8000; tone.Q.value=.15;
+   gain.gain.setValueAtTime(.0001,now);
+   gain.gain.linearRampToValueAtTime(.32,now+.008);
+   gain.gain.setValueAtTime(.32,now+.18);
+   gain.gain.exponentialRampToValueAtTime(.001,now+Math.min(2.2,buffer.duration/source.playbackRate.value));
+   source.connect(tone).connect(gain).connect(audio.destination);
+   source.start(now);
+   source.stop(now+Math.min(2.25,buffer.duration/source.playbackRate.value));
  });
 }
 function stop(){playing=false;clearInterval(timer);document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
