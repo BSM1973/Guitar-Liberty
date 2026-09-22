@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('guitarAudio', {
-  loadSample: (fileName) => ipcRenderer.invoke('load-guitar-sample', fileName)
+  loadSample: (fileName) => ipcRenderer.invoke('load-guitar-sample', fileName),
+  importScore: () => ipcRenderer.invoke('import-score')
 });
