@@ -2,13 +2,13 @@
 <html lang="fr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guitar Liberty</title><link rel="stylesheet" href="style.css"></head>
 <body>
-<header><div><h1>Guitar <span>Liberty</span></h1><p>TRAIN • PLAY • PROGRESS</p></div><div class="badge">v0.3</div></header>
+<header><div><h1>Guitar <span>Liberty</span></h1><p>TRAIN • PLAY • PROGRESS</p></div><div class="badge">v0.4 TAB</div></header>
 <main>
-<aside><h2>EXERCICES</h2><button class="exercise active" data-ex="chromatic">Chromatique 1-2-3-4<small>Technique • Débutant</small></button><button class="exercise" data-ex="pentatonic">Pentatonique Am<small>Gammes • Débutant</small></button></aside>
+<aside><h2>EXERCICES</h2><button class="exercise active" data-ex="chromatic">Chromatique 1-2-3-4<small>Technique • Débutant</small></button><button class="exercise" data-ex="pentatonic">Pentatonique Am — Position 2<small>Gammes • Débutant</small></button></aside>
 <section>
-<div class="toolbar"><button id="play">▶ PLAY</button><label>Tempo <input id="tempo" type="range" min="50" max="180" value="90"><b id="bpm">90 BPM</b></label></div>
-<h2 id="title">Chromatique 1-2-3-4</h2><p class="hint">Travaille lentement, au métronome, puis augmente progressivement le tempo.</p>
-<div id="tab" class="tab"></div>
+<div class="toolbar"><button id="play">▶ PLAY</button><label>Tempo <input id="tempo" type="range" min="40" max="180" value="90"><b id="bpm">90 BPM</b></label></div>
+<div class="score-head"><div><h2 id="title"></h2><p id="subtitle"></p></div><div class="score-meta"><span>Standard tuning</span><strong id="scoreTempo">♩ = 90</strong></div></div>
+<div class="paper"><div class="exercise-label">Ex.1</div><div id="tab" class="tab-score"></div></div>
 <div class="transport"><div id="progress"></div></div>
 </section>
 </main>
