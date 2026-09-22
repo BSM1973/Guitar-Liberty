@@ -12,13 +12,14 @@ const exercises={
 let current='chromatic',playing=false,timer=null,audio,index=0;
 const sampleCache=new Map();
 const SAMPLE_ROOT='../assets/guitar/clean';
+const GUITAR_SAMPLES=['E aigue0.aiff','B0.aiff','G0.aiff','D0.aiff','A0.aiff','E0.aiff'];
 const openMidi=[64,59,55,50,45,40];
 
 async function loadGuitarSample(string){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
  if(sampleCache.has(string)) return sampleCache.get(string);
  try{
-   const response=await fetch(`${SAMPLE_ROOT}/string-${string+1}.wav`);
+   const response=await fetch(`${SAMPLE_ROOT}/${encodeURIComponent(GUITAR_SAMPLES[string])}`);
    if(!response.ok) throw new Error('sample missing');
    const buffer=await audio.decodeAudioData(await response.arrayBuffer());
    sampleCache.set(string,buffer);
