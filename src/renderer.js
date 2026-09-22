@@ -15,16 +15,50 @@ const SAMPLE_ROOT='../assets/guitar/clean';
 const GUITAR_SAMPLES=['E aigue0.aiff','B0.aiff','G0.aiff','D0.aiff','A0.aiff','E0.aiff'];
 const openMidi=[64,59,55,50,45,40];
 
+function readAiff80(bytes,offset){
+ const expon=((bytes[offset]&0x7f)<<8)|bytes[offset+1];
+ let hi=0,lo=0;
+ for(let i=0;i<4;i++) hi=hi*256+bytes[offset+2+i];
+ for(let i=0;i<4;i++) lo=lo*256+bytes[offset+6+i];
+ if(expon===0&&hi===0&&lo===0) return 0;
+ const sign=(bytes[offset]&0x80)?-1:1;
+ return sign*Math.pow(2,expon-16383)*(hi/Math.pow(2,31)+lo/Math.pow(2,63));
+}
+function decodeAiffPcm(raw){
+ const bytes=raw instanceof Uint8Array?raw:new Uint8Array(raw);
+ const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+ const text=(o,n)=>String.fromCharCode(...bytes.subarray(o,o+n));
+ if(text(0,4)!=='FORM'||text(8,4)!=='AIFF') throw new Error('Not an uncompressed AIFF file');
+ let p=12,channels=0,frames=0,bits=0,sampleRate=0,soundOffset=-1,soundSize=0;
+ while(p+8<=bytes.length){
+   const id=text(p,4),size=view.getUint32(p+4,false),data=p+8;
+   if(id==='COMM'){
+     channels=view.getUint16(data,false); frames=view.getUint32(data+2,false);
+     bits=view.getUint16(data+6,false); sampleRate=Math.round(readAiff80(bytes,data+8));
+   }else if(id==='SSND'){
+     const offset=view.getUint32(data,false); soundOffset=data+8+offset; soundSize=size-8-offset;
+   }
+   p=data+size+(size&1);
+ }
+ if(!channels||!frames||bits!==16||!sampleRate||soundOffset<0) throw new Error(`Unsupported AIFF: ${channels}ch ${bits}bit ${sampleRate}Hz`);
+ const available=Math.floor(soundSize/(channels*2)),count=Math.min(frames,available);
+ const buffer=audio.createBuffer(channels,count,sampleRate);
+ for(let ch=0;ch<channels;ch++){
+   const out=buffer.getChannelData(ch);
+   for(let i=0;i<count;i++) out[i]=view.getInt16(soundOffset+(i*channels+ch)*2,false)/32768;
+ }
+ return buffer;
+}
 async function loadGuitarSample(string){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
  if(sampleCache.has(string)) return sampleCache.get(string);
  try{
    if(!window.guitarAudio) throw new Error('Electron audio bridge unavailable');
-   const bytes=await window.guitarAudio.loadSample(GUITAR_SAMPLES[string]);
-   const arrayBuffer=bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
-   const buffer=await audio.decodeAudioData(arrayBuffer.slice(0));
+   const raw=await window.guitarAudio.loadSample(GUITAR_SAMPLES[string]);
+   const bytes=raw instanceof Uint8Array?raw:new Uint8Array(raw);
+   const buffer=decodeAiffPcm(bytes);
    sampleCache.set(string,buffer);
-   console.log('Loaded real guitar sample:',GUITAR_SAMPLES[string],buffer.duration.toFixed(2)+'s');
+   console.log('Loaded real AIFF guitar sample:',GUITAR_SAMPLES[string],buffer.duration.toFixed(2)+'s');
    return buffer;
  }catch(e){
    console.error('Guitar sample load failed:',GUITAR_SAMPLES[string],e);
