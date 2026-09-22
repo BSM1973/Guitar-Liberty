@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,timer=null,audio,index=0;
+let current='chromatic',playing=false,timer=null,audio,index=0;\nconst guitarVoices=new Map();
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 function render(){
  const e=exercises[current];document.querySelector('#title').textContent=e.title;document.querySelector('#subtitle').textContent=e.subtitle;
@@ -24,8 +24,52 @@ function render(){
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
 function playNote(string,fret){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
- const o=audio.createOscillator(),g=audio.createGain(),f=440*2**((tuning[string]+fret-69)/12);
- o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(.10,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.42);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.43);
+ const now=audio.currentTime;
+ const freq=440*2**((tuning[string]+fret-69)/12);
+
+ // Karplus-Strong plucked-string synthesis: a short filtered noise burst
+ // excites a resonant delay line, producing a much more guitar-like attack/decay
+ // than the previous triangle oscillator.
+ const duration=1.8;
+ const sampleRate=audio.sampleRate;
+ const burst=audio.createBuffer(1,Math.max(2,Math.floor(sampleRate/freq)),sampleRate);
+ const data=burst.getChannelData(0);
+ for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*(1-i/data.length*.35);
+
+ const source=audio.createBufferSource();
+ source.buffer=burst;
+ source.loop=true;
+
+ const delay=audio.createDelay(1);
+ delay.delayTime.value=1/freq;
+
+ const feedback=audio.createGain();
+ feedback.gain.value=.985-(string*.003);
+
+ const damp=audio.createBiquadFilter();
+ damp.type='lowpass';
+ damp.frequency.value=3600-string*180;
+ damp.Q.value=.3;
+
+ const body=audio.createBiquadFilter();
+ body.type='peaking';
+ body.frequency.value=180;
+ body.Q.value=.8;
+ body.gain.value=3;
+
+ const gain=audio.createGain();
+ gain.gain.setValueAtTime(.22,now);
+ gain.gain.exponentialRampToValueAtTime(.001,now+duration);
+
+ source.connect(delay);
+ delay.connect(damp);
+ damp.connect(feedback);
+ feedback.connect(delay);
+ damp.connect(body);
+ body.connect(gain).connect(audio.destination);
+
+ source.start(now);
+ source.stop(now+.045);
 }
 function stop(){playing=false;clearInterval(timer);document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
 function tick(){const e=exercises[current];document.querySelectorAll('.note').forEach(n=>n.classList.toggle('active',+n.dataset.i===index));const [s,f]=e.notes[index];playNote(s,f);progress.style.width=((index+1)/e.notes.length*100)+'%';index++;if(index>=e.notes.length){index=0}}
