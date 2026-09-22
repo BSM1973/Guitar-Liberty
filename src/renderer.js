@@ -19,11 +19,12 @@ async function loadGuitarSample(string){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
  if(sampleCache.has(string)) return sampleCache.get(string);
  try{
-   const sampleUrl=new URL(`${SAMPLE_ROOT}/${GUITAR_SAMPLES[string]}`,window.location.href);
-   const response=await fetch(sampleUrl.href);
-   if(!response.ok) throw new Error('sample missing');
-   const buffer=await audio.decodeAudioData(await response.arrayBuffer());
+   if(!window.guitarAudio) throw new Error('Electron audio bridge unavailable');
+   const bytes=await window.guitarAudio.loadSample(GUITAR_SAMPLES[string]);
+   const arrayBuffer=bytes instanceof ArrayBuffer ? bytes : new Uint8Array(bytes).buffer;
+   const buffer=await audio.decodeAudioData(arrayBuffer.slice(0));
    sampleCache.set(string,buffer);
+   console.log('Loaded real guitar sample:',GUITAR_SAMPLES[string],buffer.duration.toFixed(2)+'s');
    return buffer;
  }catch(e){
    console.error('Guitar sample load failed:',GUITAR_SAMPLES[string],e);
