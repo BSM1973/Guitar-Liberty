@@ -1,0 +1,16 @@
+{
+  "name": "guitar-liberty",
+  "version": "0.3.0",
+  "description": "Guitar Liberty - desktop guitar training application",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack:mac": "electron-packager . \"Guitar Liberty\" --platform=darwin --arch=arm64 --out=release --overwrite",
+    "pack:win": "electron-packager . \"Guitar Liberty\" --platform=win32 --arch=x64 --out=release --overwrite"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}
