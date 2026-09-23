@@ -5,3 +5,11 @@
 .repeat-mark{position:absolute;top:20px;height:112px;z-index:8;display:flex;align-items:center;font:700 30px Georgia,serif}
 .repeat-mark b{display:block;width:5px;height:112px;background:#111}.repeat-mark i{font-style:normal;letter-spacing:-4px;margin:0 3px}
 .repeat-start-mark{transform:translateX(-2px)}.repeat-end-mark{transform:translateX(-100%)}
+
+/* MusicXML notation: keep barlines on the exact six-string staff bounds. */
+.system .strings{position:relative}
+.system .measure-line{top:0!important;height:110px!important;bottom:auto!important}
+.rhythm-glyph{position:absolute;top:-38px;transform:translateX(-50%);font-family:"Bravura","Noto Music","Times New Roman",serif;font-size:27px;line-height:1;z-index:7;background:#f7f7f5;padding:0 2px}
+.measure-rest{transform:translateX(-50%);font-family:"Bravura","Noto Music","Times New Roman",serif;background:#f7f7f5!important;padding:0 4px!important}
+.measure-rest.whole-rest{top:40px!important;font-size:30px!important}
+.measure-rest.timed-rest{top:35px!important;font-size:28px!important}
