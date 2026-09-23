@@ -211,7 +211,7 @@ async function loadWithAlphaTab(file){
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
-  display:{layoutMode:'page',barsPerRow:4},
+  display:{layoutMode:'page',barsPerRow:4,resources:{effectFontSize:12}} ,
   notation:{notationMode:'guitarpro',elements:{'ScoreLeftHandFingering':true}}
  });
  window.guitarLibertyAlphaTab=api;
