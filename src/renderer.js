@@ -356,7 +356,7 @@ async function loadWithAlphaTab(file){
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
  tab.innerHTML='';
- const rawBytes=await window.guitarAudio.readScore(file.filePath);
+ const rawBytes=file.bytes||await window.guitarAudio.readScore(file.filePath);
  const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
  const api=new window.alphaTab.AlphaTabApi(tab,{
@@ -420,6 +420,17 @@ async function loadWithAlphaTab(file){
  if(!accepted)throw new Error('alphaTab a refusé les données du fichier.');
  setTimeout(()=>{if(!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
 }
+async function loadBundledScore(button){
+ const url=button.dataset.score;if(!url)return;
+ try{
+  stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
+  importStatus.textContent='Chargement de '+button.textContent.trim()+'…';
+  const response=await fetch(url);if(!response.ok)throw new Error('fichier intégré introuvable');
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
+ }catch(err){console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
+}
+document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>loadBundledScore(b));
 if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
