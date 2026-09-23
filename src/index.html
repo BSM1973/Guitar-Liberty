@@ -15,7 +15,7 @@
  <label>Répétitions <input id="loopRepeats" type="number" min="1" max="99" value="4"></label>
  <label>Auto BPM <select id="autoBpm"><option value="0">OFF</option><option value="1">+1</option><option value="2">+2</option><option value="5">+5</option></select></label>
  <label>Compte <select id="countIn"><option value="0">OFF</option><option value="1">1 mesure</option><option value="2">2 mesures</option></select></label>
- <span id="practiceStatus">Prêt</span>
+ <div class="practice-feedback"><span id="practiceStatus">Prêt</span><div class="practice-progress"><i id="practiceProgress"></i></div></div>
 </div>
 <div class="score-head"><div><h2 id="title"></h2><p id="subtitle"></p></div><div class="score-meta"><span>Standard tuning</span><strong id="scoreTempo">♩ = 90</strong></div></div>
 <div class="paper"><div class="exercise-label">Ex.1</div><div id="tab" class="tab-score"></div></div>
