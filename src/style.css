@@ -13,3 +13,7 @@
 .measure-rest{transform:translateX(-50%);font-family:"Bravura","Noto Music","Times New Roman",serif;background:#f7f7f5!important;padding:0 4px!important}
 .measure-rest.whole-rest{top:40px!important;font-size:30px!important}
 .measure-rest.timed-rest{top:35px!important;font-size:28px!important}
+
+/* Guitar Liberty overlay: left-hand fingering below imported Guitar Pro notes. */
+.alphatab-score{position:relative}
+.gl-left-finger{position:absolute;transform:translate(-50%,0);font:700 13px Arial,sans-serif;line-height:1;color:#111;background:#f7f7f5;padding:1px 2px;border-radius:2px;white-space:nowrap}
