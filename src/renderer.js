@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingSyncSeconds=0,backingStartTimer=null;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -311,15 +311,20 @@ document.querySelector('#play').onclick=async()=>{
        const bpm=Math.max(1,+tempo.value||50);
        const rate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=rate;
-       // Calibrated from the actual backing file: musical bar 1 starts at ~3.37 s.
-       // Seek past the recorded count-in, then start score + backing together.
-       // This avoids timer drift and makes both transports share the same musical zero.
+       // Musical pickup model:
+       // backing starts from its real beginning on beat 3.5 of an imaginary previous 4/4 bar;
+       // TAB bar 1 starts 1.5 quarter-note beats later.
        const sourceRate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=sourceRate;
-       backingAudio.currentTime=currentBackingSyncSeconds;
+       backingAudio.currentTime=0;
        const backingPromise=backingAudio.play();
-       api.play();
        if(backingPromise?.catch)backingPromise.catch(console.error);
+       clearTimeout(backingStartTimer);
+       const tabDelayMs=currentBackingLeadBeats*(60000/bpm);
+       backingStartTimer=setTimeout(()=>{
+         backingStartTimer=null;
+         api.play();
+       },tabDelayMs);
      }else api.play();
    });
    return;
@@ -466,7 +471,7 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
- currentBackingSyncSeconds=Math.max(0,+button.dataset.backingSyncSeconds||0);
+ currentBackingLeadBeats=Math.max(0,+button.dataset.backingLeadBeats||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
