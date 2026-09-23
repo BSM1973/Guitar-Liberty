@@ -17,3 +17,11 @@
 /* Guitar Liberty overlay: left-hand fingering below imported Guitar Pro notes. */
 .alphatab-score{position:relative}
 .gl-left-finger{position:absolute;transform:translate(-50%,0);font:700 13px Arial,sans-serif;line-height:1;color:#111;background:#f7f7f5;padding:1px 2px;border-radius:2px;white-space:nowrap}
+
+.practice-panel{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:-8px 0 22px;padding:12px 14px;background:#151922;border:1px solid #292f3a;border-radius:9px;font-size:12px}
+.practice-panel>strong{color:#e9b44c;letter-spacing:1.5px;margin-right:4px}
+.practice-panel label{display:flex;align-items:center;gap:6px;color:#aeb5c0}
+.practice-panel input,.practice-panel select{margin:0;background:#0e1117;color:#eef1f5;border:1px solid #353c49;border-radius:5px;padding:6px;width:64px}
+.practice-panel select{width:auto}.practice-panel button{background:#242a34;color:#eef1f5;border:1px solid #3b4350;border-radius:6px;padding:7px 10px;font-weight:700}
+.practice-panel button.active{border-color:#e9b44c;color:#e9b44c;background:#211d14}
+#practiceStatus{margin-left:auto;color:#8e97a5}
