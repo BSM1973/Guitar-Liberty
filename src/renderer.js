@@ -145,7 +145,7 @@ function countInThenPlay(api){
 loopToggle.onclick=()=>{
  practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
- practiceStatus.textContent=practiceLoop?'Boucle active':'Boucle désactivée';
+ practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
 };
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)});
 
@@ -314,7 +314,7 @@ async function loadWithAlphaTab(file){
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
- api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1)practiceStatus.textContent=practiceLoop?'Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
   updatePlayCursor(api,tick);
@@ -333,7 +333,7 @@ async function loadWithAlphaTab(file){
      api.playbackSpeed=Math.max(.25,Math.min(3,next/original));
      practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
     }else practiceStatus.textContent='Série terminée';
-   }else practiceStatus.textContent='Répétition '+(practiceIteration+1)+'/'+max;
+   }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
   }
   lastLoopTick=tick;
  });
