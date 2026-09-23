@@ -84,8 +84,9 @@ async function loadGuitarSample(string){
  }
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
-const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus');
+const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
+function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
 function practiceBars(){return practiceScore?.masterBars||[]}
 function syncPracticeRange(){
  const n=practiceBars().length||1;
@@ -143,10 +144,11 @@ function countInThenPlay(api){
  practiceTimer=setInterval(()=>{beat++;if(beat>=total){clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';api.play();return}practiceStatus.textContent='Compte : '+(total-beat);metronomeClick(beat%beats===0)},beatMs);
 }
 loopToggle.onclick=()=>{
- practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
+ practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
 };
+loopRepeats.onchange=()=>updatePracticeProgress(0);
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)});
 
 function render(){
@@ -321,9 +323,10 @@ async function loadWithAlphaTab(file){
   if(!practiceLoop)return;
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
-   practiceIteration++;
+   practiceIteration++;updatePracticeProgress(practiceIteration);
    const max=Math.max(1,+loopRepeats.value||1);
    if(practiceIteration>=max){
+    updatePracticeProgress(max);
     practiceIteration=0;
     const inc=+autoBpm.value||0;
     if(inc){
