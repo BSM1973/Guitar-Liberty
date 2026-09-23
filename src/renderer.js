@@ -84,12 +84,22 @@ async function loadGuitarSample(string){
  }
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
-const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory'),historyRecord=document.querySelector('#historyRecord'),historySessions=document.querySelector('#historySessions'),historyTime=document.querySelector('#historyTime'),historyStreak=document.querySelector('#historyStreak');
+const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory'),historyRecord=document.querySelector('#historyRecord'),historySessions=document.querySelector('#historySessions'),historyTime=document.querySelector('#historyTime'),historyStreak=document.querySelector('#historyStreak'),bpmChart=document.querySelector('#bpmChart'),exerciseProgressTitle=document.querySelector('#exerciseProgressTitle'),exerciseProgressStats=document.querySelector('#exerciseProgressStats');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
-let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null;
+let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
 function readHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return []}}
 function writeHistory(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,50)))}
+function renderExerciseProgress(items=readHistory()){
+ const own=items.filter(x=>x.exercise===currentPracticeTitle).slice().reverse(),ctx=bpmChart.getContext('2d'),w=bpmChart.width,h=bpmChart.height;
+ ctx.clearRect(0,0,w,h);exerciseProgressTitle.textContent=currentPracticeTitle;
+ if(!own.length){exerciseProgressStats.textContent='Aucune donnée pour cette tablature.';return}
+ const vals=own.map(x=>+x.best||0),min=Math.max(0,Math.min(...vals)-10),max=Math.max(min+10,Math.max(...vals)+10),pad=24;
+ ctx.strokeStyle='#303743';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,8);ctx.lineTo(pad,h-pad);ctx.lineTo(w-8,h-pad);ctx.stroke();
+ ctx.strokeStyle='#e9b44c';ctx.lineWidth=2;ctx.beginPath();
+ vals.forEach((v,i)=>{const x=pad+(w-pad-12)*(vals.length===1?.5:i/(vals.length-1)),y=8+(h-pad-12)*(1-(v-min)/(max-min));i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+ ctx.stroke();exerciseProgressStats.textContent=own.length+' session'+(own.length>1?'s':'')+' • départ '+own[0].start+' BPM • record '+Math.max(...vals)+' BPM';
+}
 function renderHistory(){
  const items=readHistory();historyCount.textContent=items.length+' session'+(items.length>1?'s':'');historySessions.textContent=items.length;
  const totalSec=items.reduce((sum,x)=>{const p=String(x.duration||'0:0').split(':').map(Number);return sum+(p[0]||0)*60+(p[1]||0)},0);
@@ -98,13 +108,13 @@ function renderHistory(){
  const days=[...new Set(items.map(x=>{const m=String(x.date||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?m[3]+'-'+m[2]+'-'+m[1]:null}).filter(Boolean))].sort().reverse();
  let streak=0;if(days.length){let d=new Date(days[0]+'T12:00:00');const today=new Date();today.setHours(12,0,0,0);const gap=Math.round((today-d)/86400000);if(gap<=1){streak=1;for(let i=1;i<days.length;i++){const prev=new Date(days[i-1]+'T12:00:00'),cur=new Date(days[i]+'T12:00:00');if(Math.round((prev-cur)/86400000)===1)streak++;else break}}}
  historyStreak.textContent=streak+' jour'+(streak>1?'s':'');
- if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
+ renderExerciseProgress(items);if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
  historyList.innerHTML=items.map(x=>'<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+x.series+' séries</span><span>'+x.reps+' répétitions</span><span>'+x.start+' → '+x.best+' BPM</span><strong>+'+x.gain+' BPM</strong></div>').join('');
 }
 function saveCurrentSession(){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
  const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
- items.unshift({date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
+ items.unshift({exercise:currentPracticeTitle,date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
  writeHistory(items);renderHistory();
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
@@ -381,7 +391,7 @@ async function loadWithAlphaTab(file){
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
-  document.querySelector('#title').textContent=score.title||file.name.replace(/\.[^.]+$/,'');
+  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderExerciseProgress();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
  });
