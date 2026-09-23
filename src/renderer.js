@@ -10,6 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -302,9 +303,11 @@ document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
-   if(api.playerState===1){api.pause();document.querySelector('#play').textContent='▶ PLAY';return;}
+   if(api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
-   setAlphaTempo(api); if(practiceLoop)setPracticeRange(api); countInThenPlay(api);
+   setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
+   if(backingAudio&&backingEnabled){backingAudio.currentTime=0;backingAudio.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));backingAudio.play().catch(console.error);}
+   countInThenPlay(api);
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
@@ -315,6 +318,31 @@ document.querySelector('#play').onclick=async()=>{
 };
 render();
 
+const backingToggle=document.querySelector('#backingToggle');
+const backingVolume=document.querySelector('#backingVolume');
+const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
+function stopBacking(reset=true){
+ if(!backingAudio)return;
+ backingAudio.pause();if(reset)backingAudio.currentTime=0;
+}
+function setBackingTrack(url){
+ stopBacking();currentBackingUrl=url||null;
+ backingAudio=url?new Audio(encodeURI(url)):null;
+ if(backingAudio){backingAudio.preload='auto';backingAudio.volume=(+backingVolume.value||0)/100;}
+ backingToggle.disabled=!url;
+ backingToggle.textContent=backingEnabled?'♫ BACKING ON':'♫ BACKING OFF';
+ backingToggle.classList.toggle('active',backingEnabled&&!!url);
+}
+if(backingToggle)backingToggle.onclick=()=>{
+ backingEnabled=!backingEnabled;
+ backingToggle.textContent=backingEnabled?'♫ BACKING ON':'♫ BACKING OFF';
+ backingToggle.classList.toggle('active',backingEnabled&&!!currentBackingUrl);
+ if(!backingEnabled)stopBacking(false);
+};
+if(backingVolume)backingVolume.oninput=()=>{
+ backingVolumeLabel.textContent=backingVolume.value+'%';
+ if(backingAudio)backingAudio.volume=+backingVolume.value/100;
+};
 const importButton=document.querySelector('#importScore');
 const importStatus=document.querySelector('#importStatus');
 function drawLeftHandFingerings(api){
@@ -422,6 +450,8 @@ async function loadWithAlphaTab(file){
 }
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ setBackingTrack(button.dataset.backing||null);
+ if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
   importStatus.textContent='Chargement de '+button.textContent.trim()+'…';
