@@ -84,8 +84,13 @@ async function loadGuitarSample(string){
  }
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
-const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress');
+const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),resetSession=document.querySelector('#resetSession');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
+let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionClock=null;
+function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}}
+function startSession(){if(sessionStarted)return;sessionStarted=Date.now();sessionBest=+tempo.value||0;paintSession();sessionClock=setInterval(paintSession,1000)}
+function resetTrainingSession(){sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession()}
+resetSession.onclick=resetTrainingSession;
 function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
 function practiceBars(){return practiceScore?.masterBars||[]}
 function syncPracticeRange(){
@@ -317,17 +322,18 @@ async function loadWithAlphaTab(file){
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
- api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
   updatePlayCursor(api,tick);
   if(!practiceLoop)return;
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
-   practiceIteration++;updatePracticeProgress(practiceIteration);
+   practiceIteration++;sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
    const max=Math.max(1,+loopRepeats.value||1);
    if(practiceIteration>=max){
     updatePracticeProgress(max);
+    sessionSeriesCount++;paintSession();
     practiceIteration=0;
     const inc=+autoBpm.value||0;
     if(inc){
