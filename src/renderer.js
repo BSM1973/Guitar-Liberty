@@ -125,14 +125,29 @@ function playNote(string,fret){
    source.start(now); source.stop(now+natural+.02);
  });
 }
-function stop(){playing=false;clearInterval(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
-function tick(){const e=exercises[current];document.querySelectorAll('.note').forEach(n=>n.classList.toggle('active',+n.dataset.i===index));const [s,f]=e.notes[index];playNote(s,f);progress.style.width=((index+1)/e.notes.length*100)+'%';index++;if(index>=e.notes.length){index=0}}
+function stop(){playing=false;clearTimeout(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
+function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&v[3])||.5;return 60000/+tempo.value*beats}\nfunction scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}\nfunction tick(){
+ const e=exercises[current];
+ const notes=document.querySelectorAll('.note');
+ notes.forEach(n=>n.classList.toggle('active',+n.dataset.i===index));
+ const active=document.querySelector('.note.active');
+ if(active){
+  const paper=document.querySelector('.paper'),system=active.closest('.system');
+  if(paper&&system){
+   const target=Math.max(0,system.offsetTop-paper.clientHeight*.18);
+   if(Math.abs(paper.scrollTop-target)>12) paper.scrollTo({top:target,behavior:'smooth'});
+  }
+ }
+ const [s,f]=e.notes[index];playNote(s,f);
+ progress.style.width=((index+1)/e.notes.length*100)+'%';
+ index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
+}
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
-tempo.oninput=()=>{syncTempo();if(playing){clearInterval(timer);timer=setInterval(tick,60000/+tempo.value/2)}};
+tempo.oninput=()=>{syncTempo();if(playing){clearInterval(timer);scheduleNext()}};
 document.querySelector('#play').onclick=async()=>{if(playing){stop();return}
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
- playing=true;document.querySelector('#play').textContent='■ STOP';tick();timer=setInterval(tick,60000/+tempo.value/2)};
+ playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()};
 render();
 
 const importButton=document.querySelector('#importScore');
@@ -163,8 +178,7 @@ if(importButton) importButton.onclick=async()=>{
   let importedTempo=90;
   const soundTempo=doc.querySelector('sound[tempo]');
   if(soundTempo) importedTempo=Math.round(+soundTempo.getAttribute('tempo'))||90;
-  part.querySelectorAll('measure').forEach(measure=>{
-   measure.querySelectorAll(':scope > note').forEach(note=>{
+  part.querySelectorAll('measure').forEach(measure=>{\n   const divisions=+(measure.querySelector(':scope > attributes > divisions')?.textContent||1);\n   measure.querySelectorAll(':scope > note').forEach(note=>{
     if(note.querySelector('rest')) return;
     const pitch=note.querySelector('pitch');
     if(!pitch) return;
@@ -184,8 +198,7 @@ if(importButton) importButton.onclick=async()=>{
      }
     }
     if(s<0||fret<0)return;
-    const finger=+(tech?.querySelector('fingering')?.textContent||0);
-    imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4))]);
+    const finger=+(tech?.querySelector('fingering')?.textContent||0);\n    const duration=+(note.querySelector(':scope > duration')?.textContent||divisions);\n    const beats=Math.max(.125,duration/divisions);\n    imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4)),beats]);
    });
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
