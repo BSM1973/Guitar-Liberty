@@ -85,26 +85,47 @@ async function loadGuitarSample(string){
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus');
-let practiceLoop=false,practiceIteration=0,practiceScore=null;
+let practiceLoop=false,practiceScore=null,practiceTimer=null;
+function practiceBars(){return practiceScore?.masterBars||[]}
 function syncPracticeRange(){
- const n=practiceScore?.masterBars?.length||practiceScore?.bars?.length||1;
+ const n=practiceBars().length||1;
  loopStart.max=loopEnd.max=n;
  loopStart.value=Math.min(Math.max(1,+loopStart.value||1),n);
  loopEnd.value=Math.min(Math.max(+loopStart.value,+loopEnd.value||Math.min(4,n)),n);
 }
-function applyPracticeLoop(api){
- if(!api||!practiceScore)return;
- syncPracticeRange();
- const bars=practiceScore.masterBars||practiceScore.bars||[];
+function practiceTicks(){
+ const bars=practiceBars();syncPracticeRange();
  const a=bars[(+loopStart.value||1)-1],b=bars[(+loopEnd.value||1)-1];
- if(!a||!b)return;
- try{
-  const start=a.start||0,end=(b.start||0)+(b.calculateDuration?.()||b.duration||0);
-  if(api.playbackRange){api.playbackRange={startTick:start,endTick:end};}
- }catch(e){console.warn('Practice range',e)}
+ if(!a||!b)return null;
+ const start=a.start||0;
+ const next=bars[(+loopEnd.value||1)];
+ const end=next?.start ?? (b.start+(b.calculateDuration?.()||0));
+ return end>start?{start,end}:null;
 }
-loopToggle.onclick=()=>{practiceLoop=!practiceLoop;loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);practiceIteration=0;if(window.guitarLibertyAlphaTab)applyPracticeLoop(window.guitarLibertyAlphaTab)};
-[loopStart,loopEnd].forEach(el=>el.onchange=()=>{if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;if(window.guitarLibertyAlphaTab)applyPracticeLoop(window.guitarLibertyAlphaTab)});
+function setPracticeRange(api){
+ const range=practiceTicks(); if(!api||!range)return;
+ api.playbackRange={startTick:range.start,endTick:range.end};
+}
+function clearPracticeRange(api){if(api)api.playbackRange=null}
+function setAlphaTempo(api){
+ if(!api||!practiceScore)return;
+ const original=practiceScore.tempo||120;
+ api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
+}
+function countInThenPlay(api){
+ const bars=Math.max(0,+countIn.value||0);
+ if(!bars){api.play();return}
+ practiceStatus.textContent='Compte '+bars+' mesure'+(bars>1?'s':'')+'…';
+ const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4;
+ const ms=bars*beats*60000/+tempo.value;
+ clearTimeout(practiceTimer);practiceTimer=setTimeout(()=>api.play(),ms);
+}
+loopToggle.onclick=()=>{
+ practiceLoop=!practiceLoop;loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
+ const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
+ practiceStatus.textContent=practiceLoop?'Boucle active':'Boucle désactivée';
+};
+[loopStart,loopEnd].forEach(el=>el.onchange=()=>{if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)});
 
 function render(){
  const e=exercises[current];document.querySelector('#title').textContent=e.title;document.querySelector('#subtitle').textContent=e.subtitle;
@@ -201,14 +222,14 @@ function tick(){
  index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
-tempo.oninput=()=>{syncTempo();if(playing){clearTimeout(timer);scheduleNext()}};
+tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}};
 document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
    if(api.playerState===1){api.pause();document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
-   api.play();
+   setAlphaTempo(api); if(practiceLoop)setPracticeRange(api); countInThenPlay(api);
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
@@ -272,19 +293,12 @@ async function loadWithAlphaTab(file){
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
  api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';practiceStatus.textContent=e.state===1?'En cours':'Prêt';});
- api.playerFinished.on(()=>{
-  if(!practiceLoop)return;
-  practiceIteration++;
-  const max=Math.max(1,+loopRepeats.value||1);
-  if(practiceIteration>=max){practiceIteration=0;const inc=+autoBpm.value||0;if(inc){tempo.value=Math.min(+tempo.max,+tempo.value+inc);syncTempo();try{api.playbackSpeed=+tempo.value/(practiceScore.tempo||+tempo.value)}catch(e){}}practiceStatus.textContent='Série terminée';return;}
-  practiceStatus.textContent='Répétition '+(practiceIteration+1)+'/'+max;
-  applyPracticeLoop(api);setTimeout(()=>api.play(),150);
- });
+
  let completed=false;
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
-  practiceScore=score; syncPracticeRange(); applyPracticeLoop(api);
+  practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
   document.querySelector('#title').textContent=score.title||file.name.replace(/\.[^.]+$/,'');
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
