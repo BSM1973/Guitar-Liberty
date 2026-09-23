@@ -126,7 +126,9 @@ function playNote(string,fret){
  });
 }
 function stop(){playing=false;clearTimeout(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
-function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&v[3])||.5;return 60000/+tempo.value*beats}\nfunction scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}\nfunction tick(){
+function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&v[3])||.5;return 60000/+tempo.value*beats}
+function scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}
+function tick(){
  const e=exercises[current];
  const notes=document.querySelectorAll('.note');
  notes.forEach(n=>n.classList.toggle('active',+n.dataset.i===index));
@@ -143,7 +145,7 @@ function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&
  index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
-tempo.oninput=()=>{syncTempo();if(playing){clearInterval(timer);scheduleNext()}};
+tempo.oninput=()=>{syncTempo();if(playing){clearTimeout(timer);scheduleNext()}};
 document.querySelector('#play').onclick=async()=>{if(playing){stop();return}
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
@@ -178,7 +180,9 @@ if(importButton) importButton.onclick=async()=>{
   let importedTempo=90;
   const soundTempo=doc.querySelector('sound[tempo]');
   if(soundTempo) importedTempo=Math.round(+soundTempo.getAttribute('tempo'))||90;
-  part.querySelectorAll('measure').forEach(measure=>{\n   const divisions=+(measure.querySelector(':scope > attributes > divisions')?.textContent||1);\n   measure.querySelectorAll(':scope > note').forEach(note=>{
+  part.querySelectorAll('measure').forEach(measure=>{
+   const divisions=+(measure.querySelector(':scope > attributes > divisions')?.textContent||1);
+   measure.querySelectorAll(':scope > note').forEach(note=>{
     if(note.querySelector('rest')) return;
     const pitch=note.querySelector('pitch');
     if(!pitch) return;
@@ -198,7 +202,10 @@ if(importButton) importButton.onclick=async()=>{
      }
     }
     if(s<0||fret<0)return;
-    const finger=+(tech?.querySelector('fingering')?.textContent||0);\n    const duration=+(note.querySelector(':scope > duration')?.textContent||divisions);\n    const beats=Math.max(.125,duration/divisions);\n    imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4)),beats]);
+    const finger=+(tech?.querySelector('fingering')?.textContent||0);
+    const duration=+(note.querySelector(':scope > duration')?.textContent||divisions);
+    const beats=Math.max(.125,duration/divisions);
+    imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4)),beats]);
    });
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
