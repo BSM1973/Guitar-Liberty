@@ -84,12 +84,28 @@ async function loadGuitarSample(string){
  }
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
-const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession');
+const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
 let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null;
+const HISTORY_KEY='guitarLibertyPracticeHistory';
+function readHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return []}}
+function writeHistory(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,50)))}
+function renderHistory(){
+ const items=readHistory();historyCount.textContent=items.length+' session'+(items.length>1?'s':'');
+ if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
+ historyList.innerHTML=items.map(x=>'<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+x.series+' séries</span><span>'+x.reps+' répétitions</span><span>'+x.start+' → '+x.best+' BPM</span><strong>+'+x.gain+' BPM</strong></div>').join('');
+}
+function saveCurrentSession(){
+ if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
+ const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
+ items.unshift({date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
+ writeHistory(items);renderHistory();
+}
+clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
+renderHistory();
 function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}}
 function startSession(){if(sessionStarted)return;sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;paintSession();sessionClock=setInterval(paintSession,1000)}
-function resetTrainingSession(){sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession()}
+function resetTrainingSession(){saveCurrentSession();sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession()}
 resetSession.onclick=resetTrainingSession;
 function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
 function practiceBars(){return practiceScore?.masterBars||[]}
@@ -346,7 +362,7 @@ async function loadWithAlphaTab(file){
       api.isLooping=false;
       practiceLoop=false;
       loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
-      practiceStatus.textContent='Objectif atteint • '+next+' BPM';
+      practiceStatus.textContent='Objectif atteint • '+next+' BPM';saveCurrentSession();
      }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
     }else practiceStatus.textContent='Série terminée';
    }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
