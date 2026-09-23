@@ -199,6 +199,37 @@ render();
 
 const importButton=document.querySelector('#importScore');
 const importStatus=document.querySelector('#importStatus');
+function drawLeftHandFingerings(api){
+ tab.querySelectorAll('.gl-fingering-layer').forEach(e=>e.remove());
+ const lookup=api.boundsLookup||api.renderer?.boundsLookup;
+ if(!lookup?.staffSystems)return;
+ const layer=document.createElement('div');
+ layer.className='gl-fingering-layer';
+ layer.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:20;';
+ let count=0;
+ for(const system of lookup.staffSystems||[]){
+  for(const master of system.bars||[]){
+   for(const bar of master.bars||[]){
+    for(const beat of bar.beats||[]){
+     for(const nb of beat.notes||[]){
+      const note=nb.note, finger=note?.leftHandFinger;
+      if(finger==null||finger===-1||finger===0)continue;
+      const b=nb.noteHeadBounds;
+      if(!b)continue;
+      const el=document.createElement('span');
+      el.className='gl-left-finger';
+      el.textContent=String(finger);
+      el.style.left=(b.x+b.w/2)+'px';
+      el.style.top=(b.y+b.h+8)+'px';
+      layer.appendChild(el);count++;
+     }
+    }
+   }
+  }
+ }
+ if(count){tab.style.position='relative';tab.appendChild(layer);}
+}
+
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitar Liberty.');
  stop();
@@ -209,16 +240,16 @@ async function loadWithAlphaTab(file){
  const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
  const api=new window.alphaTab.AlphaTabApi(tab,{
-  core:{useWorkers:false,engine:'svg',enableLazyLoading:false,fontDirectory:'../assets/vendor/font/'},
+  core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
   display:{layoutMode:'page',barsPerRow:4,resources:{effectFontSize:12}} ,
-  notation:{notationMode:'guitarpro',fingeringMode:'SingleNoteEffectBand',elements:{effectFingering:true,effectText:true,effectMarker:true}}
+  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{effectFingering:false,effectText:true,effectMarker:true}}
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
  api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';});
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   document.querySelector('#title').textContent=score.title||file.name.replace(/\.[^.]+$/,'');
