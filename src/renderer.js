@@ -84,7 +84,7 @@ async function loadGuitarSample(string){
  }
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
-const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress');
+const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
 function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
 function practiceBars(){return practiceScore?.masterBars||[]}
@@ -148,6 +148,7 @@ loopToggle.onclick=()=>{
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
 };
+targetBpm.onchange=()=>{targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120))};
 loopRepeats.onchange=()=>updatePracticeProgress(0);
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)});
 
@@ -330,11 +331,17 @@ async function loadWithAlphaTab(file){
     practiceIteration=0;
     const inc=+autoBpm.value||0;
     if(inc){
-     const next=Math.min(+tempo.max,+tempo.value+inc);
+     const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
+     const next=Math.min(goal,+tempo.value+inc);
      tempo.value=next;syncTempo();
      const original=practiceScore?.tempo||120;
      api.playbackSpeed=Math.max(.25,Math.min(3,next/original));
-     practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
+     if(next>=goal){
+      api.isLooping=false;
+      practiceLoop=false;
+      loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+      practiceStatus.textContent='Objectif atteint • '+next+' BPM';
+     }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
     }else practiceStatus.textContent='Série terminée';
    }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
   }
