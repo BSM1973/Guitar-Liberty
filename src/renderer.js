@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingOffset=0,backingStartTimer=null;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingStartBeat=0,backingStartTimer=null;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -308,17 +308,16 @@ document.querySelector('#play').onclick=async()=>{
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
      if(backingAudio&&backingEnabled){
-       const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
+       const bpm=Math.max(1,+tempo.value||50);
+       const rate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=rate;
-       if(currentBackingOffset<0){
-         api.play();
-         backingStartTimer=setTimeout(()=>{
-           backingStartTimer=null;backingAudio.currentTime=0;backingAudio.play().catch(console.error);
-         },Math.abs(currentBackingOffset)/rate);
-       }else{
-         backingAudio.currentTime=0;backingAudio.play().catch(console.error);
-         backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentBackingOffset/rate);
-       }
+       api.play();
+       // Musical sync: 1 beat = quarter note. For this exercise the backing enters
+       // on beat 3.5 of the count-in bar (the "and" after beat 3).
+       const delayMs=currentBackingStartBeat*(60000/bpm);
+       backingStartTimer=setTimeout(()=>{
+         backingStartTimer=null;backingAudio.currentTime=0;backingAudio.play().catch(console.error);
+       },delayMs);
      }else api.play();
    });
    return;
@@ -465,7 +464,7 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
- currentBackingOffset=+button.dataset.backingOffset||0;
+ currentBackingStartBeat=Math.max(0,+button.dataset.backingStartBeat||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
