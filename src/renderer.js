@@ -87,13 +87,13 @@ const tab=document.querySelector('#tab'),progress=document.querySelector('#progr
 function render(){
  const e=exercises[current];document.querySelector('#title').textContent=e.title;document.querySelector('#subtitle').textContent=e.subtitle;
  tempo.value=e.tempo;syncTempo();
- const n=e.notes.length, notesPerMeasure=4, measures=Math.max(1,Math.ceil(n/notesPerMeasure)), measuresPerSystem=4, systemCount=Math.ceil(measures/measuresPerSystem);
+ const n=e.notes.length, notesPerMeasure=4, measures=e.measures?.length||Math.max(1,Math.ceil(n/notesPerMeasure)), measuresPerSystem=4, systemCount=Math.ceil(measures/measuresPerSystem);
  let html='<div class="score-systems">';
  for(let sys=0;sys<systemCount;sys++){
   const firstMeasure=sys*measuresPerSystem, measureCount=Math.min(measuresPerSystem,measures-firstMeasure), firstNote=firstMeasure*notesPerMeasure, lastNote=Math.min(n,(firstMeasure+measureCount)*notesPerMeasure);
   html+='<div class="system"><div class="tab-word">TAB</div><div class="time-signature">4<br>4</div><div class="strings">';
   for(let s=0;s<6;s++)html+='<div class="string" style="top:'+(s*22)+'px"></div>';
-  for(let m=0;m<=measureCount;m++){const x=m/measureCount*100;html+='<div class="measure-line" style="left:'+x+'%"></div>';if(m<measureCount)html+='<div class="measure-number" style="left:calc('+x+'% + 7px)">'+(firstMeasure+m+1)+'</div>';}
+  for(let m=0;m<=measureCount;m++){const x=m/measureCount*100;html+='<div class="measure-line" style="left:'+x+'%"></div>';if(m<measureCount){const md=e.measures?.[firstMeasure+m];html+='<div class="measure-number" style="left:calc('+x+'% + 7px)">'+(firstMeasure+m+1)+'</div>';if(md?.repeatStart)html+='<div class="repeat-bar repeat-start" style="left:'+x+'%">𝄆</div>';if(md?.text)html+='<div class="score-text" style="left:calc('+x+'% + 18px)">'+md.text+'</div>';if(md?.rest)html+='<div class="measure-rest" style="left:calc('+(x+50/measureCount)+'% - 8px)">𝄽</div>';if(md?.repeatEnd)html+='<div class="repeat-bar repeat-end" style="left:'+((m+1)/measureCount*100)+'%">𝄇</div>';}}
   for(let i=firstNote;i<lastNote;i++){const v=e.notes[i],s=v[0],fret=v[1],finger=v[2],local=i-firstNote,slots=measureCount*notesPerMeasure,x=(local+.5)/slots*100,y=s*22;html+='<span class="pick" style="left:'+x+'%">'+(i%2?'∨':'∧')+'</span><span class="note" data-i="'+i+'" style="left:'+x+'%;top:'+y+'px">'+fret+'</span><span class="finger" style="left:'+x+'%">'+finger+'</span>';}
   if(sys===systemCount-1)html+='<span class="repeat">'+e.repeat+'x</span>';
   html+='</div></div>';
@@ -178,13 +178,16 @@ if(importButton) importButton.onclick=async()=>{
   if(doc.querySelector('parsererror')) throw new Error('XML invalide');
   const part=doc.querySelector('part');
   if(!part) throw new Error('Aucune partie musicale trouvée');
-  const imported=[];
-  const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+  const imported=[];\n  const importedMeasures=[];\n  const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
   const open=[64,59,55,50,45,40];
   let importedTempo=90;
   const soundTempo=doc.querySelector('sound[tempo]');
   if(soundTempo) importedTempo=Math.round(+soundTempo.getAttribute('tempo'))||90;
-  part.querySelectorAll('measure').forEach(measure=>{
+  part.querySelectorAll('measure').forEach((measure,measureIndex)=>{
+   const measureMeta={repeatStart:false,repeatEnd:false,rest:true,text:''};
+   measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')measureMeta.repeatStart=true;if(rep.getAttribute('direction')==='backward')measureMeta.repeatEnd=true;});
+   const words=[...measure.querySelectorAll('direction-type words')].map(w=>w.textContent.trim()).filter(Boolean);
+   measureMeta.text=words.join(' • ');
    const divisions=+(measure.querySelector(':scope > attributes > divisions')?.textContent||1);
    measure.querySelectorAll(':scope > note').forEach(note=>{
     if(note.querySelector('rest')) return;
@@ -205,16 +208,13 @@ if(importButton) importButton.onclick=async()=>{
       if(f>=0&&f<=24){s=candidate;fret=f;break;}
      }
     }
-    if(s<0||fret<0)return;
-    const finger=+(tech?.querySelector('fingering')?.textContent||0);
+    if(s<0||fret<0)return;\n    measureMeta.rest=false;\n    const finger=+(tech?.querySelector('fingering')?.textContent||0);
     const duration=+(note.querySelector(':scope > duration')?.textContent||divisions);
     const beats=Math.max(.125,duration/divisions);
     imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4)),beats]);
-   });
-  });
-  if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
+   });\n   importedMeasures.push(measureMeta);\n  });\n  if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
   const key='imported';
-  exercises[key]={title:file.name.replace(/\.(musicxml|xml)$/i,''),subtitle:'Tablature importée • MusicXML',tempo:importedTempo,repeat:1,notes:imported};
+  exercises[key]={title:file.name.replace(/\.(musicxml|xml)$/i,''),subtitle:'Tablature importée • MusicXML',tempo:importedTempo,repeat:1,notes:imported,measures:importedMeasures};
   current=key; stop(); render();
   document.querySelectorAll('.exercise').forEach(b=>b.classList.remove('active'));
   importStatus.textContent=file.name+' — '+imported.length+' notes affichées';
