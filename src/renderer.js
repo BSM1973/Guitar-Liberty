@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingStartBeat=0,backingStartTimer=null;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingPrecountBeats=0,backingStartTimer=null;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -311,13 +311,12 @@ document.querySelector('#play').onclick=async()=>{
        const bpm=Math.max(1,+tempo.value||50);
        const rate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=rate;
+       // The audio file already contains its own 1.5-beat count-in.
+       // Therefore score and backing MUST start at exactly the same transport instant.
+       backingAudio.currentTime=0;
+       const backingPromise=backingAudio.play();
        api.play();
-       // Musical sync: 1 beat = quarter note. For this exercise the backing enters
-       // on beat 3.5 of the count-in bar (the "and" after beat 3).
-       const delayMs=currentBackingStartBeat*(60000/bpm);
-       backingStartTimer=setTimeout(()=>{
-         backingStartTimer=null;backingAudio.currentTime=0;backingAudio.play().catch(console.error);
-       },delayMs);
+       if(backingPromise?.catch)backingPromise.catch(console.error);
      }else api.play();
    });
    return;
@@ -464,7 +463,7 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
- currentBackingStartBeat=Math.max(0,+button.dataset.backingStartBeat||0);
+ currentBackingPrecountBeats=Math.max(0,+button.dataset.backingPrecountBeats||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
