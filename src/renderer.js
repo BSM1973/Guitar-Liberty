@@ -105,8 +105,9 @@ function practiceTicks(){
 function setPracticeRange(api){
  const range=practiceTicks(); if(!api||!range)return;
  api.playbackRange={startTick:range.start,endTick:range.end};
+ api.isLooping=true;
 }
-function clearPracticeRange(api){if(api)api.playbackRange=null}
+function clearPracticeRange(api){if(api){api.isLooping=false;api.playbackRange=null}}
 function setAlphaTempo(api){
  if(!api||!practiceScore)return;
  const original=practiceScore.tempo||120;
@@ -292,7 +293,7 @@ async function loadWithAlphaTab(file){
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
- api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';practiceStatus.textContent=e.state===1?'En cours':'Prêt';});
+ api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';practiceStatus.textContent=e.state===1?(practiceLoop?'Boucle en cours':'En cours'):'Prêt';});
 
  let completed=false;
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
