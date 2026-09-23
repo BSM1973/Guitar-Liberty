@@ -212,7 +212,7 @@ async function loadWithAlphaTab(file){
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
   display:{layoutMode:'page',barsPerRow:4,resources:{effectFontSize:12}} ,
-  notation:{notationMode:'guitarpro',elements:{'ScoreLeftHandFingering':true}}
+  notation:{notationMode:'guitarpro',fingeringMode:'SingleNoteEffectBand',elements:{effectFingering:true,effectText:true,effectMarker:true}}
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
