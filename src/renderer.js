@@ -85,7 +85,7 @@ async function loadGuitarSample(string){
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus');
-let practiceLoop=false,practiceScore=null,practiceTimer=null;
+let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null;
 function practiceBars(){return practiceScore?.masterBars||[]}
 function syncPracticeRange(){
  const n=practiceBars().length||1;
@@ -113,16 +113,22 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
+function metronomeClick(accent=false){
+ countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
+ const o=countInAudio.createOscillator(),g=countInAudio.createGain(),now=countInAudio.currentTime;
+ o.frequency.value=accent?1200:850;g.gain.setValueAtTime(.18,now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
+ o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
+}
 function countInThenPlay(api){
  const bars=Math.max(0,+countIn.value||0);
  if(!bars){api.play();return}
- practiceStatus.textContent='Compte '+bars+' mesure'+(bars>1?'s':'')+'…';
- const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4;
- const ms=bars*beats*60000/+tempo.value;
- clearTimeout(practiceTimer);practiceTimer=setTimeout(()=>api.play(),ms);
+ const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4,total=bars*beats,beatMs=60000/+tempo.value;
+ let beat=0;clearInterval(practiceTimer);practiceStatus.textContent='Compte : '+total;
+ metronomeClick(true);
+ practiceTimer=setInterval(()=>{beat++;if(beat>=total){clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';api.play();return}practiceStatus.textContent='Compte : '+(total-beat);metronomeClick(beat%beats===0)},beatMs);
 }
 loopToggle.onclick=()=>{
- practiceLoop=!practiceLoop;loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
+ practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  practiceStatus.textContent=practiceLoop?'Boucle active':'Boucle désactivée';
 };
@@ -293,7 +299,23 @@ async function loadWithAlphaTab(file){
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
- api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';practiceStatus.textContent=e.state===1?(practiceLoop?'Boucle en cours':'En cours'):'Prêt';});
+ api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1)practiceStatus.textContent=practiceLoop?'Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer)practiceStatus.textContent='Prêt';});
+ api.playerPositionChanged.on(e=>{
+  if(!practiceLoop)return;
+  const range=practiceTicks();if(!range)return;
+  const tick=e.currentTick??e.tick??0;
+  if(lastLoopTick>=0&&tick<lastLoopTick){
+   practiceIteration++;
+   const max=Math.max(1,+loopRepeats.value||1);
+   if(practiceIteration>=max){
+    practiceIteration=0;
+    const inc=+autoBpm.value||0;
+    if(inc){tempo.value=Math.min(+tempo.max,+tempo.value+inc);syncTempo();setAlphaTempo(api)}
+    practiceStatus.textContent=inc?'Série terminée • '+tempo.value+' BPM':'Série terminée';
+   }else practiceStatus.textContent='Répétition '+(practiceIteration+1)+'/'+max;
+  }
+  lastLoopTick=tick;
+ });
 
  let completed=false;
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
