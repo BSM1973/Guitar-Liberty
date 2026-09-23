@@ -178,7 +178,9 @@ if(importButton) importButton.onclick=async()=>{
   if(doc.querySelector('parsererror')) throw new Error('XML invalide');
   const part=doc.querySelector('part');
   if(!part) throw new Error('Aucune partie musicale trouvée');
-  const imported=[];\n  const importedMeasures=[];\n  const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+  const imported=[];
+  const importedMeasures=[];
+  const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
   const open=[64,59,55,50,45,40];
   let importedTempo=90;
   const soundTempo=doc.querySelector('sound[tempo]');
@@ -208,11 +210,16 @@ if(importButton) importButton.onclick=async()=>{
       if(f>=0&&f<=24){s=candidate;fret=f;break;}
      }
     }
-    if(s<0||fret<0)return;\n    measureMeta.rest=false;\n    const finger=+(tech?.querySelector('fingering')?.textContent||0);
+    if(s<0||fret<0)return;
+    measureMeta.rest=false;
+    const finger=+(tech?.querySelector('fingering')?.textContent||0);
     const duration=+(note.querySelector(':scope > duration')?.textContent||divisions);
     const beats=Math.max(.125,duration/divisions);
     imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4)),beats]);
-   });\n   importedMeasures.push(measureMeta);\n  });\n  if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
+   });
+   importedMeasures.push(measureMeta);
+  });
+  if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
   const key='imported';
   exercises[key]={title:file.name.replace(/\.(musicxml|xml)$/i,''),subtitle:'Tablature importée • MusicXML',tempo:importedTempo,repeat:1,notes:imported,measures:importedMeasures};
   current=key; stop(); render();
