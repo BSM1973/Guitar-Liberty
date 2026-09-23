@@ -185,28 +185,37 @@ render();
 
 const importButton=document.querySelector('#importScore');
 const importStatus=document.querySelector('#importStatus');
-let alphaTabApi=null;
 function loadWithAlphaTab(file){
- if(!window.alphaTab)throw new Error('alphaTab indisponible');
+ if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitar Liberty.');
  stop();
- tab.innerHTML='';
  tab.classList.add('alphatab-score');
- if(!alphaTabApi){
-  alphaTabApi=new alphaTab.AlphaTabApi(tab,{
-   core:{useWorkers:false},
-   display:{layoutMode:'page'},
-   notation:{notationMode:'guitarpro'}
-  });
-  alphaTabApi.scoreLoaded.on(score=>{
-   document.querySelector('#title').textContent=score.title||'Tablature Guitar Pro';
-   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
-   importStatus.textContent=(score.title||file.name)+' — rendu Guitar Pro chargé';
-  });
-  alphaTabApi.error.on(err=>{console.error('alphaTab',err);importStatus.textContent='Erreur alphaTab : '+(err.message||err);});
- }
+ tab.innerHTML='';
  const raw=atob(file.data),bytes=new Uint8Array(raw.length);
  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
- if(!alphaTabApi.load(bytes))throw new Error('Format non reconnu par alphaTab');
+ const api=new window.alphaTab.AlphaTabApi(tab,{
+  core:{useWorkers:false,engine:'svg',enableLazyLoading:false},
+  display:{layoutMode:'page'},
+  notation:{notationMode:'guitarpro'}
+ });
+ window.guitarLibertyAlphaTab=api;
+ let completed=false;
+ api.scoreLoaded.on(score=>{
+  completed=true;
+  document.querySelector('#title').textContent=score.title||file.name.replace(/\.[^.]+$/,'');
+  document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
+  importStatus.textContent=file.name+' — import réussi';
+ });
+ api.error.on(err=>{
+  completed=true;
+  const msg=err?.message||String(err);
+  console.error('alphaTab import error',err);
+  importStatus.textContent='Erreur Guitar Pro : '+msg;
+  alert('Import Guitar Pro impossible : '+msg);
+ });
+ importStatus.textContent='Chargement de '+file.name+'…';
+ const accepted=api.load(bytes);
+ if(!accepted)throw new Error('alphaTab a refusé les données du fichier.');
+ setTimeout(()=>{if(!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
 }
 if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
