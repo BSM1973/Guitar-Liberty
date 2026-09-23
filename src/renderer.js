@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,timer=null,audio,index=0;
+let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -152,7 +152,10 @@ function playNote(string,fret){
    source.start(now); source.stop(now+natural+.02);
  });
 }
-function stop(){playing=false;clearTimeout(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
+function stop(){
+ if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
+ playing=false;clearTimeout(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
+}
 function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&v[3])||.5;return 60000/+tempo.value*beats}
 function scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}
 function tick(){
@@ -177,10 +180,21 @@ function tick(){
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
 tempo.oninput=()=>{syncTempo();if(playing){clearTimeout(timer);scheduleNext()}};
-document.querySelector('#play').onclick=async()=>{if(playing){stop();return}
+document.querySelector('#play').onclick=async()=>{
+ if(alphaTabMode&&window.guitarLibertyAlphaTab){
+  const api=window.guitarLibertyAlphaTab;
+  try{
+   if(api.playerState===1){api.pause();document.querySelector('#play').textContent='▶ PLAY';return;}
+   document.querySelector('#play').textContent='■ STOP';
+   api.play();
+   return;
+  }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
+ }
+ if(playing){stop();return}
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
- playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()};
+ playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()
+};
 render();
 
 const importButton=document.querySelector('#importScore');
@@ -188,6 +202,7 @@ const importStatus=document.querySelector('#importStatus');
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitar Liberty.');
  stop();
+ alphaTabMode=true;
  tab.classList.add('alphatab-score');
  tab.innerHTML='';
  const rawBytes=await window.guitarAudio.readScore(file.filePath);
@@ -195,10 +210,12 @@ async function loadWithAlphaTab(file){
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,fontDirectory:'../assets/vendor/font/'},
-  display:{layoutMode:'page'},
+  display:{layoutMode:'page',barsPerRow:4},
   notation:{notationMode:'guitarpro'}
  });
  window.guitarLibertyAlphaTab=api;
+ api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
+ api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';});
  let completed=false;
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
