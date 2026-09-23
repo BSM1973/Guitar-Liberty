@@ -12,5 +12,8 @@
   "devDependencies": {
     "electron": "^38.0.0",
     "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "@coderline/alphatab": "1.8.4"
   }
 }
