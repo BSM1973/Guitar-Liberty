@@ -194,12 +194,13 @@ async function loadWithAlphaTab(file){
  const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
  const api=new window.alphaTab.AlphaTabApi(tab,{
-  core:{useWorkers:false,engine:'svg',enableLazyLoading:false},
+  core:{useWorkers:false,engine:'svg',enableLazyLoading:false,fontDirectory:'../assets/vendor/font/'},
   display:{layoutMode:'page'},
   notation:{notationMode:'guitarpro'}
  });
  window.guitarLibertyAlphaTab=api;
  let completed=false;
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   document.querySelector('#title').textContent=score.title||file.name.replace(/\.[^.]+$/,'');
