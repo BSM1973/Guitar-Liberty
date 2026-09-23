@@ -185,13 +185,14 @@ render();
 
 const importButton=document.querySelector('#importScore');
 const importStatus=document.querySelector('#importStatus');
-function loadWithAlphaTab(file){
+async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitar Liberty.');
  stop();
  tab.classList.add('alphatab-score');
  tab.innerHTML='';
- const raw=atob(file.data),bytes=new Uint8Array(raw.length);
- for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ const rawBytes=await window.guitarAudio.readScore(file.filePath);
+ const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
+ if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false},
   display:{layoutMode:'page'},
@@ -221,7 +222,7 @@ if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
-  try{loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
+  try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
  }
  const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
