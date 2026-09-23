@@ -111,7 +111,7 @@ function clearPracticeRange(api){if(api){api.isLooping=false;api.playbackRange=n
 function setAlphaTempo(api){
  if(!api||!practiceScore)return;
  const original=practiceScore.tempo||120;
- api.playbackSpeed=Math.max(25,Math.min(300,Math.round(+tempo.value/original*100)));
+ api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
 function metronomeClick(accent=false){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
@@ -313,9 +313,8 @@ async function loadWithAlphaTab(file){
     if(inc){
      const next=Math.min(+tempo.max,+tempo.value+inc);
      tempo.value=next;syncTempo();
-     // alphaTab expects playbackSpeed as a percentage: 100 = original tempo.
      const original=practiceScore?.tempo||120;
-     api.playbackSpeed=Math.max(25,Math.min(300,Math.round(next/original*100)));
+     api.playbackSpeed=Math.max(.25,Math.min(3,next/original));
      practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
     }else practiceStatus.textContent='Série terminée';
    }else practiceStatus.textContent='Répétition '+(practiceIteration+1)+'/'+max;
