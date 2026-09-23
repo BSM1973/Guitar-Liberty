@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingOffset=0,backingStartTimer=null;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -186,13 +186,13 @@ function metronomeClick(accent=false){
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(.18,now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
-function countInThenPlay(api){
+function countInThenPlay(api,startPlayback=()=>api.play()){
  const bars=Math.max(0,+countIn.value||0);
- if(!bars){api.play();return}
+ if(!bars){startPlayback();return}
  const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4,total=bars*beats,beatMs=60000/+tempo.value;
  let beat=0;clearInterval(practiceTimer);practiceStatus.textContent='Compte : '+total;
  metronomeClick(true);
- practiceTimer=setInterval(()=>{beat++;if(beat>=total){clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';api.play();return}practiceStatus.textContent='Compte : '+(total-beat);metronomeClick(beat%beats===0)},beatMs);
+ practiceTimer=setInterval(()=>{beat++;if(beat>=total){clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';startPlayback();return}practiceStatus.textContent='Compte : '+(total-beat);metronomeClick(beat%beats===0)},beatMs);
 }
 loopToggle.onclick=()=>{
  practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
@@ -306,8 +306,16 @@ document.querySelector('#play').onclick=async()=>{
    if(api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
-   if(backingAudio&&backingEnabled){backingAudio.currentTime=0;backingAudio.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));backingAudio.play().catch(console.error);}
-   countInThenPlay(api);
+   countInThenPlay(api,()=>{
+     if(backingAudio&&backingEnabled){
+       backingAudio.currentTime=0;
+       const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
+       backingAudio.playbackRate=rate;
+       backingAudio.play().catch(console.error);
+       const delay=currentBackingOffset/rate;
+       backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},delay);
+     }else api.play();
+   });
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
@@ -322,6 +330,7 @@ const backingToggle=document.querySelector('#backingToggle');
 const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 function stopBacking(reset=true){
+ clearTimeout(backingStartTimer);backingStartTimer=null;
  if(!backingAudio)return;
  backingAudio.pause();if(reset)backingAudio.currentTime=0;
 }
@@ -451,6 +460,7 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
+ currentBackingOffset=Math.max(0,+button.dataset.backingOffset||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
