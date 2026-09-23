@@ -7,7 +7,9 @@
     "start": "electron .",
     "dev": "electron .",
     "pack:mac": "electron-packager . \"Guitar Liberty\" --platform=darwin --arch=arm64 --out=release --overwrite",
-    "pack:win": "electron-packager . \"Guitar Liberty\" --platform=win32 --arch=x64 --out=release --overwrite"
+    "pack:win": "electron-packager . \"Guitar Liberty\" --platform=win32 --arch=x64 --out=release --overwrite",
+    "copy:alphatab": "node scripts/copy-alphatab.js",
+    "postinstall": "npm run copy:alphatab"
   },
   "devDependencies": {
     "electron": "^38.0.0",
