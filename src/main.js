@@ -12,11 +12,17 @@ ipcMain.handle('import-score', async () => {
   const result = await dialog.showOpenDialog({
     title: 'Importer une tablature',
     properties: ['openFile'],
-    filters: [
-      { name: 'MusicXML', extensions: ['musicxml','xml','mxl'] },
-      { name: 'MIDI', extensions: ['mid','midi'] },
-      { name: 'Guitar Pro', extensions: ['gp','gp3','gp4','gp5','gpx'] }
-    ]
+    // Electron 36/37/38 on macOS has a confirmed native-dialog regression
+    // where custom extension filters can grey out every matching file.
+    // Let macOS show all files and validate supported extensions after selection.
+    filters: process.platform === 'darwin'
+      ? [{ name: 'Partitions', extensions: ['*'] }]
+      : [
+          { name: 'Guitar Pro', extensions: ['gp','gp3','gp4','gp5','gpx'] },
+          { name: 'MusicXML', extensions: ['musicxml','xml','mxl'] },
+          { name: 'MIDI', extensions: ['mid','midi'] },
+          { name: 'Tous les fichiers', extensions: ['*'] }
+        ]
   });
   if (result.canceled || !result.filePaths[0]) return null;
   const filePath=result.filePaths[0];
