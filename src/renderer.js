@@ -87,18 +87,36 @@ const tab=document.querySelector('#tab'),progress=document.querySelector('#progr
 function render(){
  const e=exercises[current];document.querySelector('#title').textContent=e.title;document.querySelector('#subtitle').textContent=e.subtitle;
  tempo.value=e.tempo;syncTempo();
- const n=e.notes.length, notesPerMeasure=4, measures=e.measures?.length||Math.max(1,Math.ceil(n/notesPerMeasure)), measuresPerSystem=4, systemCount=Math.ceil(measures/measuresPerSystem);
- let html='<div class="score-systems">';
- for(let sys=0;sys<systemCount;sys++){
-  const firstMeasure=sys*measuresPerSystem, measureCount=Math.min(measuresPerSystem,measures-firstMeasure), firstNote=firstMeasure*notesPerMeasure, lastNote=Math.min(n,(firstMeasure+measureCount)*notesPerMeasure);
-  html+='<div class="system"><div class="tab-word">TAB</div><div class="time-signature">4<br>4</div><div class="strings">';
-  for(let s=0;s<6;s++)html+='<div class="string" style="top:'+(s*22)+'px"></div>';
-  for(let m=0;m<=measureCount;m++){const x=m/measureCount*100;html+='<div class="measure-line" style="left:'+x+'%"></div>';if(m<measureCount){const md=e.measures?.[firstMeasure+m];html+='<div class="measure-number" style="left:calc('+x+'% + 7px)">'+(firstMeasure+m+1)+'</div>';if(md?.repeatStart)html+='<div class="repeat-bar repeat-start" style="left:'+x+'%">𝄆</div>';if(md?.text)html+='<div class="score-text" style="left:calc('+x+'% + 18px)">'+md.text+'</div>';if(md?.rest)html+='<div class="measure-rest" style="left:calc('+(x+50/measureCount)+'% - 8px)">𝄽</div>';if(md?.repeatEnd)html+='<div class="repeat-bar repeat-end" style="left:'+((m+1)/measureCount*100)+'%">𝄇</div>';}}
-  for(let i=firstNote;i<lastNote;i++){const v=e.notes[i],s=v[0],fret=v[1],finger=v[2],local=i-firstNote,slots=measureCount*notesPerMeasure,x=(local+.5)/slots*100,y=s*22;html+='<span class="pick" style="left:'+x+'%">'+(i%2?'∨':'∧')+'</span><span class="note" data-i="'+i+'" style="left:'+x+'%;top:'+y+'px">'+fret+'</span><span class="finger" style="left:'+x+'%">'+finger+'</span>';}
-  if(sys===systemCount-1)html+='<span class="repeat">'+e.repeat+'x</span>';
-  html+='</div></div>';
+ if(e.measures?.length){
+  const measuresPerSystem=4,systemCount=Math.ceil(e.measures.length/measuresPerSystem);
+  let html='<div class="score-systems">';
+  for(let sys=0;sys<systemCount;sys++){
+   const first=sys*measuresPerSystem,count=Math.min(measuresPerSystem,e.measures.length-first);
+   html+='<div class="system"><div class="tab-word">TAB</div><div class="strings">';
+   for(let s=0;s<6;s++)html+='<div class="string" style="top:'+(s*22)+'px"></div>';
+   for(let m=0;m<count;m++){
+    const md=e.measures[first+m],left=m/count*100,right=(m+1)/count*100,width=100/count;
+    html+='<div class="measure-line" style="left:'+left+'%"></div><div class="measure-number" style="left:calc('+left+'% + 7px)">'+(first+m+1)+'</div>';
+    if((sys===0&&m===0)||md.timeChanged)html+='<div class="time-signature measure-time" style="left:calc('+left+'% + 10px)">'+md.beats+'<br>'+md.beatType+'</div>';
+    if(md.repeatStart)html+='<div class="repeat-mark repeat-start-mark" style="left:calc('+left+'% + 2px)"><b></b><i>:</i></div>';
+    if(md.repeatEnd)html+='<div class="repeat-mark repeat-end-mark" style="left:calc('+right+'% - 10px)"><i>:</i><b></b></div>';
+    if(md.text)html+='<div class="score-text" style="left:calc('+left+'% + 20px)">'+md.text+'</div>';
+    md.events.forEach(ev=>{
+      const x=left+width*((ev.onset+ev.duration/2)/md.length);
+      if(ev.type==='rest'){html+='<span class="measure-rest" style="left:'+x+'%">𝄽</span>';return;}
+      const y=ev.string*22;
+      html+='<span class="pick" style="left:'+x+'%">'+(ev.pick||'')+'</span><span class="note" data-i="'+ev.noteIndex+'" style="left:'+x+'%;top:'+y+'px">'+ev.fret+'</span><span class="finger" style="left:'+x+'%">'+ev.finger+'</span>';
+    });
+   }
+   html+='<div class="measure-line" style="left:100%"></div></div></div>';
+  }
+  html+='</div>';tab.innerHTML=html;
+ }else{
+  const n=e.notes.length,notesPerMeasure=4,measures=Math.max(1,Math.ceil(n/notesPerMeasure)),measuresPerSystem=4,systemCount=Math.ceil(measures/measuresPerSystem);
+  let html='<div class="score-systems">';
+  for(let sys=0;sys<systemCount;sys++){const fm=sys*measuresPerSystem,mc=Math.min(measuresPerSystem,measures-fm),fn=fm*4,ln=Math.min(n,(fm+mc)*4);html+='<div class="system"><div class="tab-word">TAB</div><div class="time-signature">4<br>4</div><div class="strings">';for(let s=0;s<6;s++)html+='<div class="string" style="top:'+(s*22)+'px"></div>';for(let m=0;m<=mc;m++){const x=m/mc*100;html+='<div class="measure-line" style="left:'+x+'%"></div>';}for(let i=fn;i<ln;i++){const v=e.notes[i],x=((i-fn)+.5)/(mc*4)*100,y=v[0]*22;html+='<span class="note" data-i="'+i+'" style="left:'+x+'%;top:'+y+'px">'+v[1]+'</span>';}html+='</div></div>';}html+='</div>';tab.innerHTML=html;
  }
- html+='</div>';tab.innerHTML=html;index=0;progress.style.width='0';
+ index=0;progress.style.width='0';
 }
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
 function playNote(string,fret){
@@ -182,42 +200,39 @@ if(importButton) importButton.onclick=async()=>{
   const importedMeasures=[];
   const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
   const open=[64,59,55,50,45,40];
-  let importedTempo=90;
+  let importedTempo=90,currentDivisions=1,currentBeats=4,currentBeatType=4;
   const soundTempo=doc.querySelector('sound[tempo]');
   if(soundTempo) importedTempo=Math.round(+soundTempo.getAttribute('tempo'))||90;
   part.querySelectorAll('measure').forEach((measure,measureIndex)=>{
-   const measureMeta={repeatStart:false,repeatEnd:false,rest:true,text:''};
-   measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')measureMeta.repeatStart=true;if(rep.getAttribute('direction')==='backward')measureMeta.repeatEnd=true;});
-   const words=[...measure.querySelectorAll('direction-type words')].map(w=>w.textContent.trim()).filter(Boolean);
-   measureMeta.text=words.join(' • ');
-   const divisions=+(measure.querySelector(':scope > attributes > divisions')?.textContent||1);
-   measure.querySelectorAll(':scope > note').forEach(note=>{
-    if(note.querySelector('rest')) return;
-    const pitch=note.querySelector('pitch');
-    if(!pitch) return;
-    const step=pitch.querySelector('step')?.textContent||'C';
-    const alter=+(pitch.querySelector('alter')?.textContent||0);
-    const octave=+(pitch.querySelector('octave')?.textContent||4);
-    const midi=(octave+1)*12+stepSemis[step]+alter;
-    const tech=note.querySelector('notations technical');
-    let stringNo=+(tech?.querySelector('string')?.textContent||0);
-    let fret=+(tech?.querySelector('fret')?.textContent||-1);
-    let s=-1;
-    if(stringNo>=1&&stringNo<=6&&fret>=0){s=stringNo-1;}
-    else{
-     for(let candidate=0;candidate<6;candidate++){
-      const f=midi-open[candidate];
-      if(f>=0&&f<=24){s=candidate;fret=f;break;}
-     }
-    }
+   const attr=measure.querySelector(':scope > attributes');
+   const newDiv=+(attr?.querySelector('divisions')?.textContent||currentDivisions); if(newDiv)currentDivisions=newDiv;
+   const time=attr?.querySelector('time'),oldBeats=currentBeats,oldBeatType=currentBeatType;
+   if(time){currentBeats=+(time.querySelector('beats')?.textContent||currentBeats);currentBeatType=+(time.querySelector('beat-type')?.textContent||currentBeatType);}
+   const measureLength=currentBeats*(4/currentBeatType);
+   const md={repeatStart:false,repeatEnd:false,text:'',beats:currentBeats,beatType:currentBeatType,timeChanged:measureIndex===0||oldBeats!==currentBeats||oldBeatType!==currentBeatType,length:measureLength,events:[]};
+   measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')md.repeatStart=true;if(rep.getAttribute('direction')==='backward')md.repeatEnd=true;});
+   md.text=[...measure.querySelectorAll(':scope > direction direction-type words')].map(w=>w.textContent.trim()).filter(Boolean).join(' • ');
+   let cursor=0,lastOnset=0;
+   [...measure.children].forEach(node=>{
+    const tag=node.tagName;
+    if(tag==='backup'){cursor=Math.max(0,cursor+( -+(node.querySelector('duration')?.textContent||0)/currentDivisions));return;}
+    if(tag==='forward'){cursor+=+(node.querySelector('duration')?.textContent||0)/currentDivisions;return;}
+    if(tag!=='note')return;
+    const duration=Math.max(.125,+(node.querySelector(':scope > duration')?.textContent||currentDivisions)/currentDivisions);
+    const chord=!!node.querySelector(':scope > chord'),onset=chord?lastOnset:cursor;
+    if(!chord){lastOnset=onset;cursor+=duration;}
+    if(node.querySelector(':scope > rest')){md.events.push({type:'rest',onset,duration});return;}
+    const pitch=node.querySelector(':scope > pitch');if(!pitch)return;
+    const step=pitch.querySelector('step')?.textContent||'C',alter=+(pitch.querySelector('alter')?.textContent||0),octave=+(pitch.querySelector('octave')?.textContent||4),midi=(octave+1)*12+stepSemis[step]+alter;
+    const tech=node.querySelector('notations technical');let stringNo=+(tech?.querySelector('string')?.textContent||0),fret=+(tech?.querySelector('fret')?.textContent||-1),s=-1;
+    if(stringNo>=1&&stringNo<=6&&fret>=0)s=stringNo-1;else for(let candidate=0;candidate<6;candidate++){const f=midi-open[candidate];if(f>=0&&f<=24){s=candidate;fret=f;break;}}
     if(s<0||fret<0)return;
-    measureMeta.rest=false;
-    const finger=+(tech?.querySelector('fingering')?.textContent||0);
-    const duration=+(note.querySelector(':scope > duration')?.textContent||divisions);
-    const beats=Math.max(.125,duration/divisions);
-    imported.push([s,fret,finger||Math.min(4,Math.max(1,fret%4||4)),beats]);
+    const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
+    const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration]);
+    md.events.push({type:'note',onset,duration,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':''});
    });
-   importedMeasures.push(measureMeta);
+   importedMeasures.push(md);
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
   const key='imported';
