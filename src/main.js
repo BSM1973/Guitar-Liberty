@@ -23,6 +23,12 @@ ipcMain.handle('import-score', async () => {
   return { name:path.basename(filePath), ext:path.extname(filePath).toLowerCase(), filePath };
 });
 
+ipcMain.handle('read-score', async (_event, filePath) => {
+  if (!filePath || typeof filePath !== 'string') throw new Error('Chemin de partition invalide');
+  const data=await fs.promises.readFile(filePath);
+  return new Uint8Array(data);
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
