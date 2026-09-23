@@ -27,3 +27,5 @@
 #practiceStatus{margin-left:auto;color:#8e97a5}
 
 .gl-play-cursor{position:absolute;width:1px;background:#e9b44c;border-radius:2px;z-index:18;pointer-events:none;box-shadow:0 0 0 1px #0002;transition:left 45ms linear,top 80ms ease,height 80ms ease}
+
+.practice-feedback{margin-left:auto;min-width:190px;display:flex;align-items:center;gap:10px}#practiceStatus{margin-left:0;min-width:110px;text-align:right}.practice-progress{width:70px;height:5px;background:#2a303a;border-radius:999px;overflow:hidden}.practice-progress i{display:block;width:0;height:100%;background:#e9b44c;border-radius:999px;transition:width .18s ease}
