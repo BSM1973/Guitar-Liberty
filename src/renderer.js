@@ -185,9 +185,36 @@ render();
 
 const importButton=document.querySelector('#importScore');
 const importStatus=document.querySelector('#importStatus');
+let alphaTabApi=null;
+function loadWithAlphaTab(file){
+ if(!window.alphaTab)throw new Error('alphaTab indisponible');
+ stop();
+ tab.innerHTML='';
+ tab.classList.add('alphatab-score');
+ if(!alphaTabApi){
+  alphaTabApi=new alphaTab.AlphaTabApi(tab,{
+   core:{useWorkers:false},
+   display:{layoutMode:'page'},
+   notation:{notationMode:'guitarpro'}
+  });
+  alphaTabApi.scoreLoaded.on(score=>{
+   document.querySelector('#title').textContent=score.title||'Tablature Guitar Pro';
+   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
+   importStatus.textContent=(score.title||file.name)+' — rendu Guitar Pro chargé';
+  });
+  alphaTabApi.error.on(err=>{console.error('alphaTab',err);importStatus.textContent='Erreur alphaTab : '+(err.message||err);});
+ }
+ const raw=atob(file.data),bytes=new Uint8Array(raw.length);
+ for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ if(!alphaTabApi.load(bytes))throw new Error('Format non reconnu par alphaTab');
+}
 if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
+ if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
+  try{loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
+  return;
+ }
  const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
  if(!supported.includes(file.ext)){
   importStatus.textContent='Guitar Pro : export MusicXML requis';
