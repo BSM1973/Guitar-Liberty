@@ -20,7 +20,7 @@ ipcMain.handle('import-score', async () => {
   });
   if (result.canceled || !result.filePaths[0]) return null;
   const filePath=result.filePaths[0];
-  return { name:path.basename(filePath), ext:path.extname(filePath).toLowerCase(), data:await fs.promises.readFile(filePath,'base64') };
+  return { name:path.basename(filePath), ext:path.extname(filePath).toLowerCase(), filePath };
 });
 
 function createWindow() {
