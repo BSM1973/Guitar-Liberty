@@ -136,8 +136,12 @@ function tick(){
  if(active){
   const paper=document.querySelector('.paper'),system=active.closest('.system');
   if(paper&&system){
-   const target=Math.max(0,system.offsetTop-paper.clientHeight*.18);
-   if(Math.abs(paper.scrollTop-target)>12) paper.scrollTo({top:target,behavior:'smooth'});
+   const paperRect=paper.getBoundingClientRect(),systemRect=system.getBoundingClientRect();
+   const visibleTop=paperRect.top+28, visibleBottom=paperRect.bottom-28;
+   if(systemRect.top<visibleTop || systemRect.bottom>visibleBottom){
+    const target=Math.max(0,paper.scrollTop+(systemRect.top-paperRect.top)-28);
+    paper.scrollTo({top:target,behavior:'smooth'});
+   }
   }
  }
  const [s,f]=e.notes[index];playNote(s,f);
