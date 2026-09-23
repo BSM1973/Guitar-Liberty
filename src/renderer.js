@@ -102,10 +102,13 @@ function render(){
     if(md.repeatEnd)html+='<div class="repeat-mark repeat-end-mark" style="left:calc('+right+'% - 10px)"><i>:</i><b></b></div>';
     if(md.text)html+='<div class="score-text" style="left:calc('+left+'% + 20px)">'+md.text+'</div>';
     md.events.forEach(ev=>{
-      const x=left+width*((ev.onset+ev.duration/2)/md.length);
-      if(ev.type==='rest'){html+='<span class="measure-rest" style="left:'+x+'%">𝄽</span>';return;}
-      const y=ev.string*22;
-      html+='<span class="pick" style="left:'+x+'%">'+(ev.pick||'')+'</span><span class="note" data-i="'+ev.noteIndex+'" style="left:'+x+'%;top:'+y+'px">'+ev.fret+'</span><span class="finger" style="left:'+x+'%">'+ev.finger+'</span>';
+      const x=left+width*(ev.onset/md.length);
+      if(ev.type==='rest'){
+       const whole=Math.abs(ev.duration-md.length)<.02;
+       html+='<span class="measure-rest '+(whole?'whole-rest':'timed-rest')+'" style="left:calc('+x+'% + '+(width*(ev.duration/md.length)/2)+'%)">'+(whole?'𝄻':rhythmRestGlyph(ev.duration))+'</span>';return;
+      }
+      const y=ev.string*22,rg=rhythmGlyph(ev.duration,ev.typeName,ev.dots);
+      html+='<span class="rhythm-glyph '+rg.cls+'" style="left:'+x+'%">'+rg.symbol+'</span><span class="pick" style="left:'+x+'%">'+(ev.pick||'')+'</span><span class="note" data-i="'+ev.noteIndex+'" style="left:'+x+'%;top:'+y+'px">'+ev.fret+'</span><span class="finger" style="left:'+x+'%">'+ev.finger+'</span>';
     });
    }
    html+='<div class="measure-line" style="left:100%"></div></div></div>';
@@ -118,6 +121,12 @@ function render(){
  }
  index=0;progress.style.width='0';
 }
+function rhythmGlyph(duration,typeName,dots=0){
+ const type=typeName|| (duration>=4?'whole':duration>=2?'half':duration>=1?'quarter':duration>=.5?'eighth':duration>=.25?'16th':duration>=.125?'32nd':'64th');
+ const map={whole:['𝅝','whole'],half:['𝅗𝅥','half'],quarter:['♩','quarter'],eighth:['♪','eighth'],'16th':['𝅘𝅥𝅯','sixteenth'],'32nd':['𝅘𝅥𝅰','thirtysecond'],'64th':['𝅘𝅥𝅱','sixtyfourth']};
+ const v=map[type]||map.quarter; return {symbol:v[0]+('·'.repeat(dots)),cls:v[1]};
+}
+function rhythmRestGlyph(duration){if(duration>=2)return '𝄼';if(duration>=1)return '𝄽';if(duration>=.5)return '𝄾';if(duration>=.25)return '𝄿';return '𝅀'}
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
 function playNote(string,fret){
  ensureOutput();
@@ -218,10 +227,10 @@ if(importButton) importButton.onclick=async()=>{
     if(tag==='backup'){cursor=Math.max(0,cursor+( -+(node.querySelector('duration')?.textContent||0)/currentDivisions));return;}
     if(tag==='forward'){cursor+=+(node.querySelector('duration')?.textContent||0)/currentDivisions;return;}
     if(tag!=='note')return;
-    const duration=Math.max(.125,+(node.querySelector(':scope > duration')?.textContent||currentDivisions)/currentDivisions);
+    const duration=Math.max(.125,+(node.querySelector(':scope > duration')?.textContent||currentDivisions)/currentDivisions);\n    const typeName=node.querySelector(':scope > type')?.textContent||''; const dots=node.querySelectorAll(':scope > dot').length;
     const chord=!!node.querySelector(':scope > chord'),onset=chord?lastOnset:cursor;
     if(!chord){lastOnset=onset;cursor+=duration;}
-    if(node.querySelector(':scope > rest')){md.events.push({type:'rest',onset,duration});return;}
+    if(node.querySelector(':scope > rest')){const full=!!node.querySelector(':scope > rest[measure="yes"]');md.events.push({type:'rest',onset,duration:full?measureLength:duration,typeName,dots});return;}
     const pitch=node.querySelector(':scope > pitch');if(!pitch)return;
     const step=pitch.querySelector('step')?.textContent||'C',alter=+(pitch.querySelector('alter')?.textContent||0),octave=+(pitch.querySelector('octave')?.textContent||4),midi=(octave+1)*12+stepSemis[step]+alter;
     const tech=node.querySelector('notations technical');let stringNo=+(tech?.querySelector('string')?.textContent||0),fret=+(tech?.querySelector('fret')?.textContent||-1),s=-1;
@@ -230,7 +239,7 @@ if(importButton) importButton.onclick=async()=>{
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
     const noteIndex=imported.length; imported.push([s,fret,finger,duration]);
-    md.events.push({type:'note',onset,duration,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':''});
+    md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':''});
    });
    importedMeasures.push(md);
   });
