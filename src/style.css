@@ -25,3 +25,5 @@
 .practice-panel select{width:auto}.practice-panel button{background:#242a34;color:#eef1f5;border:1px solid #3b4350;border-radius:6px;padding:7px 10px;font-weight:700}
 .practice-panel button.active{border-color:#e9b44c;color:#e9b44c;background:#211d14}
 #practiceStatus{margin-left:auto;color:#8e97a5}
+
+.gl-play-cursor{position:absolute;width:3px;background:#e9b44c;border-radius:2px;z-index:18;pointer-events:none;box-shadow:0 0 0 1px #0002;transition:left 45ms linear,top 80ms ease,height 80ms ease}
