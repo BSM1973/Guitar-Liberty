@@ -208,23 +208,25 @@ function drawLeftHandFingerings(api){
  layer.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:20;';
  let count=0;
  for(const system of lookup.staffSystems||[]){
-  for(const master of system.bars||[]){
-   for(const bar of master.bars||[]){
-    for(const beat of bar.beats||[]){
-     for(const nb of beat.notes||[]){
-      const note=nb.note, finger=note?.leftHandFinger;
-      if(finger==null||finger===-1||finger===0)continue;
-      const b=nb.noteHeadBounds;
-      if(!b)continue;
-      const el=document.createElement('span');
-      el.className='gl-left-finger';
-      el.textContent=String(finger);
-      el.style.left=(b.x+b.w/2)+'px';
-      el.style.top=(b.y+b.h+8)+'px';
-      layer.appendChild(el);count++;
-     }
-    }
-   }
+  const sys=system.visualBounds||system.realBounds||system.bounds;
+  const systemBottom=sys ? sys.y+sys.h : null;
+  const pending=[];
+  for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[])for(const nb of beat.notes||[]){
+   const note=nb.note,finger=note?.leftHandFinger,b=nb.noteHeadBounds;
+   if(finger==null||finger===-1||finger===0||!b)continue;
+   pending.push({finger,b});
+  }
+  if(!pending.length)continue;
+  // One dedicated fingering baseline per system, always below the complete TAB/rhythm area.
+  const maxNoteBottom=Math.max(...pending.map(x=>x.b.y+x.b.h));
+  const baseline=Math.max(maxNoteBottom+26,systemBottom!=null?systemBottom+8:maxNoteBottom+26);
+  for(const {finger,b} of pending){
+   const el=document.createElement('span');
+   el.className='gl-left-finger';
+   el.textContent=String(finger);
+   el.style.left=(b.x+b.w/2)+'px';
+   el.style.top=baseline+'px';
+   layer.appendChild(el);count++;
   }
  }
  if(count){tab.style.position='relative';tab.appendChild(layer);}
