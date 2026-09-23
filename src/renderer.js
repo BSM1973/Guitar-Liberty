@@ -308,12 +308,17 @@ document.querySelector('#play').onclick=async()=>{
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
      if(backingAudio&&backingEnabled){
-       backingAudio.currentTime=0;
        const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
        backingAudio.playbackRate=rate;
-       backingAudio.play().catch(console.error);
-       const delay=currentBackingOffset/rate;
-       backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},delay);
+       if(currentBackingOffset<0){
+         api.play();
+         backingStartTimer=setTimeout(()=>{
+           backingStartTimer=null;backingAudio.currentTime=0;backingAudio.play().catch(console.error);
+         },Math.abs(currentBackingOffset)/rate);
+       }else{
+         backingAudio.currentTime=0;backingAudio.play().catch(console.error);
+         backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentBackingOffset/rate);
+       }
      }else api.play();
    });
    return;
@@ -460,7 +465,7 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
- currentBackingOffset=Math.max(0,+button.dataset.backingOffset||0);
+ currentBackingOffset=+button.dataset.backingOffset||0;
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
