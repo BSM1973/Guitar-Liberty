@@ -110,11 +110,29 @@ function refreshCourseProgress(){
  if(t)t.textContent=completed+' / '+buttons.length+' terminé'+(completed>1?'s':'');
  if(bar)bar.style.width=(buttons.length?completed/buttons.length*100:0)+'%';
 }
+const lessonLearningState=document.querySelector('#lessonLearningState'),lessonMasteryBar=document.querySelector('#lessonMasteryBar'),lessonMasteryText=document.querySelector('#lessonMasteryText');
+function currentLessonStats(){
+ const rows=(typeof practiceHistory!=='undefined'?practiceHistory:[]).filter(x=>x.title===currentPracticeTitle);
+ return {sessions:rows.length,reps:rows.reduce((n,x)=>n+(+x.reps||0),0),seconds:rows.reduce((n,x)=>n+(+x.seconds||0),0),best:rows.reduce((n,x)=>Math.max(n,+x.bestBpm||0),0)};
+}
+function paintLessonMastery(){
+ if(!currentLessonId)return;
+ const st=currentLessonStats(),goal=Math.max(1,+targetBpm.value||120);
+ const bpmPct=Math.min(1,st.best/goal),repPct=Math.min(1,st.reps/12),timePct=Math.min(1,st.seconds/900);
+ const score=Math.round((bpmPct*.55+repPct*.25+timePct*.20)*100);
+ let state='À DÉCOUVRIR',mastery='Découverte';
+ if(st.sessions||st.reps||st.seconds){state='EN APPRENTISSAGE';mastery=score>=70?'En progression':'Découverte';}
+ if(st.best>=goal&&st.reps>=4){state='VALIDÉ';mastery='Maîtrisé';}
+ if(lessonProgress()[currentLessonId]){state='VALIDÉ';mastery=score>=70?'Maîtrisé':'Validé manuellement';}
+ lessonLearningState.textContent=state;lessonLearningState.dataset.state=state;
+ lessonMasteryText.textContent=mastery+' • '+score+' %';lessonMasteryBar.style.width=score+'%';
+}
 function paintLessonComplete(){
  const done=!!lessonProgress()[currentLessonId];
  lessonComplete.classList.toggle('complete',done);
  lessonComplete.textContent=done?'✓ COURS TERMINÉ':'✓ MARQUER TERMINÉ';
  refreshCourseProgress();
+ paintLessonMastery();
 }
 function setLessonInfo(button){
  currentLessonId=button?.dataset.score||currentPracticeTitle;
@@ -124,6 +142,7 @@ function setLessonInfo(button){
  lessonKey.textContent=button?.dataset.key||'—';
  lessonTempo.textContent=(button?.dataset.bpm?button.dataset.bpm+' BPM':'—');
  paintLessonComplete();
+ paintLessonMastery();
 }
 lessonComplete.onclick=()=>{
  if(!currentLessonId)return;
@@ -171,6 +190,7 @@ function saveCurrentSession(){
  const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
  items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
  writeHistory(items);renderHistory();
+ setTimeout(paintLessonMastery,0);
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
 renderHistory();
