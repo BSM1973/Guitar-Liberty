@@ -25,17 +25,17 @@
 <div class="course-progression"><strong>PROGRESSION DES COURS</strong><span id="courseProgressText">0 / 0 terminé</span><div class="course-progress-track"><i id="courseProgressBar"></i></div></div><div class="personal-tabs"><span>MES TABS</span><button id="importScore">⇩ IMPORTER UNE TAB</button></div></aside>
 <section>
 <section class="student-dashboard">
- <div class="dashboard-head"><div><small>TABLEAU DE BORD</small><h2>MON PARCOURS GUITAR LIBERTY</h2></div><button id="continueCourse" type="button">▶ CONTINUER MON PARCOURS</button></div>
+ <div class="dashboard-head"><div><small>TABLEAU DE BORD</small><h2>MON PARCOURS GUITARE LIBERTY</h2></div><button id="continueCourse" type="button">▶ CONTINUER MON PARCOURS</button></div>
  <div class="dashboard-grid">
   <article><span>PROGRESSION GLOBALE</span><strong id="dashProgress">0 %</strong><div class="dash-track"><i id="dashProgressBar"></i></div></article>
   <article><span>COURS ACTUEL</span><strong id="dashCurrent">—</strong><small id="dashNext">Prochain : —</small></article>
   <article><span>TEMPS TOTAL</span><strong id="dashTime">00:00</strong><small>de pratique</small></article>
   <article><span>RECORD BPM</span><strong id="dashBpm">—</strong><small id="dashValidated">0 cours validé</small></article>
  </div>
- <div class="today-session"><div><span>AUJOURD’HUI</span><strong id="todayCourse">Commence ton parcours Guitar Liberty.</strong><small id="todayGoal">Une séance courte et régulière suffit pour progresser.</small></div><button id="todayStart" type="button">COMMENCER LA SÉANCE</button></div>
+ <div class="today-session"><div><span>AUJOURD’HUI</span><strong id="todayCourse">Commence ton parcours Guitare Liberty.</strong><small id="todayGoal">Une séance courte et régulière suffit pour progresser.</small></div><button id="todayStart" type="button">COMMENCER LA SÉANCE</button></div>
 </section>
 <section id="guidedSession" class="guided-session" hidden>
- <div class="guided-head"><div><small>SÉANCE GUIDÉE</small><strong id="guidedTitle">Guitar Liberty Coach</strong></div><button id="guidedClose" type="button">FERMER</button></div>
+ <div class="guided-head"><div><small>SÉANCE GUIDÉE</small><strong id="guidedTitle">Guitare Liberty Coach</strong></div><button id="guidedClose" type="button">FERMER</button></div>
  <div class="guided-steps">
   <span data-guide-step="0">1 ÉCHAUFFEMENT</span><span data-guide-step="1">2 RÉVISION</span><span data-guide-step="2">3 COURS ACTUEL</span><span data-guide-step="3">4 LOOP + AUTO BPM</span><span data-guide-step="4">5 BILAN</span>
  </div>
@@ -43,7 +43,7 @@
  <div class="guided-actions"><button id="guidedPrev" type="button">← PRÉCÉDENT</button><span id="guidedClock">00:00</span><button id="guidedNext" type="button">SUIVANT →</button></div>
 </section>
 <section class="ai-coach">
- <div class="ai-coach-head"><div><span>✨ COACH IA</span><strong>Guitar Liberty Intelligence</strong></div><button id="aiCoachRefresh" type="button">ANALYSER MA SÉANCE</button></div>
+ <div class="ai-coach-head"><div><span>✨ COACH IA</span><strong>Guitare Liberty Intelligence</strong></div><button id="aiCoachRefresh" type="button">ANALYSER MA SÉANCE</button></div>
  <div class="ai-coach-body"><div class="ai-avatar">AI</div><div><strong id="aiCoachTitle">Prêt à t’accompagner</strong><p id="aiCoachAdvice">Charge un cours ou commence une séance pour recevoir un conseil personnalisé.</p></div></div>
  <div class="ai-coach-actions"><button id="aiPracticePlan" type="button">PLAN DE TRAVAIL</button><button id="aiExplainTab" type="button">EXPLIQUER LA TAB</button><button id="aiListen" type="button">🎸 ÉCOUTE IA</button></div>
  <div class="ai-performance-actions">
@@ -70,7 +70,7 @@
 <div class="measure-analysis">
  <div class="measure-analysis-head"><div><small>ANALYSE PAR MESURE</small><strong id="weakPassageTitle">Aucun passage analysé</strong></div><button id="practiceWeakPassage" type="button" disabled>🎯 RETRAVAILLER LE PASSAGE</button></div>
  <div id="measureResults" class="measure-results"><span class="measure-empty">Joue la TAB pour construire la carte de précision.</span></div>
- <div id="weakPassageAdvice" class="weak-passage-advice">Guitar Liberty identifiera automatiquement la mesure la moins précise.</div>
+ <div id="weakPassageAdvice" class="weak-passage-advice">Guitare Liberty identifiera automatiquement la mesure la moins précise.</div>
  <div class="measure-memory-head"><div><small>CARTE DE MAÎTRISE DU MORCEAU</small><strong id="measureMemorySummary">Aucune donnée enregistrée</strong></div><div class="song-mastery"><span id="songMasteryLabel">MAÎTRISE 0 %</span><div><i id="songMasteryBar"></i></div><b id="songMasteryTrophy" hidden>🏆 MORCEAU MAÎTRISÉ</b></div></div>
  <div class="measure-map-legend"><span><i class="unseen"></i>Non analysée</span><span><i class="work"></i>À travailler</span><span><i class="progressing"></i>En progression</span><span><i class="mastered"></i>Maîtrisée</span></div>
  <div id="measureMemoryMap" class="measure-memory-map"><span class="measure-empty">Les résultats de chaque mesure seront conservés automatiquement.</span></div>
@@ -88,7 +88,7 @@
   <button id="adaptiveStop" type="button">ARRÊTER LE MODE ADAPTATIF</button>
  </div>
 </div>
-<div class="listen-actions"><button id="listenStart" type="button">DÉMARRER L’ANALYSE</button><span id="listenStatus">Prêt • l’analyse reste locale dans Guitar Liberty</span></div>
+<div class="listen-actions"><button id="listenStart" type="button">DÉMARRER L’ANALYSE</button><span id="listenStatus">Prêt • l’analyse reste locale dans Guitare Liberty</span></div>
 </section>
 
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
@@ -105,7 +105,7 @@
  <div class="practice-feedback"><span id="practiceStatus">Prêt</span><div class="practice-progress"><i id="practiceProgress"></i></div></div>
 </div>
 <div class="session-stats"><span>SESSION</span><b id="sessionTime">00:00</b><span>Séries <b id="sessionSeries">0</b></span><span>Répétitions <b id="sessionReps">0</b></span><span>Meilleur BPM <b id="sessionBestBpm">0</b></span><span>Progression <b id="sessionGain">+0 BPM</b></span><button id="resetSession" type="button">Réinitialiser</button></div>
-<section class="learning-path"><div class="path-head"><strong>PARCOURS GUITAR LIBERTY</strong><span id="pathSummary">0 exercice suivi</span></div><div id="pathList" class="path-list"><p>Entraîne-toi sur une tablature pour démarrer ton parcours.</p></div></section>
+<section class="learning-path"><div class="path-head"><strong>PARCOURS GUITARE LIBERTY</strong><span id="pathSummary">0 exercice suivi</span></div><div id="pathList" class="path-list"><p>Entraîne-toi sur une tablature pour démarrer ton parcours.</p></div></section>
 <details class="history-panel"><summary>HISTORIQUE D’ENTRAÎNEMENT <span id="historyCount">0 session</span></summary><div class="history-summary"><span>Record <b id="historyRecord">—</b></span><span>Sessions <b id="historySessions">0</b></span><span>Temps total <b id="historyTime">00:00</b></span><span>Série actuelle <b id="historyStreak">0 jour</b></span></div><div class="exercise-progress"><div><span>PROGRESSION DE LA TABLATURE</span><b id="exerciseProgressTitle">—</b></div><canvas id="bpmChart" width="760" height="150"></canvas><div id="exerciseProgressStats">Aucune donnée pour cette tablature.</div><div class="personal-best"><span>RECORD PERSONNEL</span><strong id="personalBest">—</strong><span id="recordDelta">Commence une session pour établir ton record.</span></div><div class="mastery"><div><span>MAÎTRISE</span><strong id="masteryLevel">Nouveau</strong></div><div class="mastery-track"><i id="masteryBar"></i></div><span id="masteryInfo">0 %</span></div></div><div id="historyList" class="history-list"><p>Aucune session enregistrée.</p></div><button id="clearHistory" type="button">Effacer l’historique</button></details>
 <section class="lesson-card">
  <div class="lesson-card-head"><strong>FICHE DU COURS</strong><div class="lesson-validation"><span id="lessonLearningState">À DÉCOUVRIR</span><button id="lessonComplete" type="button">✓ COURS TERMINÉ</button></div></div>
