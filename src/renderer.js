@@ -863,7 +863,7 @@ function drawLeftHandFingerings(api){
   const pending=[];
   for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[])for(const nb of beat.notes||[]){
    const note=nb.note,finger=note?.leftHandFinger,b=nb.noteHeadBounds;
-   if(finger==null||finger===-1||finger===0||!b)continue;
+   if(finger==null||finger<=0||!b)continue;
    pending.push({finger,b});
   }
   if(!pending.length)continue;
@@ -894,8 +894,8 @@ async function loadWithAlphaTab(file){
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
-  display:{layoutMode:'page',barsPerRow:4,resources:{effectFontSize:12}} ,
-  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{effectFingering:false,effectText:true,effectMarker:true}}
+  display:{layoutMode:'page',barsPerRow:4,justifyLastSystem:true,resources:{effectFontSize:12}} ,
+  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectFingering:false,effectText:true,effectMarker:true}}
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
