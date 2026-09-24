@@ -95,7 +95,7 @@ const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=d
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
-let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false,expectedMidi=null,expectedSince=0,analysisHits=0,analysisTotal=0,timingHits=0,currentAnalysisMeasure=1,measurePerformance={},weakMeasure=null;
+let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false,expectedMidi=null,expectedSince=0,analysisHits=0,analysisTotal=0,timingHits=0,currentAnalysisMeasure=1,measurePerformance={},weakMeasure=null,adaptiveMode=false,adaptiveMeasureNo=null,adaptiveBaseline=null,adaptivePasses=0,adaptiveLastTotals={};
 const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),audioOutput=document.querySelector('#audioOutput'),guitarMonitor=document.querySelector('#guitarMonitor'),monitorToggle=document.querySelector('#monitorToggle'),monitorVolume=document.querySelector('#monitorVolume'),listenStart=document.querySelector('#listenStart');
 async function listAudioInputs(){
  try{
@@ -139,7 +139,7 @@ function paintPerformance(playedMidi){
  document.querySelector('#playedCompareNote').textContent=midiName(playedMidi);
  const result=document.querySelector('#noteResult');result.textContent=ok?(timingOk?'✓ CORRECT':'✓ NOTE • TIMING À TRAVAILLER'):'✕ MAUVAISE NOTE';result.dataset.ok=ok?'1':'0';
  const notePct=Math.round(analysisHits/analysisTotal*100),timePct=Math.round(timingHits/analysisTotal*100),score=Math.round(notePct*.7+timePct*.3);
- document.querySelector('#noteAccuracy').textContent=notePct+' %';document.querySelector('#timingAccuracy').textContent=timePct+' %';document.querySelector('#passageScore').textContent=score+' %';paintMeasureAnalysis();
+ document.querySelector('#noteAccuracy').textContent=notePct+' %';document.querySelector('#timingAccuracy').textContent=timePct+' %';document.querySelector('#passageScore').textContent=score+' %';paintMeasureAnalysis();evaluateAdaptiveTraining();
 }
 function paintMeasureAnalysis(){
  const host=document.querySelector('#measureResults'),entries=Object.entries(measurePerformance).filter(([,v])=>v.total>=2).map(([m,v])=>({m:+m,pct:Math.round(v.hits/v.total*100),timing:Math.round(v.timing/v.total*100),total:v.total})).sort((a,b)=>a.m-b.m);
@@ -149,8 +149,41 @@ function paintMeasureAnalysis(){
  document.querySelector('#weakPassageTitle').textContent='Mesure '+weakMeasure.m+' • '+weakMeasure.pct+' % de précision';
  document.querySelector('#weakPassageAdvice').textContent=weakMeasure.pct>=90?'Très bon passage. Consolide-le encore quelques répétitions.':'Mesure '+weakMeasure.m+' à retravailler : ralentis le tempo et utilise LOOP + AUTO BPM.';
  const b=document.querySelector('#practiceWeakPassage');b.disabled=false;b.textContent='🎯 RETRAVAILLER M'+weakMeasure.m;
- host.querySelectorAll('.measure-result').forEach(btn=>btn.onclick=()=>prepareWeakPassage(+btn.dataset.measure));
+ host.querySelectorAll('.measure-result').forEach(btn=>btn.onclick=()=>startAdaptiveTraining(+btn.dataset.measure));
 }
+function adaptivePanel(){
+ const panel=document.querySelector('#adaptiveTraining');if(!panel)return;
+ panel.hidden=!adaptiveMode;if(!adaptiveMode)return;
+ document.querySelector('#adaptiveMeasure').textContent='Mesure '+adaptiveMeasureNo+' • objectif ≥ 90 %';
+ document.querySelector('#adaptiveProgress').textContent=adaptivePasses+' / 3 répétitions maîtrisées';
+ document.querySelector('#adaptiveBar').style.width=Math.min(100,adaptivePasses/3*100)+'%';
+}
+function nextWeakMeasure(exclude){
+ const entries=Object.entries(measurePerformance).filter(([m,v])=>+m!==exclude&&v.total>=2).map(([m,v])=>({m:+m,pct:Math.round(v.hits/v.total*100),timing:Math.round(v.timing/v.total*100)}));
+ return entries.sort((a,b)=>a.pct-b.pct||a.timing-b.timing)[0]||null;
+}
+function startAdaptiveTraining(measure){
+ adaptiveMode=true;adaptiveMeasureNo=measure;adaptivePasses=0;adaptiveBaseline={...(measurePerformance[measure]||{hits:0,total:0,timing:0})};adaptiveLastTotals={};
+ prepareWeakPassage(measure);adaptivePanel();
+ document.querySelector('#weakPassageAdvice').textContent='Mode adaptatif actif : Guitar Liberty valide la mesure après 3 répétitions à ≥ 90 % avec un timing ≥ 80 %.';
+}
+function evaluateAdaptiveTraining(){
+ if(!adaptiveMode||currentAnalysisMeasure!==adaptiveMeasureNo)return;
+ const v=measurePerformance[adaptiveMeasureNo];if(!v)return;
+ const base=adaptiveBaseline||{hits:0,total:0,timing:0},total=v.total-base.total;
+ if(total<2)return;
+ const marker=Math.floor(total/2);if(adaptiveLastTotals[adaptiveMeasureNo]===marker)return;adaptiveLastTotals[adaptiveMeasureNo]=marker;
+ const hits=v.hits-base.hits,timing=v.timing-base.timing,pct=Math.round(hits/total*100),timingPct=Math.round(timing/total*100);
+ if(pct>=90&&timingPct>=80)adaptivePasses++;else adaptivePasses=0;
+ adaptivePanel();
+ if(adaptivePasses>=3){
+  const done=adaptiveMeasureNo,next=nextWeakMeasure(done);
+  document.querySelector('#weakPassageAdvice').textContent='✓ Mesure '+done+' maîtrisée.'+(next?' Passage automatique à la mesure '+next.m+'.':' Aucun autre passage faible détecté.');
+  if(next){adaptiveMeasureNo=next.m;adaptivePasses=0;adaptiveBaseline={...(measurePerformance[next.m]||{hits:0,total:0,timing:0})};adaptiveLastTotals={};prepareWeakPassage(next.m);adaptivePanel();}
+  else{adaptiveMode=false;adaptivePanel();}
+ }
+}
+document.querySelector('#adaptiveStop').onclick=()=>{adaptiveMode=false;adaptivePanel();document.querySelector('#weakPassageAdvice').textContent='Mode adaptatif arrêté.'};
 function prepareWeakPassage(measure){
  const start=document.querySelector('#practiceStart'),end=document.querySelector('#practiceEnd');
  if(start)start.value=measure;if(end)end.value=measure;
@@ -159,7 +192,7 @@ function prepareWeakPassage(measure){
  const auto=document.querySelector('#autoBpm');if(auto){auto.value='1';auto.dispatchEvent(new Event('change',{bubbles:true}))}
  document.querySelector('#weakPassageAdvice').textContent='Mesure '+measure+' préparée : LOOP activé, tempo réduit à '+next+' BPM, Auto BPM +1.';
 }
-document.querySelector('#practiceWeakPassage').onclick=()=>{if(weakMeasure)prepareWeakPassage(weakMeasure.m)};
+document.querySelector('#practiceWeakPassage').onclick=()=>{if(weakMeasure)startAdaptiveTraining(weakMeasure.m)};
 function pitchName(freq){
  const midi=Math.round(69+12*Math.log2(freq/440)),names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
  const exact=69+12*Math.log2(freq/440),cents=Math.round((exact-midi)*100);
@@ -182,7 +215,7 @@ async function startListening(){
   guitarMonitor.srcObject=listenStream;guitarMonitor.volume=(+monitorVolume.value||0)/100;
   if(audioOutput.value&&typeof guitarMonitor.setSinkId==='function')await guitarMonitor.setSinkId(audioOutput.value);
   if(monitorToggle.checked)await guitarMonitor.play();else guitarMonitor.pause();
-  analysisHits=0;analysisTotal=0;timingHits=0;expectedMidi=null;measurePerformance={};weakMeasure=null;currentAnalysisMeasure=1;document.querySelector('#measureResults').innerHTML='<span class="measure-empty">Joue la TAB pour construire la carte de précision.</span>';document.querySelector('#weakPassageTitle').textContent='Aucun passage analysé';document.querySelector('#practiceWeakPassage').disabled=true;document.querySelector('#expectedNote').textContent='—';document.querySelector('#playedCompareNote').textContent='—';document.querySelector('#noteResult').textContent='EN ATTENTE';document.querySelector('#noteAccuracy').textContent='—';document.querySelector('#timingAccuracy').textContent='—';document.querySelector('#passageScore').textContent='—';listening=true;listenStart.textContent='ARRÊTER L’ANALYSE';listenStart.classList.add('active');document.querySelector('#listenStatus').textContent='Écoute en cours • joue une note seule';await listAudioInputs();listenLoop();
+  analysisHits=0;analysisTotal=0;timingHits=0;expectedMidi=null;measurePerformance={};weakMeasure=null;adaptiveMode=false;adaptiveMeasureNo=null;adaptivePasses=0;adaptivePanel();currentAnalysisMeasure=1;document.querySelector('#measureResults').innerHTML='<span class="measure-empty">Joue la TAB pour construire la carte de précision.</span>';document.querySelector('#weakPassageTitle').textContent='Aucun passage analysé';document.querySelector('#practiceWeakPassage').disabled=true;document.querySelector('#expectedNote').textContent='—';document.querySelector('#playedCompareNote').textContent='—';document.querySelector('#noteResult').textContent='EN ATTENTE';document.querySelector('#noteAccuracy').textContent='—';document.querySelector('#timingAccuracy').textContent='—';document.querySelector('#passageScore').textContent='—';listening=true;listenStart.textContent='ARRÊTER L’ANALYSE';listenStart.classList.add('active');document.querySelector('#listenStatus').textContent='Écoute en cours • joue une note seule';await listAudioInputs();listenLoop();
  }catch(e){console.error(e);document.querySelector('#listenStatus').textContent='Accès audio refusé ou entrée indisponible.'}
 }
 function stopListening(){
