@@ -313,10 +313,10 @@ document.querySelector('#play').onclick=async()=>{
        try{
          const state=typeof wistiaPlayer.state==='function'?wistiaPlayer.state():'';
          if(state==='playing'){
-           wistiaPlayer.pause();
+           wistiaPlayer.pause();stopVideoPracticeWatch();
            document.querySelector('#play').textContent='▶ PLAY';
          }else{
-           wistiaPlayer.play();
+           const w=videoPracticeWindow();if(w&&practiceLoop)wistiaPlayer.time(w.start);wistiaPlayer.play();if(practiceLoop)startVideoPracticeWatch();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();
            document.querySelector('#play').textContent='⏸ PAUSE';
          }
        }catch(e){console.error('Wistia playback',e)}
@@ -367,6 +367,46 @@ function syncVideoTempo(){
  if(!wistiaPlayer)return;
  const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
  try{wistiaPlayer.playbackRate(rate)}catch(e){console.error('Wistia tempo',e)}
+}
+let videoPracticeTimer=null,videoPracticeStart=0,videoPracticeEnd=0,videoPracticeLast=0;
+function videoPracticeWindow(){
+ if(!wistiaPlayer||!practiceScore)return null;
+ const bars=practiceBars(),a=Math.max(0,(+loopStart.value||1)-1),z=Math.max(a,(+loopEnd.value||1)-1);
+ if(!bars[a]||!bars[z])return null;
+ const bpm=Math.max(1,+tempo.value||50),beatsPerBar=bars[0]?.timeSignatureNumerator||4;
+ const startBeat=bars.slice(0,a).reduce((n,b)=>n+(b.timeSignatureNumerator||beatsPerBar),0);
+ const endBeat=bars.slice(0,z+1).reduce((n,b)=>n+(b.timeSignatureNumerator||beatsPerBar),0);
+ return {start:startBeat*60/bpm,end:endBeat*60/bpm};
+}
+function stopVideoPracticeWatch(){if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null}}
+function startVideoPracticeWatch(){
+ stopVideoPracticeWatch();
+ const w=videoPracticeWindow();if(!w)return;
+ videoPracticeStart=w.start;videoPracticeEnd=w.end;videoPracticeLast=w.start;
+ try{wistiaPlayer.time(w.start)}catch(e){}
+ videoPracticeTimer=setInterval(()=>{
+  if(!videoEnabled||!wistiaPlayer){stopVideoPracticeWatch();return}
+  let t=0;try{t=+wistiaPlayer.time()||0}catch(e){return}
+  if(t+0.04<videoPracticeEnd){videoPracticeLast=t;return}
+  practiceIteration++;sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
+  const max=Math.max(1,+loopRepeats.value||1);
+  if(!practiceLoop||practiceIteration>=max){
+   sessionSeriesCount++;paintSession();
+   const inc=+autoBpm.value||0;
+   if(practiceLoop&&inc){
+    const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
+    const next=Math.min(goal,+tempo.value+inc);
+    tempo.value=next;syncTempo();syncVideoTempo();
+    practiceIteration=0;updatePracticeProgress(0);
+    if(next>=goal){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');practiceStatus.textContent='Objectif atteint • '+next+' BPM';saveCurrentSession();try{wistiaPlayer.pause()}catch(e){}stopVideoPracticeWatch();return}
+    practiceStatus.textContent='Nouvelle série • '+next+' BPM';
+    const nw=videoPracticeWindow();if(nw){videoPracticeStart=nw.start;videoPracticeEnd=nw.end}
+   }else if(practiceIteration>=max){
+    practiceStatus.textContent='Série terminée';saveCurrentSession();try{wistiaPlayer.pause()}catch(e){}stopVideoPracticeWatch();return;
+   }
+  }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
+  try{wistiaPlayer.time(videoPracticeStart);wistiaPlayer.play()}catch(e){}
+ },80);
 }
 function openVideo(){
  if(!currentWistiaId||!wistiaFrame)return;
@@ -615,3 +655,5 @@ if(importButton) importButton.onclick=async()=>{
   alert('Impossible d’afficher cette tablature : '+err.message);
  }
 };
+
+[loopStart,loopEnd].forEach(el=>el?.addEventListener('change',()=>{if(videoEnabled&&wistiaPlayer&&practiceLoop){const w=videoPracticeWindow();if(w){videoPracticeStart=w.start;videoPracticeEnd=w.end;try{wistiaPlayer.time(w.start)}catch(e){}}}}));
