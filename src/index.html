@@ -42,6 +42,11 @@
  <div class="guided-body"><strong id="guidedStepTitle">Échauffement</strong><p id="guidedInstruction"></p><div id="guidedSummary" class="guided-summary" hidden></div></div>
  <div class="guided-actions"><button id="guidedPrev" type="button">← PRÉCÉDENT</button><span id="guidedClock">00:00</span><button id="guidedNext" type="button">SUIVANT →</button></div>
 </section>
+<section class="ai-coach">
+ <div class="ai-coach-head"><div><span>✨ COACH IA</span><strong>Guitar Liberty Intelligence</strong></div><button id="aiCoachRefresh" type="button">ANALYSER MA SÉANCE</button></div>
+ <div class="ai-coach-body"><div class="ai-avatar">AI</div><div><strong id="aiCoachTitle">Prêt à t’accompagner</strong><p id="aiCoachAdvice">Charge un cours ou commence une séance pour recevoir un conseil personnalisé.</p></div></div>
+ <div class="ai-coach-actions"><button id="aiPracticePlan" type="button">PLAN DE TRAVAIL</button><button id="aiExplainTab" type="button">EXPLIQUER LA TAB</button><button id="aiListen" type="button" disabled>🎸 ÉCOUTE IA • BIENTÔT</button></div>
+</section>
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div id="tutorialNotice" class="tutorial-notice" hidden><strong>VIDÉO TUTORIEL</strong><span id="tutorialNoticeText">Tutoriel à venir pour ce cours.</span></div><div id="videoStage" class="video-stage" hidden><iframe id="wistiaFrame" title="Vidéo de cours" allow="autoplay; fullscreen" class="wistia_embed" name="wistia_embed" frameborder="0" scrolling="no"></iframe><video id="practiceVideo" playsinline preload="auto" controls hidden></video></div>
 <div class="practice-panel">
