@@ -135,8 +135,8 @@ function updateExpectedFromTick(api,tick){
 function paintPerformance(playedMidi){
  if(!Number.isFinite(playedMidi)||!Number.isFinite(expectedMidi))return;
  analysisTotal++;const ok=Math.abs(playedMidi-expectedMidi)===0;if(ok)analysisHits++;
- const ms=measurePerformance[currentAnalysisMeasure]||(measurePerformance[currentAnalysisMeasure]={hits:0,total:0,timing:0});ms.total++;if(ok)ms.hits++;
- const dt=performance.now()-expectedSince,timingOk=dt>=0&&dt<=350;if(timingOk){timingHits++;ms.timing++;}
+ const ms=measurePerformance[currentAnalysisMeasure]||(measurePerformance[currentAnalysisMeasure]={hits:0,total:0,timing:0,wrong:0,early:0,late:0,onTime:0});ms.total++;if(ok)ms.hits++;else ms.wrong=(ms.wrong||0)+1;
+ const dt=performance.now()-expectedSince,timingOk=dt>=0&&dt<=350;if(timingOk){timingHits++;ms.timing++;ms.onTime=(ms.onTime||0)+1}else if(dt<0){ms.early=(ms.early||0)+1}else{ms.late=(ms.late||0)+1;}
  document.querySelector('#playedCompareNote').textContent=midiName(playedMidi);
  const result=document.querySelector('#noteResult');result.textContent=ok?(timingOk?'✓ CORRECT':'✓ NOTE • TIMING À TRAVAILLER'):'✕ MAUVAISE NOTE';result.dataset.ok=ok?'1':'0';
  const notePct=Math.round(analysisHits/analysisTotal*100),timePct=Math.round(timingHits/analysisTotal*100),score=Math.round(notePct*.7+timePct*.3);
@@ -151,7 +151,7 @@ function saveMeasureMastery(measure,v){
  const store=measureMasteryStore(),id=measureMasteryId(),song=store[id]||{},old=song[measure]||{bestNotes:0,bestTiming:0,attempts:0,masteredBpm:0,history:[]};
  const notes=Math.round(v.hits/v.total*100),timing=Math.round(v.timing/v.total*100),mastered=notes>=90&&timing>=80,bpm=+tempo.value||0,history=Array.isArray(old.history)?old.history.slice(-19):[];
  const last=history[history.length-1];if(!last||last.notes!==notes||last.timing!==timing||last.bpm!==bpm)history.push({notes,timing,bpm,at:Date.now()});
- song[measure]={bestNotes:Math.max(old.bestNotes||0,notes),bestTiming:Math.max(old.bestTiming||0,timing),attempts:Math.max(old.attempts||0,v.total),masteredBpm:mastered?Math.max(old.masteredBpm||0,bpm):old.masteredBpm||0,history:history.slice(-20),updatedAt:Date.now()};
+ song[measure]={bestNotes:Math.max(old.bestNotes||0,notes),bestTiming:Math.max(old.bestTiming||0,timing),attempts:Math.max(old.attempts||0,v.total),masteredBpm:mastered?Math.max(old.masteredBpm||0,bpm):old.masteredBpm||0,errors:{wrong:v.wrong||0,early:v.early||0,late:v.late||0,onTime:v.onTime||0,total:v.total||0},history:history.slice(-20),updatedAt:Date.now()};
  store[id]=song;localStorage.setItem(MEASURE_MASTERY_KEY,JSON.stringify(store));paintMeasureMemory();
 }
 function scoreMeasureCount(){
@@ -160,13 +160,19 @@ function scoreMeasureCount(){
 }
 let selectedMemoryMeasure=null;
 function openMeasureDetail(measure){
- selectedMemoryMeasure=measure;const box=document.querySelector('#measureDetail'),song=measureMasteryForCurrent(),x=song[measure],title=document.querySelector('#measureDetailTitle'),stats=document.querySelector('#measureDetailStats'),trend=document.querySelector('#measureDetailTrend'),coach=document.querySelector('#measureDetailCoach');
+ selectedMemoryMeasure=measure;const box=document.querySelector('#measureDetail'),song=measureMasteryForCurrent(),x=song[measure],title=document.querySelector('#measureDetailTitle'),stats=document.querySelector('#measureDetailStats'),trend=document.querySelector('#measureDetailTrend'),errors=document.querySelector('#measureErrorProfile'),coach=document.querySelector('#measureDetailCoach');
  box.hidden=false;title.textContent='MESURE '+measure;
- if(!x){stats.innerHTML='<span>Pas encore analysée</span>';trend.innerHTML='<span class="measure-empty">Joue cette mesure avec ÉCOUTE IA pour créer son historique.</span>';coach.textContent='Cette mesure n’a pas encore assez de données pour établir une tendance.';return}
+ if(!x){stats.innerHTML='<span>Pas encore analysée</span>';trend.innerHTML='<span class="measure-empty">Joue cette mesure avec ÉCOUTE IA pour créer son historique.</span>';errors.innerHTML='';coach.textContent='Cette mesure n’a pas encore assez de données pour établir une tendance.';return}
  const history=Array.isArray(x.history)?x.history:[],last=history[history.length-1],first=history[0],delta=first&&last?last.notes-first.notes:0;
  stats.innerHTML='<div><small>MEILLEURES NOTES</small><b>'+x.bestNotes+' %</b></div><div><small>MEILLEUR TIMING</small><b>'+x.bestTiming+' %</b></div><div><small>TENTATIVES</small><b>'+x.attempts+'</b></div><div><small>BPM MAÎTRISE</small><b>'+(x.masteredBpm?x.masteredBpm+' BPM':'—')+'</b></div>';
  trend.innerHTML=history.length?history.map((p,i)=>'<div class="measure-history-point"><i style="height:'+Math.max(6,p.notes)+'%"></i><b>'+p.notes+'%</b><small>'+p.timing+'% timing</small><small>'+p.bpm+' BPM</small></div>').join(''):'<span class="measure-empty">L’historique détaillé commencera à la prochaine analyse.</span>';
- if(history.length<2)coach.textContent='Continue quelques répétitions pour permettre à Guitar Liberty d’identifier une tendance.';
+ const e=x.errors||{},et=Math.max(1,e.total||0),wrong=Math.round((e.wrong||0)/et*100),early=Math.round((e.early||0)/et*100),late=Math.round((e.late||0)/et*100),types=[['Mauvaises notes',wrong],['Trop tôt',early],['Trop tard',late]].sort((a,b)=>b[1]-a[1]),dominant=types[0];
+ errors.innerHTML='<div class="error-profile-title"><small>TYPE D’ERREUR DOMINANT</small><strong>'+(dominant[1]?dominant[0]:'Aucune erreur dominante')+'</strong></div><div class="error-profile-bars">'+types.map(t=>'<div><span>'+t[0]+'</span><i><b style="width:'+t[1]+'%"></b></i><em>'+t[1]+' %</em></div>').join('')+'</div>';
+ if(dominant[1]>=15){
+  if(dominant[0]==='Mauvaises notes')coach.textContent='Erreur dominante : mauvaises notes. Isole cette mesure, ralentis le tempo et stabilise les positions avant de réaccélérer.';
+  else if(dominant[0]==='Trop tard')coach.textContent='Erreur dominante : notes en retard. Active le métronome et reviens légèrement sous ton tempo actuel pour replacer les attaques.';
+  else coach.textContent='Erreur dominante : notes trop tôt. Travaille avec le métronome en laissant respirer chaque temps avant d’augmenter le BPM.';
+ }else if(history.length<2)coach.textContent='Continue quelques répétitions pour permettre à Guitar Liberty d’identifier une tendance.';
  else if(delta>=10)coach.textContent='Progression nette : +'+delta+' points de précision sur les performances enregistrées.';
  else if(delta<=-8)coach.textContent='La précision baisse de '+Math.abs(delta)+' points. Vérifie si l’augmentation du tempo déstabilise cette mesure.';
  else if(history.length>=4&&Math.abs(delta)<5)coach.textContent='Progression stable mais faible : cette mesure semble stagner. Ralentis légèrement et privilégie des répétitions propres.';
