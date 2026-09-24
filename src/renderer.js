@@ -304,11 +304,17 @@ document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
-   if(api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
+   if(api.playerState===1){api.pause();stopBacking(false);if(videoEnabled&&wistiaPlayer){try{wistiaPlayer.pause()}catch(e){}}document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
-     if(backingAudio&&backingEnabled){
+     if(videoEnabled&&wistiaPlayer){
+       const bpm=Math.max(1,+tempo.value||50);
+       syncVideoTempo();
+       try{wistiaPlayer.time(0);wistiaPlayer.play()}catch(e){console.error('Wistia playback',e)}
+       clearTimeout(backingStartTimer);
+       backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentVideoLeadBeats*(60000/bpm));
+     }else if(backingAudio&&backingEnabled){
        const bpm=Math.max(1,+tempo.value||50);
        const rate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=rate;
@@ -350,11 +356,29 @@ function setVideoTrack(id){
  if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
-function syncVideoTempo(){}
+function syncVideoTempo(){
+ if(!wistiaPlayer)return;
+ const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
+ try{wistiaPlayer.playbackRate(rate)}catch(e){console.error('Wistia tempo',e)}
+}
 function openVideo(){
  if(!currentWistiaId||!wistiaFrame)return;
  videoEnabled=true;videoStage.hidden=false;
  wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
+ wistiaFrame.onload=()=>{
+   let tries=0;
+   const grab=()=>{
+     tries++;
+     try{
+       if(window.Wistia&&typeof window.Wistia.api==='function'){
+         const v=window.Wistia.api(currentWistiaId);
+         if(v&&typeof v.play==='function'){wistiaPlayer=v;syncVideoTempo();return;}
+       }
+     }catch(e){}
+     if(tries<40)setTimeout(grab,100);
+   };
+   grab();
+ };
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
