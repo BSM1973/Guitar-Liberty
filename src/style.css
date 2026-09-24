@@ -70,3 +70,8 @@
 .lesson-meta span{background:#0b0e13;border:1px solid #242a34;border-radius:7px;padding:9px 10px;display:flex;flex-direction:column;gap:4px}
 .lesson-meta small{opacity:.65;font-size:10px;letter-spacing:.08em}.lesson-meta b{font-size:12px}
 @media(max-width:1100px){.lesson-meta{grid-template-columns:1fr 1fr}}
+
+.course-progression{margin:14px 8px;padding:10px;border:1px solid #303743;border-radius:8px;display:grid;gap:6px}.course-progression strong{font-size:11px;letter-spacing:.07em}.course-progression span{font-size:11px;opacity:.75}
+.course-progress-track{height:5px;background:#202630;border-radius:5px;overflow:hidden}.course-progress-track i{display:block;width:0;height:100%;background:currentColor;transition:width .25s}
+.library-exercise{position:relative}.library-exercise .course-state{display:block;margin-top:5px;font-size:9px;font-style:normal;letter-spacing:.07em;opacity:.7}
+.library-exercise.course-complete .course-state{font-weight:800}.library-exercise.course-locked{opacity:.38;cursor:not-allowed;filter:grayscale(1)}
