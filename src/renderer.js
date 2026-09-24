@@ -153,13 +153,19 @@ function saveMeasureMastery(measure,v){
  song[measure]={bestNotes:Math.max(old.bestNotes||0,notes),bestTiming:Math.max(old.bestTiming||0,timing),attempts:Math.max(old.attempts||0,v.total),masteredBpm:mastered?Math.max(old.masteredBpm||0,+tempo.value||0):old.masteredBpm||0,updatedAt:Date.now()};
  store[id]=song;localStorage.setItem(MEASURE_MASTERY_KEY,JSON.stringify(store));paintMeasureMemory();
 }
+function scoreMeasureCount(){
+ const tracks=practiceScore?.tracks||[],staff=tracks[0]?.staves?.[0],bars=staff?.bars;
+ return bars?.length||practiceScore?.masterBars?.length||0;
+}
 function paintMeasureMemory(){
- const host=document.querySelector('#measureMemoryMap'),summary=document.querySelector('#measureMemorySummary');if(!host||!summary)return;
- const song=measureMasteryForCurrent(),rows=Object.entries(song).map(([m,v])=>({m:+m,...v})).sort((a,b)=>a.m-b.m);
- if(!rows.length){summary.textContent='Aucune donnée enregistrée';host.innerHTML='<span class="measure-empty">Les résultats de chaque mesure seront conservés automatiquement.</span>';return}
- const mastered=rows.filter(x=>measureMasteryState(x)==='Maîtrisée').length;
- summary.textContent=mastered+' / '+rows.length+' mesure'+(rows.length>1?'s':'')+' maîtrisée'+(mastered>1?'s':'');
- host.innerHTML=rows.map(x=>{const state=measureMasteryState(x),cls=state==='Maîtrisée'?'mastered':state==='En progression'?'progressing':'work';return '<button class="measure-memory '+cls+'" data-memory-measure="'+x.m+'"><b>M'+x.m+'</b><strong>'+state+'</strong><small>Notes '+x.bestNotes+' % • Timing '+x.bestTiming+' %</small><small>'+x.attempts+' tentatives'+(x.masteredBpm?' • '+x.masteredBpm+' BPM':'')+'</small></button>'}).join('');
+ const host=document.querySelector('#measureMemoryMap'),summary=document.querySelector('#measureMemorySummary'),label=document.querySelector('#songMasteryLabel'),bar=document.querySelector('#songMasteryBar'),trophy=document.querySelector('#songMasteryTrophy');if(!host||!summary)return;
+ const song=measureMasteryForCurrent(),saved=Object.entries(song).map(([m,v])=>({m:+m,...v})),scoreCount=scoreMeasureCount(),maxSaved=saved.length?Math.max(...saved.map(x=>x.m)):0,total=Math.max(scoreCount,maxSaved),byMeasure=new Map(saved.map(x=>[x.m,x]));
+ if(!total){summary.textContent='Aucune donnée enregistrée';host.innerHTML='<span class="measure-empty">Les résultats de chaque mesure seront conservés automatiquement.</span>';if(label)label.textContent='MAÎTRISE 0 %';if(bar)bar.style.width='0%';if(trophy)trophy.hidden=true;return}
+ const rows=Array.from({length:total},(_,i)=>byMeasure.get(i+1)||{m:i+1,unseen:true,bestNotes:0,bestTiming:0,attempts:0,masteredBpm:0});
+ const analyzed=rows.filter(x=>!x.unseen),mastered=analyzed.filter(x=>measureMasteryState(x)==='Maîtrisée').length,pct=Math.round(mastered/total*100);
+ summary.textContent=mastered+' / '+total+' mesures maîtrisées • '+analyzed.length+' analysées';
+ if(label)label.textContent='MAÎTRISE '+pct+' %';if(bar)bar.style.width=pct+'%';if(trophy)trophy.hidden=!(total>0&&mastered===total);
+ host.innerHTML=rows.map(x=>{if(x.unseen)return '<button class="measure-memory unseen" data-memory-measure="'+x.m+'"><b>M'+x.m+'</b><strong>Non analysée</strong><small>—</small></button>';const state=measureMasteryState(x),cls=state==='Maîtrisée'?'mastered':state==='En progression'?'progressing':'work';return '<button class="measure-memory '+cls+'" data-memory-measure="'+x.m+'"><b>M'+x.m+'</b><strong>'+state+'</strong><small>Notes '+x.bestNotes+' % • Timing '+x.bestTiming+' %</small><small>'+x.attempts+' tentatives'+(x.masteredBpm?' • '+x.masteredBpm+' BPM':'')+'</small></button>'}).join('');
  host.querySelectorAll('[data-memory-measure]').forEach(b=>b.onclick=()=>startAdaptiveTraining(+b.dataset.memoryMeasure));
 }
 function resumeStoredPriority(){
