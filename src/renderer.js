@@ -90,6 +90,29 @@ const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelec
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
 let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
+const LESSON_KEY='guitarLibertyLessonProgress';
+const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
+let currentLessonId='';
+function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
+function paintLessonComplete(){
+ const done=!!lessonProgress()[currentLessonId];
+ lessonComplete.classList.toggle('complete',done);
+ lessonComplete.textContent=done?'✓ COURS TERMINÉ':'✓ MARQUER TERMINÉ';
+}
+function setLessonInfo(button){
+ currentLessonId=button?.dataset.score||currentPracticeTitle;
+ lessonObjective.textContent=button?.dataset.objective||'Travailler la tablature proprement au tempo indiqué.';
+ lessonPrereq.textContent=button?.dataset.prereq||'Accordage standard • lecture de TAB';
+ lessonDifficulty.textContent=button?.dataset.difficulty||'Débutant';
+ lessonKey.textContent=button?.dataset.key||'—';
+ lessonTempo.textContent=(button?.dataset.bpm?button.dataset.bpm+' BPM':'—');
+ paintLessonComplete();
+}
+lessonComplete.onclick=()=>{
+ if(!currentLessonId)return;
+ const p=lessonProgress();p[currentLessonId]=!p[currentLessonId];localStorage.setItem(LESSON_KEY,JSON.stringify(p));paintLessonComplete();
+ renderLearningPath();
+};
 function readHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return []}}
 function writeHistory(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,50)))}
 function masteryFor(items){
@@ -540,6 +563,7 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ setLessonInfo(button);
  setBackingTrack(button.dataset.backing||null);
  setVideoTrack(button.dataset.wistiaId||null,button.dataset.practiceVideo||null);
  setTutorial(button.dataset.tutorial||null);
