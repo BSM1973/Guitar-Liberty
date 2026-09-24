@@ -366,30 +366,19 @@ function setVideoTrack(id){
 function syncVideoTempo(){
  if(!wistiaPlayer)return;
  const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
- try{wistiaPlayer.playbackRate=rate}catch(e){console.error('Wistia tempo',e)}
+ try{wistiaPlayer.playbackRate(rate)}catch(e){console.error('Wistia tempo',e)}
 }
 function openVideo(){
  if(!currentWistiaId||!wistiaFrame)return;
  videoEnabled=true;videoStage.hidden=false;
- wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?web_component=true&seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
- wistiaFrame.onload=()=>{
-   let tries=0;
-   const connect=()=>{
-     tries++;
-     try{
-       const v=wistiaFrame.wistiaApi;
-       if(v){
-         wistiaPlayer=v;
-         syncVideoTempo();
-         practiceStatus.textContent='Vidéo connectée à Guitar Liberty';
-         return;
-       }
-     }catch(e){console.error('Wistia iframe API',e)}
-     if(tries<50)setTimeout(connect,100);
-     else practiceStatus.textContent='Vidéo affichée • contrôle Wistia indisponible';
-   };
-   connect();
- };
+ wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
+ window._wq=window._wq||[];
+ window._wq.push({id:currentWistiaId,onReady:function(video){
+   if(!videoEnabled)return;
+   wistiaPlayer=video;
+   syncVideoTempo();
+   practiceStatus.textContent='Vidéo connectée • tempo '+tempo.value+' BPM';
+ }});
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
