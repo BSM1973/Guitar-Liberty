@@ -249,6 +249,37 @@ function paintAiCoach(mode='analysis'){
  else if(x.reps>=4)advice.textContent='Tu as déjà '+x.reps+' répétitions enregistrées. Reste à '+x.tempo+' BPM si le passage manque de régularité ; sinon utilise Auto BPM par petits paliers jusqu’à '+x.target+' BPM.';
  else advice.textContent='Travaille d’abord lentement à '+x.tempo+' BPM. Utilise LOOP sur le passage difficile et vise au moins 4 répétitions régulières avant d’augmenter le tempo.';
 }
+function performanceMeasures(){
+ return Object.entries(measurePerformance).filter(([,v])=>v.total>=2).map(([m,v])=>({m:+m,pct:Math.round(v.hits/v.total*100),timing:Math.round(v.timing/v.total*100),samples:v.total})).sort((a,b)=>a.m-b.m);
+}
+function coachPerformanceReport(){
+ const rows=performanceMeasures(),box=document.querySelector('#aiPerformanceSummary'),title=document.querySelector('#aiCoachTitle'),advice=document.querySelector('#aiCoachAdvice');
+ if(!rows.length){title.textContent='Analyse de jeu en attente';advice.textContent='Active ÉCOUTE IA et joue la TAB pour que le Coach construise un bilan mesure par mesure.';box.hidden=true;return}
+ const priority=[...rows].sort((a,b)=>a.pct-b.pct||a.timing-b.timing)[0],mastered=rows.filter(x=>x.pct>=90&&x.timing>=80),noteIssues=rows.filter(x=>x.pct<90).length,timingIssues=rows.filter(x=>x.timing<80).length;
+ title.textContent='Bilan réel de ton jeu';
+ advice.textContent='Priorité : mesure '+priority.m+' • notes '+priority.pct+' % • timing '+priority.timing+' %. '+(priority.pct<90?'La précision des notes est prioritaire. ':'Les notes sont solides. ')+(priority.timing<80?'Travaille maintenant la régularité rythmique.':'Le timing est stable.');
+ box.hidden=false;box.innerHTML='<b>'+rows.length+' mesure'+(rows.length>1?'s':'')+' analysée'+(rows.length>1?'s':'')+'</b><span>'+mastered.length+' maîtrisée'+(mastered.length>1?'s':'')+'</span><span>'+noteIssues+' à corriger côté notes</span><span>'+timingIssues+' à stabiliser côté timing</span>';
+}
+function coachFixErrors(){
+ const rows=performanceMeasures();if(!rows.length){coachPerformanceReport();return}
+ const priority=[...rows].sort((a,b)=>a.pct-b.pct||a.timing-b.timing)[0];startAdaptiveTraining(priority.m);
+ document.querySelector('#aiCoachTitle').textContent='Correction ciblée • Mesure '+priority.m;
+ document.querySelector('#aiCoachAdvice').textContent='Mode adaptatif lancé à partir de ton analyse : '+priority.pct+' % de notes correctes, '+priority.timing+' % de timing. Guitar Liberty va suivre tes nouvelles répétitions.';
+}
+function coachContinueProgress(){
+ const rows=performanceMeasures();if(!rows.length){paintAiCoach('plan');return}
+ const candidates=rows.filter(x=>x.pct<90||x.timing<80).sort((a,b)=>a.pct-b.pct||a.timing-b.timing);
+ if(candidates.length){startAdaptiveTraining(candidates[0].m);document.querySelector('#aiCoachTitle').textContent='Prochaine priorité • Mesure '+candidates[0].m;document.querySelector('#aiCoachAdvice').textContent='Cette mesure est actuellement la prochaine faiblesse mesurée. Le travail adaptatif est prêt.'}
+ else{document.querySelector('#aiCoachTitle').textContent='Passage consolidé';document.querySelector('#aiCoachAdvice').textContent='Toutes les mesures suffisamment analysées atteignent actuellement les seuils de maîtrise. Continue au tempo actuel ou augmente progressivement vers '+(+targetBpm.value||+tempo.value)+' BPM.'}
+}
+function coachSessionReport(){
+ coachPerformanceReport();const rows=performanceMeasures(),advice=document.querySelector('#aiCoachAdvice');if(!rows.length)return;
+ const avgN=Math.round(rows.reduce((n,x)=>n+x.pct,0)/rows.length),avgT=Math.round(rows.reduce((n,x)=>n+x.timing,0)/rows.length),st=typeof currentLessonStats==='function'?currentLessonStats():{reps:sessionRepCount||0,best:sessionBest||0};
+ advice.textContent='Session : '+rows.length+' mesure'+(rows.length>1?'s':'')+' analysée'+(rows.length>1?'s':'')+' • précision moyenne '+avgN+' % • timing '+avgT+' % • '+(st.reps||sessionRepCount||0)+' répétitions enregistrées • meilleur tempo '+(st.best||sessionBest||+tempo.value)+' BPM.';
+}
+document.querySelector('#aiFixErrors').onclick=coachFixErrors;
+document.querySelector('#aiContinueProgress').onclick=coachContinueProgress;
+document.querySelector('#aiSessionReport').onclick=coachSessionReport;
 document.querySelector('#aiCoachRefresh').onclick=()=>paintAiCoach('analysis');
 document.querySelector('#aiPracticePlan').onclick=()=>paintAiCoach('plan');
 document.querySelector('#aiExplainTab').onclick=()=>paintAiCoach('tab');
