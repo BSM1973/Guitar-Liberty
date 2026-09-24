@@ -95,6 +95,31 @@ const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=d
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
+function aiCoachContext(){
+ const st=typeof currentLessonStats==='function'?currentLessonStats():{sessions:0,reps:0,seconds:0,best:0};
+ return {course:currentPracticeTitle||'Cours Guitar Liberty',tempo:+tempo.value||0,target:+targetBpm.value||0,reps:st.reps||sessionRepCount||0,best:st.best||sessionBest||0,seconds:st.seconds||0,loop:!!practiceLoop};
+}
+function paintAiCoach(mode='analysis'){
+ const x=aiCoachContext(),title=document.querySelector('#aiCoachTitle'),advice=document.querySelector('#aiCoachAdvice');
+ if(mode==='tab'){
+  title.textContent='Comprendre : '+x.course;
+  advice.textContent='Observe d’abord les positions, les doigtés et le rythme. Travaille une mesure à la fois, puis relie les mesures sans accélérer tant que les changements ne sont pas propres.';
+  return;
+ }
+ if(mode==='plan'){
+  const start=Math.max(40,Math.min(x.tempo,x.best||x.tempo)),step=Math.max(1,Math.min(5,+autoBpm.value||2));
+  title.textContent='Plan de travail personnalisé';
+  advice.textContent='Commence à '+start+' BPM. Fais '+Math.max(4,+loopRepeats.value||4)+' répétitions propres du passage difficile, puis augmente de '+step+' BPM. Objectif actuel : '+x.target+' BPM.';
+  return;
+ }
+ title.textContent=x.best?'Analyse de ta progression':'Conseil pour démarrer';
+ if(x.best>=x.target&&x.target)advice.textContent='Ton meilleur tempo atteint l’objectif de '+x.target+' BPM. Consolide maintenant la précision avec plusieurs répétitions propres avant de considérer ce cours comme acquis.';
+ else if(x.reps>=4)advice.textContent='Tu as déjà '+x.reps+' répétitions enregistrées. Reste à '+x.tempo+' BPM si le passage manque de régularité ; sinon utilise Auto BPM par petits paliers jusqu’à '+x.target+' BPM.';
+ else advice.textContent='Travaille d’abord lentement à '+x.tempo+' BPM. Utilise LOOP sur le passage difficile et vise au moins 4 répétitions régulières avant d’augmenter le tempo.';
+}
+document.querySelector('#aiCoachRefresh').onclick=()=>paintAiCoach('analysis');
+document.querySelector('#aiPracticePlan').onclick=()=>paintAiCoach('plan');
+document.querySelector('#aiExplainTab').onclick=()=>paintAiCoach('tab');
 let guidedStep=0,guidedStartedAt=0,guidedTimer=null,guidedStartBpm=0,guidedStartReps=0;
 const guidedSession=document.querySelector('#guidedSession'),guidedStepTitle=document.querySelector('#guidedStepTitle'),guidedInstruction=document.querySelector('#guidedInstruction'),guidedSummary=document.querySelector('#guidedSummary'),guidedClock=document.querySelector('#guidedClock');
 function guidedCurrentButton(){const bs=courseButtons(),p=lessonProgress();return bs.find((b,i)=>!p[b.dataset.score]&&(i===0||p[bs[i-1].dataset.score]))||bs[bs.length-1]}
@@ -185,6 +210,7 @@ function paintLessonComplete(){
 }
 function setLessonInfo(button){
  currentLessonId=button?.dataset.score||currentPracticeTitle;
+ setTimeout(()=>paintAiCoach('analysis'),0);
  lessonObjective.textContent=button?.dataset.objective||'Travailler la tablature proprement au tempo indiqué.';
  lessonPrereq.textContent=button?.dataset.prereq||'Accordage standard • lecture de TAB';
  lessonDifficulty.textContent=button?.dataset.difficulty||'Débutant';
