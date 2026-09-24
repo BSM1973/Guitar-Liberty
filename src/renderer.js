@@ -454,11 +454,21 @@ metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.val
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled){stopMetronome();startMetronome()}};
 function countInThenPlay(api,startPlayback=()=>api.play()){
  const bars=Math.max(0,+countIn.value||0);
- if(!bars){startPlayback();return}
+ const overlay=document.querySelector('#countInOverlay'),number=document.querySelector('#countInNumber');
+ if(!bars){if(overlay)overlay.hidden=true;startPlayback();return}
  const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4,total=bars*beats,beatMs=60000/+tempo.value;
  let beat=0;clearInterval(practiceTimer);practiceStatus.textContent='Compte : '+total;
+ if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
  metronomeClick(true);
- practiceTimer=setInterval(()=>{beat++;if(beat>=total){clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';startPlayback();return}practiceStatus.textContent='Compte : '+(total-beat);metronomeClick(beat%beats===0)},beatMs);
+ practiceTimer=setInterval(()=>{
+  beat++;
+  if(beat>=total){
+   clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';
+   if(overlay){overlay.classList.remove('active');overlay.hidden=true}startPlayback();return;
+  }
+  const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
+  metronomeClick(beat%beats===0);
+ },beatMs);
 }
 loopToggle.onclick=()=>{
  practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
