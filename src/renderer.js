@@ -95,6 +95,36 @@ const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=d
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
+let guidedStep=0,guidedStartedAt=0,guidedTimer=null,guidedStartBpm=0,guidedStartReps=0;
+const guidedSession=document.querySelector('#guidedSession'),guidedStepTitle=document.querySelector('#guidedStepTitle'),guidedInstruction=document.querySelector('#guidedInstruction'),guidedSummary=document.querySelector('#guidedSummary'),guidedClock=document.querySelector('#guidedClock');
+function guidedCurrentButton(){const bs=courseButtons(),p=lessonProgress();return bs.find((b,i)=>!p[b.dataset.score]&&(i===0||p[bs[i-1].dataset.score]))||bs[bs.length-1]}
+function paintGuided(){
+ const b=guidedCurrentButton(),name=b?b.childNodes[0].textContent.trim():'cours actuel';
+ const titles=['Échauffement','Révision','Cours actuel','Loop + Auto BPM','Bilan de séance'];
+ const instructions=[
+  'Joue lentement pendant quelques minutes. Cherche la détente, la précision et un son propre avant la vitesse.',
+  'Reprends un exercice déjà travaillé à un tempo confortable. L’objectif est la régularité, pas le record.',
+  'Travaille « '+name+' ». Lis la TAB, identifie les passages difficiles puis joue au tempo conseillé.',
+  'Active LOOP sur le passage difficile, choisis tes répétitions puis Auto BPM. Augmente seulement lorsque le passage reste propre.',
+  'Séance terminée. Consulte ton bilan puis marque le cours terminé uniquement lorsque tu considères son objectif acquis.'
+ ];
+ guidedStepTitle.textContent=titles[guidedStep];guidedInstruction.textContent=instructions[guidedStep];
+ document.querySelectorAll('[data-guide-step]').forEach((x,i)=>{x.classList.toggle('active',i===guidedStep);x.classList.toggle('done',i<guidedStep)});
+ document.querySelector('#guidedPrev').disabled=guidedStep===0;document.querySelector('#guidedNext').textContent=guidedStep===4?'TERMINER':'SUIVANT →';
+ guidedSummary.hidden=guidedStep!==4;
+ if(guidedStep===4){
+   const sec=Math.max(0,Math.round((Date.now()-guidedStartedAt)/1000)),gain=Math.max(0,(+tempo.value||0)-guidedStartBpm),reps=Math.max(0,sessionRepCount-guidedStartReps);
+   guidedSummary.innerHTML='<b>Temps : '+formatDashTime(sec)+'</b><b>Répétitions : '+reps+'</b><b>BPM : '+guidedStartBpm+' → '+tempo.value+'</b><b>Progression : +'+gain+' BPM</b>';
+ }
+}
+function startGuided(){
+ guidedStep=0;guidedStartedAt=Date.now();guidedStartBpm=+tempo.value||0;guidedStartReps=sessionRepCount||0;guidedSession.hidden=false;paintGuided();
+ clearInterval(guidedTimer);guidedTimer=setInterval(()=>guidedClock.textContent=formatDashTime((Date.now()-guidedStartedAt)/1000),1000);
+ guidedSession.scrollIntoView({behavior:'smooth',block:'start'});
+}
+document.querySelector('#guidedNext').onclick=()=>{if(guidedStep<4){guidedStep++;paintGuided()}else{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true;saveCurrentSession();refreshDashboard()}};
+document.querySelector('#guidedPrev').onclick=()=>{if(guidedStep>0){guidedStep--;paintGuided()}};
+document.querySelector('#guidedClose').onclick=()=>{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true};
 function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
 function refreshDashboard(){
  const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
@@ -111,7 +141,7 @@ function refreshDashboard(){
  q('#todayCourse').textContent=next?'Travaille : '+next.childNodes[0].textContent.trim():'Tous les cours disponibles sont validés.';
  q('#todayGoal').textContent=next?'Objectif : '+(next.dataset.bpm||targetBpm.value)+' BPM • '+(next.dataset.difficulty||'progression régulière'):'Continue à consolider tes acquis.';
  const go=()=>{if(next){next.click();next.scrollIntoView({behavior:'smooth',block:'center'})}};
- q('#continueCourse').onclick=go;q('#todayStart').onclick=go;
+ q('#continueCourse').onclick=go;q('#todayStart').onclick=()=>{go();startGuided()};
 }
 function refreshCourseProgress(){
  const buttons=courseButtons(),p=lessonProgress();let completed=0;
