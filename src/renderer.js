@@ -304,18 +304,11 @@ document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
-   if(api.playerState===1){api.pause();stopBacking(false);if(videoEnabled&&backingVideo)backingVideo.pause();document.querySelector('#play').textContent='▶ PLAY';return;}
+   if(api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
-     if(videoEnabled&&backingVideo&&backingVideo.src){
-       const bpm=Math.max(1,+tempo.value||50);
-       syncVideoTempo();
-       backingVideo.currentTime=0;
-       const vp=backingVideo.play();if(vp?.catch)vp.catch(e=>console.error('Native video playback',e));
-       clearTimeout(backingStartTimer);
-       backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentVideoLeadBeats*(60000/bpm));
-     }else if(backingAudio&&backingEnabled){
+     if(backingAudio&&backingEnabled){
        const bpm=Math.max(1,+tempo.value||50);
        const rate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=rate;
@@ -350,42 +343,24 @@ const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 const videoToggle=document.querySelector('#videoToggle');
 const videoStage=document.querySelector('#videoStage');
-const backingVideo=document.querySelector('#backingVideo');
-async function resolveWistiaVideo(id){
- if(!id)return null;
- const manifest='https://fast.wistia.com/embed/medias/'+encodeURIComponent(id)+'.m3u8';
- try{
-  const r=await fetch(manifest,{method:'HEAD'});
-  if(r.ok)return manifest;
- }catch(e){console.warn('Wistia HLS probe',e)}
- return manifest;
-}
+const wistiaFrame=document.querySelector('#wistiaFrame');
 function setVideoTrack(id){
  currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
- if(backingVideo){backingVideo.pause();backingVideo.removeAttribute('src');backingVideo.load();}
+ if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
-function syncVideoTempo(){
- if(!backingVideo)return;
- backingVideo.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
-}
-async function openVideo(){
- if(!currentWistiaId||!backingVideo)return;
- const src=await resolveWistiaVideo(currentWistiaId);
- if(!src)return;
+function syncVideoTempo(){}
+function openVideo(){
+ if(!currentWistiaId||!wistiaFrame)return;
  videoEnabled=true;videoStage.hidden=false;
- if(backingVideo.src!==src){backingVideo.src=src;backingVideo.load();}
- syncVideoTempo();
- wistiaPlayer=backingVideo;
+ wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
- videoEnabled=false;
- try{backingVideo?.pause()}catch(e){}
- wistiaPlayer=null;
+ videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
- if(backingVideo){backingVideo.removeAttribute('src');backingVideo.load();}
+ if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
