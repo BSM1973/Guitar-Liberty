@@ -11,7 +11,7 @@ const exercises={
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -308,7 +308,13 @@ document.querySelector('#play').onclick=async()=>{
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
-     if(videoEnabled&&wistiaPlayer){
+     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
+       syncVideoTempo();
+       if(practiceVideo.paused){
+         practiceVideo.play().catch(e=>console.error('Practice video',e));startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+       }else{practiceVideo.pause();document.querySelector('#play').textContent='▶ PLAY';}
+       return;
+     }else if(videoEnabled&&wistiaPlayer){
        syncVideoTempo();
        try{
          const state=wistiaPlayer.state||'';
@@ -357,19 +363,28 @@ const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 const videoToggle=document.querySelector('#videoToggle');
 const videoStage=document.querySelector('#videoStage');
 const wistiaFrame=document.querySelector('#wistiaFrame');
-function setVideoTrack(id){
- currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;
+const practiceVideo=document.querySelector('#practiceVideo');
+function setVideoTrack(id,practiceUrl=null){
+ currentPracticeVideoUrl=practiceUrl||null;
+ currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
+ if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
  if(wistiaFrame)wistiaFrame.src='';
+ if(practiceVideo){practiceVideo.pause();practiceVideo.hidden=true;practiceVideo.removeAttribute('src');practiceVideo.load();}
  if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
- if(videoEnabled)practiceStatus.textContent='Vidéo Wistia • tempo indépendant';
+ if(!practiceVideo||practiceVideo.hidden)return;
+ practiceVideo.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
 }
 function openVideo(){
- if(!currentWistiaId||!wistiaFrame)return;
+ if(!currentWistiaId&&!currentPracticeVideoUrl)return;
  videoEnabled=true;videoStage.hidden=false;
- wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
+ if(currentPracticeVideoUrl&&practiceVideo){
+   wistiaFrame.hidden=true;practiceVideo.hidden=false;practiceVideo.src=encodeURI(currentPracticeVideoUrl);practiceVideo.load();syncVideoTempo();
+ }else if(wistiaFrame){
+   practiceVideo.hidden=true;wistiaFrame.hidden=false;wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
+ }
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
@@ -510,7 +525,7 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
- setVideoTrack(button.dataset.wistiaId||null);
+ setVideoTrack(button.dataset.wistiaId||null,button.dataset.practiceVideo||null);
  currentBackingLeadBeats=Math.max(0,+button.dataset.backingLeadBeats||0);
  currentVideoLeadBeats=Math.max(0,+button.dataset.videoLeadBeats||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
