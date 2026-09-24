@@ -304,16 +304,23 @@ document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
-   if(api.playerState===1){api.pause();stopBacking(false);if(videoEnabled&&wistiaPlayer){try{wistiaPlayer.pause()}catch(e){}}document.querySelector('#play').textContent='▶ PLAY';return;}
+   if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
      if(videoEnabled&&wistiaPlayer){
-       const bpm=Math.max(1,+tempo.value||50);
        syncVideoTempo();
-       try{wistiaPlayer.time(0);wistiaPlayer.play()}catch(e){console.error('Wistia playback',e)}
-       clearTimeout(backingStartTimer);
-       backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentVideoLeadBeats*(60000/bpm));
+       try{
+         const state=typeof wistiaPlayer.state==='function'?wistiaPlayer.state():'';
+         if(state==='playing'){
+           wistiaPlayer.pause();
+           document.querySelector('#play').textContent='▶ PLAY';
+         }else{
+           wistiaPlayer.play();
+           document.querySelector('#play').textContent='⏸ PAUSE';
+         }
+       }catch(e){console.error('Wistia playback',e)}
+       return;
      }else if(backingAudio&&backingEnabled){
        const bpm=Math.max(1,+tempo.value||50);
        const rate=Math.max(.5,Math.min(2,bpm/50));
@@ -482,7 +489,7 @@ async function loadWithAlphaTab(file){
      const next=Math.min(goal,+tempo.value+inc);
      tempo.value=next;syncTempo();
      const original=practiceScore?.tempo||120;
-     api.playbackSpeed=Math.max(.25,Math.min(3,next/original));
+     api.playbackSpeed=Math.max(.25,Math.min(3,next/original));if(videoEnabled)syncVideoTempo();
      if(next>=goal){
       api.isLooping=false;
       practiceLoop=false;
