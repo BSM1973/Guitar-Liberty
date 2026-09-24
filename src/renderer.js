@@ -537,14 +537,16 @@ tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)set
 function isEditableShortcutTarget(target){
  if(!target)return false;
  const tag=(target.tagName||'').toLowerCase();
- return target.isContentEditable||tag==='input'||tag==='textarea'||tag==='select'||tag==='button';
+ return target.isContentEditable||tag==='input'||tag==='textarea'||tag==='select';
 }
 document.addEventListener('keydown',e=>{
- if(e.code!=='Space'||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
+ if((e.code!=='Space'&&e.key!==' ')||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
  if(isEditableShortcutTarget(e.target))return;
  e.preventDefault();
- document.querySelector('#play')?.click();
-});
+ e.stopPropagation();
+ const playButton=document.querySelector('#play');
+ if(playButton)playButton.click();
+},{capture:true});
 
 document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
