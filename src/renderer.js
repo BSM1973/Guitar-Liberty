@@ -95,7 +95,7 @@ const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=d
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
-let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false;
+let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false,expectedMidi=null,expectedSince=0,analysisHits=0,analysisTotal=0,timingHits=0;
 const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),audioOutput=document.querySelector('#audioOutput'),guitarMonitor=document.querySelector('#guitarMonitor'),monitorToggle=document.querySelector('#monitorToggle'),monitorVolume=document.querySelector('#monitorVolume'),listenStart=document.querySelector('#listenStart');
 async function listAudioInputs(){
  try{
@@ -114,17 +114,41 @@ function autoCorrelate(buf,sr){
  for(let off=min;off<=max;off++){let corr=0;for(let i=0;i<buf.length-off;i++)corr+=buf[i]*buf[i+off];if(corr>best){best=corr;bestOff=off}}
  return {freq:bestOff>0?sr/bestOff:0,rms};
 }
+function midiName(midi){const n=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];return n[(midi%12+12)%12]+(Math.floor(midi/12)-1)}
+function updateExpectedFromTick(api,tick){
+ try{
+  let nearest=null,dist=Infinity;
+  const lookup=api.renderer?.boundsLookup;
+  for(const sys of lookup?.staffSystems||[])for(const master of sys.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+   const bt=beat.beat?.absolutePlaybackStart??beat.beat?.absoluteDisplayStart;
+   if(bt==null||!beat.notes?.length)continue;
+   const d=Math.abs(bt-tick);if(d<dist){dist=d;nearest=beat}
+  }
+  const note=nearest?.notes?.[0]?.note;if(!note)return;
+  const midi=note.realValue??note.displayValue??note.midiValue;
+  if(Number.isFinite(midi)&&midi!==expectedMidi){expectedMidi=midi;expectedSince=performance.now();document.querySelector('#expectedNote').textContent=midiName(midi)}
+ }catch(e){}
+}
+function paintPerformance(playedMidi){
+ if(!Number.isFinite(playedMidi)||!Number.isFinite(expectedMidi))return;
+ analysisTotal++;const ok=Math.abs(playedMidi-expectedMidi)===0;if(ok)analysisHits++;
+ const dt=performance.now()-expectedSince,timingOk=dt>=0&&dt<=350;if(timingOk)timingHits++;
+ document.querySelector('#playedCompareNote').textContent=midiName(playedMidi);
+ const result=document.querySelector('#noteResult');result.textContent=ok?(timingOk?'✓ CORRECT':'✓ NOTE • TIMING À TRAVAILLER'):'✕ MAUVAISE NOTE';result.dataset.ok=ok?'1':'0';
+ const notePct=Math.round(analysisHits/analysisTotal*100),timePct=Math.round(timingHits/analysisTotal*100),score=Math.round(notePct*.7+timePct*.3);
+ document.querySelector('#noteAccuracy').textContent=notePct+' %';document.querySelector('#timingAccuracy').textContent=timePct+' %';document.querySelector('#passageScore').textContent=score+' %';
+}
 function pitchName(freq){
  const midi=Math.round(69+12*Math.log2(freq/440)),names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
  const exact=69+12*Math.log2(freq/440),cents=Math.round((exact-midi)*100);
- return {name:names[(midi%12+12)%12]+(Math.floor(midi/12)-1),cents};
+ return {name:names[(midi%12+12)%12]+(Math.floor(midi/12)-1),cents,midi};
 }
 function listenLoop(){
  if(!listening||!listenAnalyser)return;
  const data=new Float32Array(listenAnalyser.fftSize);listenAnalyser.getFloatTimeDomainData(data);
  const r=autoCorrelate(data,listenContext.sampleRate),level=Math.min(100,Math.round(r.rms*420));
  document.querySelector('#inputMeterBar').style.width=level+'%';document.querySelector('#inputLevel').textContent=level+'%';
- if(r.freq>=70&&r.freq<=1200){const p=pitchName(r.freq);document.querySelector('#detectedNote').textContent=p.name;document.querySelector('#detectedFreq').textContent=r.freq.toFixed(1)+' Hz';document.querySelector('#detectedCents').textContent=(p.cents>0?'+':'')+p.cents+' cents';}
+ if(r.freq>=70&&r.freq<=1200){const p=pitchName(r.freq);document.querySelector('#detectedNote').textContent=p.name;document.querySelector('#detectedFreq').textContent=r.freq.toFixed(1)+' Hz';document.querySelector('#detectedCents').textContent=(p.cents>0?'+':'')+p.cents+' cents';paintPerformance(p.midi);}
  else{document.querySelector('#detectedNote').textContent='—';document.querySelector('#detectedFreq').textContent='— Hz';document.querySelector('#detectedCents').textContent='—';}
  listenFrame=requestAnimationFrame(listenLoop);
 }
@@ -136,7 +160,7 @@ async function startListening(){
   guitarMonitor.srcObject=listenStream;guitarMonitor.volume=(+monitorVolume.value||0)/100;
   if(audioOutput.value&&typeof guitarMonitor.setSinkId==='function')await guitarMonitor.setSinkId(audioOutput.value);
   if(monitorToggle.checked)await guitarMonitor.play();else guitarMonitor.pause();
-  listening=true;listenStart.textContent='ARRÊTER L’ANALYSE';listenStart.classList.add('active');document.querySelector('#listenStatus').textContent='Écoute en cours • joue une note seule';await listAudioInputs();listenLoop();
+  analysisHits=0;analysisTotal=0;timingHits=0;expectedMidi=null;document.querySelector('#expectedNote').textContent='—';document.querySelector('#playedCompareNote').textContent='—';document.querySelector('#noteResult').textContent='EN ATTENTE';document.querySelector('#noteAccuracy').textContent='—';document.querySelector('#timingAccuracy').textContent='—';document.querySelector('#passageScore').textContent='—';listening=true;listenStart.textContent='ARRÊTER L’ANALYSE';listenStart.classList.add('active');document.querySelector('#listenStatus').textContent='Écoute en cours • joue une note seule';await listAudioInputs();listenLoop();
  }catch(e){console.error(e);document.querySelector('#listenStatus').textContent='Accès audio refusé ou entrée indisponible.'}
 }
 function stopListening(){
@@ -662,7 +686,7 @@ async function loadWithAlphaTab(file){
  api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
-  updatePlayCursor(api,tick);
+  updatePlayCursor(api,tick);if(listening)updateExpectedFromTick(api,tick);
   if(!practiceLoop)return;
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
