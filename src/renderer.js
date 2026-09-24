@@ -348,31 +348,26 @@ const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 const videoToggle=document.querySelector('#videoToggle');
 const videoStage=document.querySelector('#videoStage');
-const wistiaElement=document.querySelector('#wistiaPlayer');
+const wistiaFrame=document.querySelector('#wistiaFrame');
 function setVideoTrack(id){
  currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
- if(wistiaElement){wistiaElement.pause?.();wistiaElement.mediaId=currentWistiaId||'';}
+ if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
- if(!wistiaElement)return;
- const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
- wistiaElement.playbackRate=rate;
+ // The working iframe is cross-origin; tempo control will be connected through Wistia messaging separately.
 }
 function openVideo(){
- if(!currentWistiaId||!wistiaElement)return;
+ if(!currentWistiaId||!wistiaFrame)return;
  videoEnabled=true;videoStage.hidden=false;
- wistiaElement.mediaId=currentWistiaId;
- syncVideoTempo();
- wistiaPlayer=wistiaElement;
+ wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
- videoEnabled=false;
- try{wistiaElement?.pause()}catch(e){}
- wistiaPlayer=null;
+ videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
+ if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
