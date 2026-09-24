@@ -68,12 +68,7 @@
 </div>
 <div class="listen-actions"><button id="listenStart" type="button">DÉMARRER L’ANALYSE</button><span id="listenStatus">Prêt • l’analyse reste locale dans Guitar Liberty</span></div>
 </section>
-<div class="metronome-panel">
- <button id="metronomeToggle" type="button">♩ MÉTRONOME OFF</button>
- <label>Volume <input id="metronomeVolume" type="range" min="0" max="100" value="65"><b id="metronomeVolumeLabel">65%</b></label>
- <label>Mesure <select id="metronomeSignature"><option value="4" selected>4/4</option><option value="3">3/4</option><option value="2">2/4</option><option value="6">6/8</option></select></label>
- <div id="metronomeBeat" class="metronome-beat" aria-label="Battement du métronome"><i></i><i></i><i></i><i></i></div>
-</div>
+
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div id="tutorialNotice" class="tutorial-notice" hidden><strong>VIDÉO TUTORIEL</strong><span id="tutorialNoticeText">Tutoriel à venir pour ce cours.</span></div><div id="videoStage" class="video-stage" hidden><iframe id="wistiaFrame" title="Vidéo de cours" allow="autoplay; fullscreen" class="wistia_embed" name="wistia_embed" frameborder="0" scrolling="no"></iframe><video id="practiceVideo" playsinline preload="auto" controls hidden></video></div>
 <div class="practice-panel">
@@ -100,6 +95,12 @@
   <span><small>TEMPO CONSEILLÉ</small><b id="lessonTempo">—</b></span>
  </div><div class="lesson-mastery"><span>MAÎTRISE DU COURS</span><div><i id="lessonMasteryBar"></i></div><b id="lessonMasteryText">Découverte</b></div>
 </section>
+<div class="metronome-panel">
+ <button id="metronomeToggle" type="button">♩ MÉTRONOME OFF</button>
+ <label>Volume <input id="metronomeVolume" type="range" min="0" max="100" value="65"><b id="metronomeVolumeLabel">65%</b></label>
+ <label>Mesure <select id="metronomeSignature"><option value="4" selected>4/4</option><option value="3">3/4</option><option value="2">2/4</option><option value="6">6/8</option></select></label>
+ <div id="metronomeBeat" class="metronome-beat" aria-label="Battement du métronome"><i></i><i></i><i></i><i></i></div>
+</div>
 <div class="score-head"><div><h2 id="title"></h2><p id="subtitle"></p></div><div class="score-meta"><span>Standard tuning</span><strong id="scoreTempo">♩ = 90</strong></div></div>
 <div class="paper"><div class="exercise-label">Ex.1</div><div id="tab" class="tab-score"></div></div>
 <div class="transport"><div id="progress"></div></div>
