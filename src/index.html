@@ -34,6 +34,14 @@
  </div>
  <div class="today-session"><div><span>AUJOURD’HUI</span><strong id="todayCourse">Commence ton parcours Guitar Liberty.</strong><small id="todayGoal">Une séance courte et régulière suffit pour progresser.</small></div><button id="todayStart" type="button">COMMENCER LA SÉANCE</button></div>
 </section>
+<section id="guidedSession" class="guided-session" hidden>
+ <div class="guided-head"><div><small>SÉANCE GUIDÉE</small><strong id="guidedTitle">Guitar Liberty Coach</strong></div><button id="guidedClose" type="button">FERMER</button></div>
+ <div class="guided-steps">
+  <span data-guide-step="0">1 ÉCHAUFFEMENT</span><span data-guide-step="1">2 RÉVISION</span><span data-guide-step="2">3 COURS ACTUEL</span><span data-guide-step="3">4 LOOP + AUTO BPM</span><span data-guide-step="4">5 BILAN</span>
+ </div>
+ <div class="guided-body"><strong id="guidedStepTitle">Échauffement</strong><p id="guidedInstruction"></p><div id="guidedSummary" class="guided-summary" hidden></div></div>
+ <div class="guided-actions"><button id="guidedPrev" type="button">← PRÉCÉDENT</button><span id="guidedClock">00:00</span><button id="guidedNext" type="button">SUIVANT →</button></div>
+</section>
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div id="tutorialNotice" class="tutorial-notice" hidden><strong>VIDÉO TUTORIEL</strong><span id="tutorialNoticeText">Tutoriel à venir pour ce cours.</span></div><div id="videoStage" class="video-stage" hidden><iframe id="wistiaFrame" title="Vidéo de cours" allow="autoplay; fullscreen" class="wistia_embed" name="wistia_embed" frameborder="0" scrolling="no"></iframe><video id="practiceVideo" playsinline preload="auto" controls hidden></video></div>
 <div class="practice-panel">
