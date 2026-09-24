@@ -42,7 +42,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     backgroundColor: '#101216',
-    title: 'Guitar Liberty',
+    title: 'Guitare Liberty',
     webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
   win.loadFile(path.join(__dirname, 'index.html'));
