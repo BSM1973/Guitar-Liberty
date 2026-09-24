@@ -372,20 +372,23 @@ function openVideo(){
  if(!currentWistiaId||!wistiaFrame)return;
  videoEnabled=true;videoStage.hidden=false;
  wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
- wistiaFrame.onload=()=>{
-   let tries=0;
-   const grab=()=>{
-     tries++;
+ window._wq=window._wq||[];
+ window._wq.push({id:currentWistiaId,onReady:function(video){
+   if(!videoEnabled||video.hashedId()!==currentWistiaId)return;
+   wistiaPlayer=video;
+   syncVideoTempo();
+   const report=()=>{
      try{
-       if(window.Wistia&&typeof window.Wistia.api==='function'){
-         const v=window.Wistia.api(currentWistiaId);
-         if(v&&typeof v.play==='function'){wistiaPlayer=v;syncVideoTempo();return;}
-       }
-     }catch(e){}
-     if(tries<40)setTimeout(grab,100);
+       const t=video.time(),d=video.duration(),r=video.playbackRate();
+       practiceStatus.textContent='Vidéo prête • '+t.toFixed(1)+' / '+d.toFixed(1)+' s • x'+r.toFixed(2);
+     }catch(e){console.error('Wistia status',e)}
    };
-   grab();
- };
+   video.bind('play',report);
+   video.bind('pause',report);
+   video.bind('timechange',report);
+   video.bind('playbackratechange',report);
+   report();
+ }});
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
