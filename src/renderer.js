@@ -299,7 +299,7 @@ function tick(){
  index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
-tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}if(wistiaPlayer){try{wistiaPlayer.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||50)/50))}catch(e){try{wistiaPlayer.playbackRate(Math.max(.5,Math.min(2,(+tempo.value||50)/50)))}catch(_){}}}};
+tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}if(videoEnabled)syncVideoTempo()};
 document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
@@ -310,7 +310,7 @@ document.querySelector('#play').onclick=async()=>{
    countInThenPlay(api,()=>{
      if(videoEnabled&&wistiaPlayer){
        const bpm=Math.max(1,+tempo.value||50),rate=Math.max(.5,Math.min(2,bpm/50));
-       try{wistiaPlayer.playbackRate=rate;wistiaPlayer.currentTime=0;wistiaPlayer.play()}catch(e){try{wistiaPlayer.playbackRate(rate);wistiaPlayer.time(0);wistiaPlayer.play()}catch(_){}}
+       try{wistiaPlayer.playbackRate=rate;wistiaPlayer.currentTime=0;wistiaPlayer.play()}catch(e){console.error('Wistia playback',e)}
        clearTimeout(backingStartTimer);
        backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentVideoLeadBeats*(60000/bpm));
      }else if(backingAudio&&backingEnabled){
@@ -348,10 +348,33 @@ const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 const videoToggle=document.querySelector('#videoToggle');
 const videoStage=document.querySelector('#videoStage');
-const wistiaFrame=document.querySelector('#wistiaFrame');
-function setVideoTrack(id){currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;if(videoStage)videoStage.hidden=true;if(wistiaFrame)wistiaFrame.src='';if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}}
-function openVideo(){if(!currentWistiaId||!wistiaFrame)return;videoEnabled=true;videoStage.hidden=false;wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?web_component=true&seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';wistiaFrame.onload=()=>{wistiaPlayer=wistiaFrame.wistiaApi||null;if(wistiaPlayer){const r=Math.max(.5,Math.min(2,(+tempo.value||50)/50));try{wistiaPlayer.playbackRate=r}catch(e){try{wistiaPlayer.playbackRate(r)}catch(_){}}}};videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';}
-function closeVideo(){videoEnabled=false;if(wistiaPlayer){try{wistiaPlayer.pause()}catch(e){}}wistiaPlayer=null;if(videoStage)videoStage.hidden=true;if(wistiaFrame)wistiaFrame.src='';if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}}
+const wistiaElement=document.querySelector('#wistiaPlayer');
+function setVideoTrack(id){
+ currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;
+ if(videoStage)videoStage.hidden=true;
+ if(wistiaElement){wistiaElement.pause?.();wistiaElement.mediaId=currentWistiaId||'';}
+ if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
+}
+function syncVideoTempo(){
+ if(!wistiaElement)return;
+ const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
+ wistiaElement.playbackRate=rate;
+}
+function openVideo(){
+ if(!currentWistiaId||!wistiaElement)return;
+ videoEnabled=true;videoStage.hidden=false;
+ wistiaElement.mediaId=currentWistiaId;
+ syncVideoTempo();
+ wistiaPlayer=wistiaElement;
+ videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
+}
+function closeVideo(){
+ videoEnabled=false;
+ try{wistiaElement?.pause()}catch(e){}
+ wistiaPlayer=null;
+ if(videoStage)videoStage.hidden=true;
+ if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
+}
 if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
 function stopBacking(reset=true){
  clearTimeout(backingStartTimer);backingStartTimer=null;
