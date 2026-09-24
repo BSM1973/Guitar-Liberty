@@ -11,6 +11,7 @@ const exercises={
 };
 let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -340,6 +341,13 @@ render();
 const backingToggle=document.querySelector('#backingToggle');
 const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
+const videoToggle=document.querySelector('#videoToggle');
+const videoStage=document.querySelector('#videoStage');
+const wistiaFrame=document.querySelector('#wistiaFrame');
+function setVideoTrack(id){currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;if(videoStage)videoStage.hidden=true;if(wistiaFrame)wistiaFrame.src='';if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}}
+function openVideo(){if(!currentWistiaId||!wistiaFrame)return;videoEnabled=true;videoStage.hidden=false;wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';}
+function closeVideo(){videoEnabled=false;if(videoStage)videoStage.hidden=true;if(wistiaFrame)wistiaFrame.src='';if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}}
+if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
 function stopBacking(reset=true){
  clearTimeout(backingStartTimer);backingStartTimer=null;
  if(!backingAudio)return;
@@ -471,7 +479,9 @@ async function loadWithAlphaTab(file){
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
+ setVideoTrack(button.dataset.wistiaId||null);
  currentBackingLeadBeats=Math.max(0,+button.dataset.backingLeadBeats||0);
+ currentVideoLeadBeats=Math.max(0,+button.dataset.videoLeadBeats||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
