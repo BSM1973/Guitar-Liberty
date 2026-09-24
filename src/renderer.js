@@ -94,10 +94,27 @@ const LESSON_KEY='guitarLibertyLessonProgress';
 const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
+function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
+function refreshCourseProgress(){
+ const buttons=courseButtons(),p=lessonProgress();let completed=0;
+ buttons.forEach((b,i)=>{
+   const id=b.dataset.score,done=!!p[id],unlocked=i===0||!!p[buttons[i-1].dataset.score];
+   b.classList.toggle('course-complete',done);b.classList.toggle('course-locked',!unlocked);
+   b.disabled=!unlocked;b.setAttribute('aria-disabled',String(!unlocked));
+   let badge=b.querySelector('.course-state');
+   if(!badge){badge=document.createElement('em');badge.className='course-state';b.appendChild(badge)}
+   badge.textContent=done?'✓ TERMINÉ':unlocked?'EN COURS':'🔒 VERROUILLÉ';
+   if(done)completed++;
+ });
+ const t=document.querySelector('#courseProgressText'),bar=document.querySelector('#courseProgressBar');
+ if(t)t.textContent=completed+' / '+buttons.length+' terminé'+(completed>1?'s':'');
+ if(bar)bar.style.width=(buttons.length?completed/buttons.length*100:0)+'%';
+}
 function paintLessonComplete(){
  const done=!!lessonProgress()[currentLessonId];
  lessonComplete.classList.toggle('complete',done);
  lessonComplete.textContent=done?'✓ COURS TERMINÉ':'✓ MARQUER TERMINÉ';
+ refreshCourseProgress();
 }
 function setLessonInfo(button){
  currentLessonId=button?.dataset.score||currentPracticeTitle;
@@ -578,7 +595,8 @@ async function loadBundledScore(button){
   await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
  }catch(err){console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
 }
-document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>loadBundledScore(b));
+document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked'))loadBundledScore(b)});
+refreshCourseProgress();
 if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
