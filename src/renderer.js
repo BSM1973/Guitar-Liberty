@@ -308,12 +308,7 @@ document.querySelector('#play').onclick=async()=>{
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
-     if(videoEnabled&&wistiaPlayer){
-       const bpm=Math.max(1,+tempo.value||50),rate=Math.max(.5,Math.min(2,bpm/50));
-       try{wistiaPlayer.playbackRate(rate);wistiaPlayer.time(0);wistiaPlayer.play()}catch(e){console.error('Wistia playback',e)}
-       clearTimeout(backingStartTimer);
-       backingStartTimer=setTimeout(()=>{backingStartTimer=null;api.play();},currentVideoLeadBeats*(60000/bpm));
-     }else if(backingAudio&&backingEnabled){
+     if(backingAudio&&backingEnabled){
        const bpm=Math.max(1,+tempo.value||50);
        const rate=Math.max(.5,Math.min(2,bpm/50));
        backingAudio.playbackRate=rate;
@@ -356,9 +351,7 @@ function setVideoTrack(id){
  if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
- if(!wistiaPlayer)return;
- const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
- try{wistiaPlayer.playbackRate(rate)}catch(e){console.error('Wistia tempo',e)}
+ // Stable Wistia iframe display: app-side transport control is intentionally disabled.
 }
 function openVideo(){
  if(!currentWistiaId||!wistiaFrame)return;
