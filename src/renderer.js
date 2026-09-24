@@ -95,6 +95,24 @@ const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=d
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
+function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
+function refreshDashboard(){
+ const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
+ const next=buttons.find((b,i)=>!p[b.dataset.score]&&(i===0||p[buttons[i-1].dataset.score]))||null;
+ const history=(typeof practiceHistory!=='undefined'?practiceHistory:[]);
+ const total=history.reduce((n,x)=>n+(+x.seconds||0),0),best=history.reduce((n,x)=>Math.max(n,+x.bestBpm||0),0);
+ const pct=buttons.length?Math.round(done.length/buttons.length*100):0;
+ const q=s=>document.querySelector(s);
+ q('#dashProgress').textContent=pct+' %';q('#dashProgressBar').style.width=pct+'%';
+ q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
+ const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
+ q('#dashTime').textContent=formatDashTime(total);q('#dashBpm').textContent=best?best+' BPM':'—';
+ q('#dashValidated').textContent=done.length+' cours validé'+(done.length>1?'s':'');
+ q('#todayCourse').textContent=next?'Travaille : '+next.childNodes[0].textContent.trim():'Tous les cours disponibles sont validés.';
+ q('#todayGoal').textContent=next?'Objectif : '+(next.dataset.bpm||targetBpm.value)+' BPM • '+(next.dataset.difficulty||'progression régulière'):'Continue à consolider tes acquis.';
+ const go=()=>{if(next){next.click();next.scrollIntoView({behavior:'smooth',block:'center'})}};
+ q('#continueCourse').onclick=go;q('#todayStart').onclick=go;
+}
 function refreshCourseProgress(){
  const buttons=courseButtons(),p=lessonProgress();let completed=0;
  buttons.forEach((b,i)=>{
@@ -109,6 +127,7 @@ function refreshCourseProgress(){
  const t=document.querySelector('#courseProgressText'),bar=document.querySelector('#courseProgressBar');
  if(t)t.textContent=completed+' / '+buttons.length+' terminé'+(completed>1?'s':'');
  if(bar)bar.style.width=(buttons.length?completed/buttons.length*100:0)+'%';
+ refreshDashboard();
 }
 const lessonLearningState=document.querySelector('#lessonLearningState'),lessonMasteryBar=document.querySelector('#lessonMasteryBar'),lessonMasteryText=document.querySelector('#lessonMasteryText');
 function currentLessonStats(){
