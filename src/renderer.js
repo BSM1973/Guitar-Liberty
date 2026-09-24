@@ -421,6 +421,37 @@ function metronomeClick(accent=false){
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(.18,now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
+let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null;
+const metronomeToggle=document.querySelector('#metronomeToggle'),metronomeVolume=document.querySelector('#metronomeVolume'),metronomeVolumeLabel=document.querySelector('#metronomeVolumeLabel'),metronomeSignature=document.querySelector('#metronomeSignature'),metronomeBeatView=document.querySelector('#metronomeBeat');
+function metronomeClickAt(time,accent=false){
+ if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
+ const osc=metronomeContext.createOscillator(),gain=metronomeContext.createGain(),vol=(+metronomeVolume.value||0)/100;
+ osc.frequency.value=accent?1400:950;gain.gain.setValueAtTime(Math.max(.0001,vol*.22),time);gain.gain.exponentialRampToValueAtTime(.0001,time+.045);
+ osc.connect(gain).connect(metronomeContext.destination);osc.start(time);osc.stop(time+.05);
+}
+function paintMetronomeBeat(beat){
+ const dots=[...metronomeBeatView.querySelectorAll('i')],beats=+metronomeSignature.value||4;
+ dots.forEach((d,i)=>{d.hidden=i>=Math.min(4,beats);d.classList.toggle('active',i===beat%Math.min(4,beats));d.classList.toggle('accent',i===0&&i===beat%Math.min(4,beats))});
+}
+function metronomeScheduler(){
+ if(!metronomeEnabled||!metronomeContext)return;
+ const bpm=Math.max(20,+tempo.value||120),step=60/bpm,beats=+metronomeSignature.value||4;
+ while(metronomeNextTime<metronomeContext.currentTime+.12){
+  const beat=metronomeBeatIndex%beats;metronomeClickAt(metronomeNextTime,beat===0);
+  const visualBeat=beat;setTimeout(()=>paintMetronomeBeat(visualBeat),Math.max(0,(metronomeNextTime-metronomeContext.currentTime)*1000));
+  metronomeBeatIndex++;metronomeNextTime+=step;
+ }
+ metronomeTimer=setTimeout(metronomeScheduler,25);
+}
+async function startMetronome(){
+ if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
+ if(metronomeContext.state==='suspended')await metronomeContext.resume();
+ clearTimeout(metronomeTimer);metronomeBeatIndex=0;metronomeNextTime=metronomeContext.currentTime+.04;metronomeScheduler();
+}
+function stopMetronome(){clearTimeout(metronomeTimer);metronomeTimer=null;metronomeBeatIndex=0;[...metronomeBeatView.querySelectorAll('i')].forEach(d=>d.classList.remove('active','accent'))}
+metronomeToggle.onclick=async()=>{metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';if(metronomeEnabled)await startMetronome();else stopMetronome()};
+metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
+metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled){stopMetronome();startMetronome()}};
 function countInThenPlay(api,startPlayback=()=>api.play()){
  const bars=Math.max(0,+countIn.value||0);
  if(!bars){startPlayback();return}
@@ -533,7 +564,7 @@ function tick(){
  index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
-tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}if(videoEnabled)syncVideoTempo()};
+tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}if(videoEnabled)syncVideoTempo();if(metronomeEnabled){stopMetronome();startMetronome()}};
 function isEditableShortcutTarget(target){
  if(!target)return false;
  const tag=(target.tagName||'').toLowerCase();
