@@ -25,7 +25,7 @@
 <div class="personal-tabs"><span>MES TABS</span><button id="importScore">⇩ IMPORTER UNE TAB</button></div></aside>
 <section>
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 VIDÉO</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
-<div id="videoStage" class="video-stage" hidden><iframe id="wistiaFrame" title="Backing video Guitar Liberty" allow="autoplay; fullscreen" class="wistia_embed" name="wistia_embed" frameborder="0" scrolling="no"></iframe></div>
+<div id="videoStage" class="video-stage" hidden><video id="backingVideo" playsinline preload="metadata" controls></video></div>
 <div class="practice-panel">
  <strong>MODE ENTRAÎNEMENT</strong>
  <label>Début <input id="loopStart" type="number" min="1" value="1"></label>
