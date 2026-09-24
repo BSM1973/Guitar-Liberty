@@ -95,6 +95,49 @@ const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=d
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
+let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false;
+const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),listenStart=document.querySelector('#listenStart');
+async function listAudioInputs(){
+ try{
+  const devices=await navigator.mediaDevices.enumerateDevices(),old=audioInput.value;
+  audioInput.innerHTML='<option value="">Entrée par défaut</option>';
+  devices.filter(d=>d.kind==='audioinput').forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'Entrée audio '+(i+1);audioInput.appendChild(o)});
+  if([...audioInput.options].some(o=>o.value===old))audioInput.value=old;
+ }catch(e){document.querySelector('#listenStatus').textContent='Impossible de lister les entrées audio.'}
+}
+function autoCorrelate(buf,sr){
+ let rms=0;for(let i=0;i<buf.length;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/buf.length);if(rms<.008)return {freq:0,rms};
+ let best=-1,bestOff=-1;const min=Math.floor(sr/1200),max=Math.min(Math.floor(sr/70),buf.length/2);
+ for(let off=min;off<=max;off++){let corr=0;for(let i=0;i<buf.length-off;i++)corr+=buf[i]*buf[i+off];if(corr>best){best=corr;bestOff=off}}
+ return {freq:bestOff>0?sr/bestOff:0,rms};
+}
+function pitchName(freq){
+ const midi=Math.round(69+12*Math.log2(freq/440)),names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+ const exact=69+12*Math.log2(freq/440),cents=Math.round((exact-midi)*100);
+ return {name:names[(midi%12+12)%12]+(Math.floor(midi/12)-1),cents};
+}
+function listenLoop(){
+ if(!listening||!listenAnalyser)return;
+ const data=new Float32Array(listenAnalyser.fftSize);listenAnalyser.getFloatTimeDomainData(data);
+ const r=autoCorrelate(data,listenContext.sampleRate),level=Math.min(100,Math.round(r.rms*420));
+ document.querySelector('#inputMeterBar').style.width=level+'%';document.querySelector('#inputLevel').textContent=level+'%';
+ if(r.freq>=70&&r.freq<=1200){const p=pitchName(r.freq);document.querySelector('#detectedNote').textContent=p.name;document.querySelector('#detectedFreq').textContent=r.freq.toFixed(1)+' Hz';document.querySelector('#detectedCents').textContent=(p.cents>0?'+':'')+p.cents+' cents';}
+ else{document.querySelector('#detectedNote').textContent='—';document.querySelector('#detectedFreq').textContent='— Hz';document.querySelector('#detectedCents').textContent='—';}
+ listenFrame=requestAnimationFrame(listenLoop);
+}
+async function startListening(){
+ if(listening){stopListening();return}
+ try{
+  listenStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:audioInput.value?{exact:audioInput.value}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+  listenContext=new (window.AudioContext||window.webkitAudioContext)();const source=listenContext.createMediaStreamSource(listenStream);listenAnalyser=listenContext.createAnalyser();listenAnalyser.fftSize=2048;source.connect(listenAnalyser);
+  listening=true;listenStart.textContent='ARRÊTER L’ANALYSE';listenStart.classList.add('active');document.querySelector('#listenStatus').textContent='Écoute en cours • joue une note seule';await listAudioInputs();listenLoop();
+ }catch(e){console.error(e);document.querySelector('#listenStatus').textContent='Accès audio refusé ou entrée indisponible.'}
+}
+function stopListening(){
+ listening=false;cancelAnimationFrame(listenFrame);listenStream?.getTracks().forEach(t=>t.stop());listenContext?.close();listenStream=null;listenContext=null;listenAnalyser=null;listenStart.textContent='DÉMARRER L’ANALYSE';listenStart.classList.remove('active');document.querySelector('#listenStatus').textContent='Analyse arrêtée';
+}
+document.querySelector('#aiListen').onclick=()=>{aiListening.hidden=!aiListening.hidden;if(!aiListening.hidden)listAudioInputs()};
+document.querySelector('#audioRefresh').onclick=listAudioInputs;listenStart.onclick=startListening;
 function aiCoachContext(){
  const st=typeof currentLessonStats==='function'?currentLessonStats():{sessions:0,reps:0,seconds:0,best:0};
  return {course:currentPracticeTitle||'Cours Guitar Liberty',tempo:+tempo.value||0,target:+targetBpm.value||0,reps:st.reps||sessionRepCount||0,best:st.best||sessionBest||0,seconds:st.seconds||0,loop:!!practiceLoop};
