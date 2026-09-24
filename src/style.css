@@ -75,3 +75,6 @@
 .course-progress-track{height:5px;background:#202630;border-radius:5px;overflow:hidden}.course-progress-track i{display:block;width:0;height:100%;background:currentColor;transition:width .25s}
 .library-exercise{position:relative}.library-exercise .course-state{display:block;margin-top:5px;font-size:9px;font-style:normal;letter-spacing:.07em;opacity:.7}
 .library-exercise.course-complete .course-state{font-weight:800}.library-exercise.course-locked{opacity:.38;cursor:not-allowed;filter:grayscale(1)}
+
+.lesson-validation{display:flex;align-items:center;gap:10px}.lesson-validation>span{font-size:10px;font-weight:800;letter-spacing:.08em;padding:5px 8px;border:1px solid #343b47;border-radius:999px}
+.lesson-validation>span[data-state="VALIDÉ"]{font-weight:900}.lesson-mastery{margin-top:11px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;font-size:10px;letter-spacing:.06em}.lesson-mastery>div{height:6px;background:#202630;border-radius:5px;overflow:hidden}.lesson-mastery i{display:block;height:100%;width:0;background:currentColor;transition:width .25s}.lesson-mastery b{font-size:11px}
