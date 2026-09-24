@@ -361,6 +361,8 @@ const backingToggle=document.querySelector('#backingToggle');
 const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 const videoToggle=document.querySelector('#videoToggle');
+const tutorialToggle=document.querySelector('#tutorialToggle'),tutorialNotice=document.querySelector('#tutorialNotice'),tutorialNoticeText=document.querySelector('#tutorialNoticeText');
+let currentTutorialUrl=null;
 const videoStage=document.querySelector('#videoStage');
 const wistiaFrame=document.querySelector('#wistiaFrame');
 const practiceVideo=document.querySelector('#practiceVideo');
@@ -522,10 +524,25 @@ async function loadWithAlphaTab(file){
  if(!accepted)throw new Error('alphaTab a refusé les données du fichier.');
  setTimeout(()=>{if(!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
 }
+function setTutorial(url){
+ currentTutorialUrl=url||null;
+ if(tutorialNotice)tutorialNotice.hidden=true;
+ if(tutorialToggle){tutorialToggle.classList.remove('active');tutorialToggle.textContent=currentTutorialUrl?'▶ TUTORIEL':'▶ TUTORIEL • À VENIR';}
+}
+if(tutorialToggle)tutorialToggle.onclick=()=>{
+ if(currentTutorialUrl){
+   window.open(currentTutorialUrl,'_blank');
+ }else{
+   tutorialNotice.hidden=!tutorialNotice.hidden;
+   tutorialNoticeText.textContent='Le tutoriel vidéo de « '+currentPracticeTitle+' » sera disponible prochainement.';
+   tutorialToggle.classList.toggle('active',!tutorialNotice.hidden);
+ }
+};
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
  setBackingTrack(button.dataset.backing||null);
  setVideoTrack(button.dataset.wistiaId||null,button.dataset.practiceVideo||null);
+ setTutorial(button.dataset.tutorial||null);
  currentBackingLeadBeats=Math.max(0,+button.dataset.backingLeadBeats||0);
  currentVideoLeadBeats=Math.max(0,+button.dataset.videoLeadBeats||0);
  if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
