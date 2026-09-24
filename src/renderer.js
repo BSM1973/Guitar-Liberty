@@ -91,6 +91,7 @@ let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0
 let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
 const LESSON_KEY='guitarLibertyLessonProgress';
+const MEASURE_MASTERY_KEY='guitarLibertyMeasureMasteryV1';
 const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
@@ -141,6 +142,30 @@ function paintPerformance(playedMidi){
  const notePct=Math.round(analysisHits/analysisTotal*100),timePct=Math.round(timingHits/analysisTotal*100),score=Math.round(notePct*.7+timePct*.3);
  document.querySelector('#noteAccuracy').textContent=notePct+' %';document.querySelector('#timingAccuracy').textContent=timePct+' %';document.querySelector('#passageScore').textContent=score+' %';paintMeasureAnalysis();evaluateAdaptiveTraining();
 }
+function measureMasteryStore(){try{return JSON.parse(localStorage.getItem(MEASURE_MASTERY_KEY)||'{}')}catch{return {}}}
+function measureMasteryId(){return currentLessonId||currentPracticeTitle||'Exercice'}
+function measureMasteryForCurrent(){return measureMasteryStore()[measureMasteryId()]||{}}
+function measureMasteryState(x){return x.bestNotes>=90&&x.bestTiming>=80?'Maîtrisée':x.attempts>=4?'En progression':'À travailler'}
+function saveMeasureMastery(measure,v){
+ if(!measure||!v||v.total<2)return;
+ const store=measureMasteryStore(),id=measureMasteryId(),song=store[id]||{},old=song[measure]||{bestNotes:0,bestTiming:0,attempts:0,masteredBpm:0};
+ const notes=Math.round(v.hits/v.total*100),timing=Math.round(v.timing/v.total*100),mastered=notes>=90&&timing>=80;
+ song[measure]={bestNotes:Math.max(old.bestNotes||0,notes),bestTiming:Math.max(old.bestTiming||0,timing),attempts:Math.max(old.attempts||0,v.total),masteredBpm:mastered?Math.max(old.masteredBpm||0,+tempo.value||0):old.masteredBpm||0,updatedAt:Date.now()};
+ store[id]=song;localStorage.setItem(MEASURE_MASTERY_KEY,JSON.stringify(store));paintMeasureMemory();
+}
+function paintMeasureMemory(){
+ const host=document.querySelector('#measureMemoryMap'),summary=document.querySelector('#measureMemorySummary');if(!host||!summary)return;
+ const song=measureMasteryForCurrent(),rows=Object.entries(song).map(([m,v])=>({m:+m,...v})).sort((a,b)=>a.m-b.m);
+ if(!rows.length){summary.textContent='Aucune donnée enregistrée';host.innerHTML='<span class="measure-empty">Les résultats de chaque mesure seront conservés automatiquement.</span>';return}
+ const mastered=rows.filter(x=>measureMasteryState(x)==='Maîtrisée').length;
+ summary.textContent=mastered+' / '+rows.length+' mesure'+(rows.length>1?'s':'')+' maîtrisée'+(mastered>1?'s':'');
+ host.innerHTML=rows.map(x=>{const state=measureMasteryState(x),cls=state==='Maîtrisée'?'mastered':state==='En progression'?'progressing':'work';return '<button class="measure-memory '+cls+'" data-memory-measure="'+x.m+'"><b>M'+x.m+'</b><strong>'+state+'</strong><small>Notes '+x.bestNotes+' % • Timing '+x.bestTiming+' %</small><small>'+x.attempts+' tentatives'+(x.masteredBpm?' • '+x.masteredBpm+' BPM':'')+'</small></button>'}).join('');
+ host.querySelectorAll('[data-memory-measure]').forEach(b=>b.onclick=()=>startAdaptiveTraining(+b.dataset.memoryMeasure));
+}
+function resumeStoredPriority(){
+ const song=measureMasteryForCurrent(),rows=Object.entries(song).map(([m,v])=>({m:+m,...v,state:measureMasteryState(v)})).filter(x=>x.state!=='Maîtrisée').sort((a,b)=>(a.bestNotes||0)-(b.bestNotes||0)||(a.bestTiming||0)-(b.bestTiming||0));
+ return rows[0]||null;
+}
 function paintMeasureAnalysis(){
  const host=document.querySelector('#measureResults'),entries=Object.entries(measurePerformance).filter(([,v])=>v.total>=2).map(([m,v])=>({m:+m,pct:Math.round(v.hits/v.total*100),timing:Math.round(v.timing/v.total*100),total:v.total})).sort((a,b)=>a.m-b.m);
  if(!entries.length){host.innerHTML='<span class="measure-empty">Joue la TAB pour construire la carte de précision.</span>';return}
@@ -150,6 +175,7 @@ function paintMeasureAnalysis(){
  document.querySelector('#weakPassageAdvice').textContent=weakMeasure.pct>=90?'Très bon passage. Consolide-le encore quelques répétitions.':'Mesure '+weakMeasure.m+' à retravailler : ralentis le tempo et utilise LOOP + AUTO BPM.';
  const b=document.querySelector('#practiceWeakPassage');b.disabled=false;b.textContent='🎯 RETRAVAILLER M'+weakMeasure.m;
  host.querySelectorAll('.measure-result').forEach(btn=>btn.onclick=()=>startAdaptiveTraining(+btn.dataset.measure));
+ entries.forEach(x=>saveMeasureMastery(x.m,measurePerformance[x.m]));
 }
 function adaptivePanel(){
  const panel=document.querySelector('#adaptiveTraining');if(!panel)return;
@@ -267,7 +293,7 @@ function coachFixErrors(){
  document.querySelector('#aiCoachAdvice').textContent='Mode adaptatif lancé à partir de ton analyse : '+priority.pct+' % de notes correctes, '+priority.timing+' % de timing. Guitar Liberty va suivre tes nouvelles répétitions.';
 }
 function coachContinueProgress(){
- const rows=performanceMeasures();if(!rows.length){paintAiCoach('plan');return}
+ const rows=performanceMeasures();if(!rows.length){const stored=resumeStoredPriority();if(stored){startAdaptiveTraining(stored.m);document.querySelector('#aiCoachTitle').textContent='Reprise de progression • Mesure '+stored.m;document.querySelector('#aiCoachAdvice').textContent='Guitar Liberty reprend la priorité mémorisée de ta séance précédente : notes '+stored.bestNotes+' % • timing '+stored.bestTiming+' %.';return}paintAiCoach('plan');return}
  const candidates=rows.filter(x=>x.pct<90||x.timing<80).sort((a,b)=>a.pct-b.pct||a.timing-b.timing);
  if(candidates.length){startAdaptiveTraining(candidates[0].m);document.querySelector('#aiCoachTitle').textContent='Prochaine priorité • Mesure '+candidates[0].m;document.querySelector('#aiCoachAdvice').textContent='Cette mesure est actuellement la prochaine faiblesse mesurée. Le travail adaptatif est prêt.'}
  else{document.querySelector('#aiCoachTitle').textContent='Passage consolidé';document.querySelector('#aiCoachAdvice').textContent='Toutes les mesures suffisamment analysées atteignent actuellement les seuils de maîtrise. Continue au tempo actuel ou augmente progressivement vers '+(+targetBpm.value||+tempo.value)+' BPM.'}
@@ -373,7 +399,7 @@ function paintLessonComplete(){
 }
 function setLessonInfo(button){
  currentLessonId=button?.dataset.score||currentPracticeTitle;
- setTimeout(()=>paintAiCoach('analysis'),0);
+ setTimeout(()=>{paintAiCoach('analysis');paintMeasureMemory()},0);
  lessonObjective.textContent=button?.dataset.objective||'Travailler la tablature proprement au tempo indiqué.';
  lessonPrereq.textContent=button?.dataset.prereq||'Accordage standard • lecture de TAB';
  lessonDifficulty.textContent=button?.dataset.difficulty||'Débutant';
@@ -861,7 +887,7 @@ async function loadWithAlphaTab(file){
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
-  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderExerciseProgress();
+  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderExerciseProgress();paintMeasureMemory();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
  });
