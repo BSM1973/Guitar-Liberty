@@ -148,15 +148,31 @@ function measureMasteryForCurrent(){return measureMasteryStore()[measureMasteryI
 function measureMasteryState(x){return x.bestNotes>=90&&x.bestTiming>=80?'Maîtrisée':x.attempts>=4?'En progression':'À travailler'}
 function saveMeasureMastery(measure,v){
  if(!measure||!v||v.total<2)return;
- const store=measureMasteryStore(),id=measureMasteryId(),song=store[id]||{},old=song[measure]||{bestNotes:0,bestTiming:0,attempts:0,masteredBpm:0};
- const notes=Math.round(v.hits/v.total*100),timing=Math.round(v.timing/v.total*100),mastered=notes>=90&&timing>=80;
- song[measure]={bestNotes:Math.max(old.bestNotes||0,notes),bestTiming:Math.max(old.bestTiming||0,timing),attempts:Math.max(old.attempts||0,v.total),masteredBpm:mastered?Math.max(old.masteredBpm||0,+tempo.value||0):old.masteredBpm||0,updatedAt:Date.now()};
+ const store=measureMasteryStore(),id=measureMasteryId(),song=store[id]||{},old=song[measure]||{bestNotes:0,bestTiming:0,attempts:0,masteredBpm:0,history:[]};
+ const notes=Math.round(v.hits/v.total*100),timing=Math.round(v.timing/v.total*100),mastered=notes>=90&&timing>=80,bpm=+tempo.value||0,history=Array.isArray(old.history)?old.history.slice(-19):[];
+ const last=history[history.length-1];if(!last||last.notes!==notes||last.timing!==timing||last.bpm!==bpm)history.push({notes,timing,bpm,at:Date.now()});
+ song[measure]={bestNotes:Math.max(old.bestNotes||0,notes),bestTiming:Math.max(old.bestTiming||0,timing),attempts:Math.max(old.attempts||0,v.total),masteredBpm:mastered?Math.max(old.masteredBpm||0,bpm):old.masteredBpm||0,history:history.slice(-20),updatedAt:Date.now()};
  store[id]=song;localStorage.setItem(MEASURE_MASTERY_KEY,JSON.stringify(store));paintMeasureMemory();
 }
 function scoreMeasureCount(){
  const tracks=practiceScore?.tracks||[],staff=tracks[0]?.staves?.[0],bars=staff?.bars;
  return bars?.length||practiceScore?.masterBars?.length||0;
 }
+let selectedMemoryMeasure=null;
+function openMeasureDetail(measure){
+ selectedMemoryMeasure=measure;const box=document.querySelector('#measureDetail'),song=measureMasteryForCurrent(),x=song[measure],title=document.querySelector('#measureDetailTitle'),stats=document.querySelector('#measureDetailStats'),trend=document.querySelector('#measureDetailTrend'),coach=document.querySelector('#measureDetailCoach');
+ box.hidden=false;title.textContent='MESURE '+measure;
+ if(!x){stats.innerHTML='<span>Pas encore analysée</span>';trend.innerHTML='<span class="measure-empty">Joue cette mesure avec ÉCOUTE IA pour créer son historique.</span>';coach.textContent='Cette mesure n’a pas encore assez de données pour établir une tendance.';return}
+ const history=Array.isArray(x.history)?x.history:[],last=history[history.length-1],first=history[0],delta=first&&last?last.notes-first.notes:0;
+ stats.innerHTML='<div><small>MEILLEURES NOTES</small><b>'+x.bestNotes+' %</b></div><div><small>MEILLEUR TIMING</small><b>'+x.bestTiming+' %</b></div><div><small>TENTATIVES</small><b>'+x.attempts+'</b></div><div><small>BPM MAÎTRISE</small><b>'+(x.masteredBpm?x.masteredBpm+' BPM':'—')+'</b></div>';
+ trend.innerHTML=history.length?history.map((p,i)=>'<div class="measure-history-point"><i style="height:'+Math.max(6,p.notes)+'%"></i><b>'+p.notes+'%</b><small>'+p.timing+'% timing</small><small>'+p.bpm+' BPM</small></div>').join(''):'<span class="measure-empty">L’historique détaillé commencera à la prochaine analyse.</span>';
+ if(history.length<2)coach.textContent='Continue quelques répétitions pour permettre à Guitar Liberty d’identifier une tendance.';
+ else if(delta>=10)coach.textContent='Progression nette : +'+delta+' points de précision sur les performances enregistrées.';
+ else if(delta<=-8)coach.textContent='La précision baisse de '+Math.abs(delta)+' points. Vérifie si l’augmentation du tempo déstabilise cette mesure.';
+ else if(history.length>=4&&Math.abs(delta)<5)coach.textContent='Progression stable mais faible : cette mesure semble stagner. Ralentis légèrement et privilégie des répétitions propres.';
+ else coach.textContent='Progression régulière. Continue à consolider cette mesure avant une nouvelle hausse de tempo.';
+}
+document.querySelector('#measureDetailPractice').onclick=()=>{if(selectedMemoryMeasure)startAdaptiveTraining(selectedMemoryMeasure)};
 function paintMeasureMemory(){
  const host=document.querySelector('#measureMemoryMap'),summary=document.querySelector('#measureMemorySummary'),label=document.querySelector('#songMasteryLabel'),bar=document.querySelector('#songMasteryBar'),trophy=document.querySelector('#songMasteryTrophy');if(!host||!summary)return;
  const song=measureMasteryForCurrent(),saved=Object.entries(song).map(([m,v])=>({m:+m,...v})),scoreCount=scoreMeasureCount(),maxSaved=saved.length?Math.max(...saved.map(x=>x.m)):0,total=Math.max(scoreCount,maxSaved),byMeasure=new Map(saved.map(x=>[x.m,x]));
@@ -166,7 +182,8 @@ function paintMeasureMemory(){
  summary.textContent=mastered+' / '+total+' mesures maîtrisées • '+analyzed.length+' analysées';
  if(label)label.textContent='MAÎTRISE '+pct+' %';if(bar)bar.style.width=pct+'%';if(trophy)trophy.hidden=!(total>0&&mastered===total);
  host.innerHTML=rows.map(x=>{if(x.unseen)return '<button class="measure-memory unseen" data-memory-measure="'+x.m+'"><b>M'+x.m+'</b><strong>Non analysée</strong><small>—</small></button>';const state=measureMasteryState(x),cls=state==='Maîtrisée'?'mastered':state==='En progression'?'progressing':'work';return '<button class="measure-memory '+cls+'" data-memory-measure="'+x.m+'"><b>M'+x.m+'</b><strong>'+state+'</strong><small>Notes '+x.bestNotes+' % • Timing '+x.bestTiming+' %</small><small>'+x.attempts+' tentatives'+(x.masteredBpm?' • '+x.masteredBpm+' BPM':'')+'</small></button>'}).join('');
- host.querySelectorAll('[data-memory-measure]').forEach(b=>b.onclick=()=>startAdaptiveTraining(+b.dataset.memoryMeasure));
+ host.querySelectorAll('[data-memory-measure]').forEach(b=>b.onclick=()=>openMeasureDetail(+b.dataset.memoryMeasure));
+ if(selectedMemoryMeasure&&selectedMemoryMeasure<=total)openMeasureDetail(selectedMemoryMeasure);
 }
 function resumeStoredPriority(){
  const song=measureMasteryForCurrent(),rows=Object.entries(song).map(([m,v])=>({m:+m,...v,state:measureMasteryState(v)})).filter(x=>x.state!=='Maîtrisée').sort((a,b)=>(a.bestNotes||0)-(b.bestNotes||0)||(a.bestTiming||0)-(b.bestTiming||0));
