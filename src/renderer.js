@@ -96,13 +96,16 @@ let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
 let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false;
-const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),listenStart=document.querySelector('#listenStart');
+const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),audioOutput=document.querySelector('#audioOutput'),guitarMonitor=document.querySelector('#guitarMonitor'),monitorToggle=document.querySelector('#monitorToggle'),monitorVolume=document.querySelector('#monitorVolume'),listenStart=document.querySelector('#listenStart');
 async function listAudioInputs(){
  try{
   const devices=await navigator.mediaDevices.enumerateDevices(),old=audioInput.value;
   audioInput.innerHTML='<option value="">Entrée par défaut</option>';
   devices.filter(d=>d.kind==='audioinput').forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'Entrée audio '+(i+1);audioInput.appendChild(o)});
   if([...audioInput.options].some(o=>o.value===old))audioInput.value=old;
+  const oldOut=audioOutput.value;audioOutput.innerHTML='<option value="">Sortie système par défaut</option>';
+  devices.filter(d=>d.kind==='audiooutput').forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||'Sortie audio '+(i+1);audioOutput.appendChild(o)});
+  if([...audioOutput.options].some(o=>o.value===oldOut))audioOutput.value=oldOut;
  }catch(e){document.querySelector('#listenStatus').textContent='Impossible de lister les entrées audio.'}
 }
 function autoCorrelate(buf,sr){
@@ -130,14 +133,21 @@ async function startListening(){
  try{
   listenStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:audioInput.value?{exact:audioInput.value}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
   listenContext=new (window.AudioContext||window.webkitAudioContext)();const source=listenContext.createMediaStreamSource(listenStream);listenAnalyser=listenContext.createAnalyser();listenAnalyser.fftSize=2048;source.connect(listenAnalyser);
+  guitarMonitor.srcObject=listenStream;guitarMonitor.volume=(+monitorVolume.value||0)/100;
+  if(audioOutput.value&&typeof guitarMonitor.setSinkId==='function')await guitarMonitor.setSinkId(audioOutput.value);
+  if(monitorToggle.checked)await guitarMonitor.play();else guitarMonitor.pause();
   listening=true;listenStart.textContent='ARRÊTER L’ANALYSE';listenStart.classList.add('active');document.querySelector('#listenStatus').textContent='Écoute en cours • joue une note seule';await listAudioInputs();listenLoop();
  }catch(e){console.error(e);document.querySelector('#listenStatus').textContent='Accès audio refusé ou entrée indisponible.'}
 }
 function stopListening(){
- listening=false;cancelAnimationFrame(listenFrame);listenStream?.getTracks().forEach(t=>t.stop());listenContext?.close();listenStream=null;listenContext=null;listenAnalyser=null;listenStart.textContent='DÉMARRER L’ANALYSE';listenStart.classList.remove('active');document.querySelector('#listenStatus').textContent='Analyse arrêtée';
+ listening=false;cancelAnimationFrame(listenFrame);listenStream?.getTracks().forEach(t=>t.stop());listenContext?.close();guitarMonitor.pause();guitarMonitor.srcObject=null;listenStream=null;listenContext=null;listenAnalyser=null;listenStart.textContent='DÉMARRER L’ANALYSE';listenStart.classList.remove('active');document.querySelector('#listenStatus').textContent='Analyse arrêtée';
 }
 document.querySelector('#aiListen').onclick=()=>{aiListening.hidden=!aiListening.hidden;if(!aiListening.hidden)listAudioInputs()};
 document.querySelector('#audioRefresh').onclick=listAudioInputs;listenStart.onclick=startListening;
+audioOutput.onchange=async()=>{if(guitarMonitor&&typeof guitarMonitor.setSinkId==='function')try{await guitarMonitor.setSinkId(audioOutput.value)}catch(e){console.error('Audio output',e);document.querySelector('#listenStatus').textContent='Impossible d’utiliser cette sortie audio.'}};
+monitorToggle.onchange=()=>{if(!listenStream)return;if(monitorToggle.checked)guitarMonitor.play().catch(console.error);else guitarMonitor.pause()};
+monitorVolume.oninput=()=>{guitarMonitor.volume=(+monitorVolume.value||0)/100;document.querySelector('#monitorVolumeLabel').textContent=monitorVolume.value+'%'};
+
 function aiCoachContext(){
  const st=typeof currentLessonStats==='function'?currentLessonStats():{sessions:0,reps:0,seconds:0,best:0};
  return {course:currentPracticeTitle||'Cours Guitar Liberty',tempo:+tempo.value||0,target:+targetBpm.value||0,reps:st.reps||sessionRepCount||0,best:st.best||sessionBest||0,seconds:st.seconds||0,loop:!!practiceLoop};
