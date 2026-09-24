@@ -364,21 +364,12 @@ function setVideoTrack(id){
  if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
- if(!wistiaPlayer)return;
- const rate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
- try{wistiaPlayer.playbackRate(rate)}catch(e){console.error('Wistia tempo',e)}
+ if(videoEnabled)practiceStatus.textContent='Vidéo Wistia • tempo indépendant';
 }
 function openVideo(){
  if(!currentWistiaId||!wistiaFrame)return;
  videoEnabled=true;videoStage.hidden=false;
  wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
- window._wq=window._wq||[];
- window._wq.push({id:currentWistiaId,onReady:function(video){
-   if(!videoEnabled)return;
-   wistiaPlayer=video;
-   syncVideoTempo();
-   practiceStatus.textContent='Vidéo connectée • tempo '+tempo.value+' BPM';
- }});
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
