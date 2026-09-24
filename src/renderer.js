@@ -189,7 +189,7 @@ function openMeasureDetail(measure){
   else if(dominant[0]==='Notes manquées')coach.textContent='Erreur dominante : notes manquées. Ralentis le passage et travaille avec une subdivision claire avant de remonter le BPM.';
   else if(dominant[0]==='Notes parasites')coach.textContent='Erreur dominante : notes parasites. Travaille la propreté des changements de corde et le muting des cordes non jouées.';
   else coach.textContent='Erreur dominante : notes trop tôt. Travaille avec le métronome en laissant respirer chaque temps avant d’augmenter le BPM.';
- }else if(history.length<2)coach.textContent='Continue quelques répétitions pour permettre à Guitar Liberty d’identifier une tendance.';
+ }else if(history.length<2)coach.textContent='Continue quelques répétitions pour permettre à Guitare Liberty d’identifier une tendance.';
  else if(delta>=10)coach.textContent='Progression nette : +'+delta+' points de précision sur les performances enregistrées.';
  else if(delta<=-8)coach.textContent='La précision baisse de '+Math.abs(delta)+' points. Vérifie si l’augmentation du tempo déstabilise cette mesure.';
  else if(history.length>=4&&Math.abs(delta)<5)coach.textContent='Progression stable mais faible : cette mesure semble stagner. Ralentis légèrement et privilégie des répétitions propres.';
@@ -237,7 +237,7 @@ function nextWeakMeasure(exclude){
 function startAdaptiveTraining(measure){
  adaptiveMode=true;adaptiveMeasureNo=measure;adaptivePasses=0;adaptiveBaseline={...(measurePerformance[measure]||{hits:0,total:0,timing:0})};adaptiveLastTotals={};
  prepareWeakPassage(measure);adaptivePanel();
- document.querySelector('#weakPassageAdvice').textContent='Mode adaptatif actif : Guitar Liberty valide la mesure après 3 répétitions à ≥ 90 % avec un timing ≥ 80 %.';
+ document.querySelector('#weakPassageAdvice').textContent='Mode adaptatif actif : Guitare Liberty valide la mesure après 3 répétitions à ≥ 90 % avec un timing ≥ 80 %.';
 }
 function evaluateAdaptiveTraining(){
  if(!adaptiveMode||currentAnalysisMeasure!==adaptiveMeasureNo)return;
@@ -304,7 +304,7 @@ monitorVolume.oninput=()=>{guitarMonitor.volume=(+monitorVolume.value||0)/100;do
 
 function aiCoachContext(){
  const st=typeof currentLessonStats==='function'?currentLessonStats():{sessions:0,reps:0,seconds:0,best:0};
- return {course:currentPracticeTitle||'Cours Guitar Liberty',tempo:+tempo.value||0,target:+targetBpm.value||0,reps:st.reps||sessionRepCount||0,best:st.best||sessionBest||0,seconds:st.seconds||0,loop:!!practiceLoop};
+ return {course:currentPracticeTitle||'Cours Guitare Liberty',tempo:+tempo.value||0,target:+targetBpm.value||0,reps:st.reps||sessionRepCount||0,best:st.best||sessionBest||0,seconds:st.seconds||0,loop:!!practiceLoop};
 }
 function paintAiCoach(mode='analysis'){
  const x=aiCoachContext(),title=document.querySelector('#aiCoachTitle'),advice=document.querySelector('#aiCoachAdvice');
@@ -339,10 +339,10 @@ function coachFixErrors(){
  const rows=performanceMeasures();if(!rows.length){coachPerformanceReport();return}
  const priority=[...rows].sort((a,b)=>a.pct-b.pct||a.timing-b.timing)[0];startAdaptiveTraining(priority.m);
  document.querySelector('#aiCoachTitle').textContent='Correction ciblée • Mesure '+priority.m;
- document.querySelector('#aiCoachAdvice').textContent='Mode adaptatif lancé à partir de ton analyse : '+priority.pct+' % de notes correctes, '+priority.timing+' % de timing. Guitar Liberty va suivre tes nouvelles répétitions.';
+ document.querySelector('#aiCoachAdvice').textContent='Mode adaptatif lancé à partir de ton analyse : '+priority.pct+' % de notes correctes, '+priority.timing+' % de timing. Guitare Liberty va suivre tes nouvelles répétitions.';
 }
 function coachContinueProgress(){
- const rows=performanceMeasures();if(!rows.length){const stored=resumeStoredPriority();if(stored){startAdaptiveTraining(stored.m);document.querySelector('#aiCoachTitle').textContent='Reprise de progression • Mesure '+stored.m;document.querySelector('#aiCoachAdvice').textContent='Guitar Liberty reprend la priorité mémorisée de ta séance précédente : notes '+stored.bestNotes+' % • timing '+stored.bestTiming+' %.';return}paintAiCoach('plan');return}
+ const rows=performanceMeasures();if(!rows.length){const stored=resumeStoredPriority();if(stored){startAdaptiveTraining(stored.m);document.querySelector('#aiCoachTitle').textContent='Reprise de progression • Mesure '+stored.m;document.querySelector('#aiCoachAdvice').textContent='Guitare Liberty reprend la priorité mémorisée de ta séance précédente : notes '+stored.bestNotes+' % • timing '+stored.bestTiming+' %.';return}paintAiCoach('plan');return}
  const candidates=rows.filter(x=>x.pct<90||x.timing<80).sort((a,b)=>a.pct-b.pct||a.timing-b.timing);
  if(candidates.length){startAdaptiveTraining(candidates[0].m);document.querySelector('#aiCoachTitle').textContent='Prochaine priorité • Mesure '+candidates[0].m;document.querySelector('#aiCoachAdvice').textContent='Cette mesure est actuellement la prochaine faiblesse mesurée. Le travail adaptatif est prêt.'}
  else{document.querySelector('#aiCoachTitle').textContent='Passage consolidé';document.querySelector('#aiCoachAdvice').textContent='Toutes les mesures suffisamment analysées atteignent actuellement les seuils de maîtrise. Continue au tempo actuel ou augmente progressivement vers '+(+targetBpm.value||+tempo.value)+' BPM.'}
@@ -883,7 +883,7 @@ function drawLeftHandFingerings(api){
 }
 
 async function loadWithAlphaTab(file){
- if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitar Liberty.');
+ if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  stop();
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
@@ -995,7 +995,7 @@ if(importButton) importButton.onclick=async()=>{
  const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
  if(!supported.includes(file.ext)){
   importStatus.textContent='Guitar Pro : export MusicXML requis';
-  alert('Pour importer cette tablature Guitar Pro dans Guitar Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
+  alert('Pour importer cette tablature Guitar Pro dans Guitare Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
   return;
  }
  try{
