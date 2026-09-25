@@ -973,6 +973,25 @@ async function loadWithAlphaTab(file){
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
+ // Clicking the rendered score seeks the player and immediately moves our
+ // custom orange cursor. Keep the validated playback/repeat cursor untouched.
+ tab.addEventListener('click',ev=>{
+  if(!api.boundsLookup?.staffSystems)return;
+  const rect=tab.getBoundingClientRect(),x=ev.clientX-rect.left,y=ev.clientY-rect.top;
+  let hit=null,best=Infinity;
+  for(const system of api.boundsLookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+   const b=beat.visualBounds||beat.realBounds||beat.bounds;if(!b)continue;
+   const cx=b.x+b.w/2,cy=b.y+b.h/2;
+   const d=Math.abs(cx-x)+Math.abs(cy-y)*1.5;
+   if(d<best){best=d;hit=beat;}
+  }
+  if(!hit?.beat)return;
+  const bt=hit.beat.absolutePlaybackStart??hit.beat.absoluteStart??hit.beat.playbackStart;
+  if(!Number.isFinite(bt))return;
+  try{api.tickPosition=bt;}catch(_){}
+  alphaPlayedBeat=hit.beat;
+  updatePlayCursor(api,bt);
+ });
  // playedBeatChanged comes from alphaTab's actual playback sequencer. It follows
  // GP repeats automatically and is not confused by written-score absolute ticks.
  if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{alphaPlayedBeat=beat||null;updatePlayCursor(api,api.tickPosition||0);});
