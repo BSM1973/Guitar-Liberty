@@ -575,8 +575,36 @@ function updatePlayCursor(api,tick){
  const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
  if(!b||!sys)return;
+ let cursorX=b.x+b.w/2;
+ // A playback beat can span several metrical beats (e.g. a half note starting
+ // on beat 3). There is no new alphaTab beat event on beat 4, so derive the
+ // quarter-beat boundary from tick time while keeping the repeat-aware beat.
+ const beatModel=target.beat.beat;
+ const beatStart=beatModel?.absolutePlaybackStart??beatModel?.absoluteStart??beatModel?.playbackStart;
+ const beatDuration=beatModel?.playbackDuration??beatModel?.duration;
+ const quarterTicks=api.score?.masterBars?.[beatModel?.voice?.bar?.masterBar?.index]?.timeSignatureDenominator
+   ? 960*4/api.score.masterBars[beatModel.voice.bar.masterBar.index].timeSignatureDenominator
+   : 960;
+ if(Number.isFinite(beatStart)&&Number.isFinite(beatDuration)&&beatDuration>quarterTicks&&Number.isFinite(tick)){
+  const elapsed=Math.max(0,tick-beatStart);
+  const metricalStep=Math.floor(elapsed/quarterTicks);
+  if(metricalStep>0){
+   // Find the next visible beat position; if none exists because the note is
+   // sustained, use the following bar boundary as the visual destination.
+   let nextX=null;
+   let seen=false;
+   outerNext:for(const s2 of lookup.staffSystems||[])for(const m2 of s2.bars||[])for(const bar2 of m2.bars||[])for(const bt2 of bar2.beats||[]){
+    if(seen){const nb=bt2.visualBounds||bt2.realBounds||bt2.bounds;if(nb){nextX=nb.x+nb.w/2;break outerNext;}}
+    if(bt2===target.beat)seen=true;
+   }
+   if(Number.isFinite(nextX)){
+    const steps=Math.max(1,Math.ceil(beatDuration/quarterTicks));
+    cursorX=(b.x+b.w/2)+(nextX-(b.x+b.w/2))*Math.min(metricalStep/steps,.75);
+   }
+  }
+ }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
- playCursor.style.left=(b.x+b.w/2)+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
+ playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  const tabRect=tab.getBoundingClientRect(),systemTop=tabRect.top+sys.y,systemBottom=systemTop+sys.h;
  if(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24){
   window.scrollTo({top:Math.max(0,window.scrollY+systemTop-window.innerHeight*.34),behavior:'smooth'});
