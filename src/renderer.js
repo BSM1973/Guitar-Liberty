@@ -553,6 +553,18 @@ function updatePlayCursor(api,tick){
  if(!b||!sys)return;
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=(b.x+b.w/2)+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
+
+ // Automatic TAB scrolling: keep the currently played system comfortably
+ // inside the viewport without disturbing horizontal position.
+ const tabRect=tab.getBoundingClientRect();
+ const systemTop=tabRect.top+sys.y;
+ const systemBottom=systemTop+sys.h;
+ const safeTop=window.innerHeight*.24;
+ const safeBottom=window.innerHeight*.76;
+ if(systemBottom>safeBottom||systemTop<safeTop){
+  const targetY=window.scrollY+systemTop-window.innerHeight*.34;
+  window.scrollTo({top:Math.max(0,targetY),behavior:'smooth'});
+ }
 }
 function metronomeClick(accent=false){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
