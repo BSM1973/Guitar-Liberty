@@ -539,55 +539,41 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
+let alphaPlayedBeat=null;
 function updatePlayCursor(api,tick){
- const lookup=api.boundsLookup||api.renderer?.boundsLookup;
- const tickCache=api.tickCache;
- if(!lookup?.staffSystems||!tickCache?.findBeat)return;
- // alphaTab's tickCache is generated from the MIDI playback timeline itself.
- // Therefore it already contains Guitar Pro repeats/jumps and is the only
- // source of truth for the playback cursor.
- let found=null;
- try{
-  const trackIndexes=new Set((api.tracks||[]).map(t=>t.index).filter(Number.isFinite));
-  if(!trackIndexes.size)trackIndexes.add(0);
-  found=tickCache.findBeat(trackIndexes,tick);
- }catch(err){return}
- const modelBeat=found?.currentBeat;
- if(!modelBeat)return;
- let target=null,nextTarget=null;
- outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(let i=0;i<(bar.beats||[]).length;i++){
-  const beat=bar.beats[i];
-  if(beat.beat===modelBeat){
-   target={beat,system};
-   if(i+1<bar.beats.length)nextTarget={beat:bar.beats[i+1],system};
-   break outer;
+ const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
+ let modelBeat=alphaPlayedBeat;
+ if(!modelBeat&&api.tickCache?.findBeat){
+  try{
+   // alphaTab examples use the score/MIDI track indexes. Do not use Track.index:
+   // depending on the imported GP model it can be absent or different.
+   const tracks=new Set();
+   const scoreTracks=api.score?.tracks||[];
+   for(let i=0;i<scoreTracks.length;i++)tracks.add(i);
+   if(!tracks.size)tracks.add(0);
+   modelBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat||null;
+  }catch(_){}
+ }
+ let target=null;
+ if(modelBeat){
+  outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+   if(beat.beat===modelBeat){target={beat,system};break outer;}
+  }
+ }
+ // Never let a lookup failure make the orange cursor disappear.
+ if(!target){
+  for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+   const bt=beat.beat?.absolutePlaybackStart??beat.beat?.absoluteStart??beat.beat?.playbackStart;
+   if(bt==null||bt>tick)continue;
+   if(!target||bt>=target.tick)target={tick:bt,beat,system};
   }
  }
  if(!target)return;
  const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
  if(!b||!sys)return;
- let startX=b.x+b.w/2,endX=startX;
- if(nextTarget){
-  const nb=nextTarget.beat.visualBounds||nextTarget.beat.realBounds||nextTarget.beat.bounds;
-  if(nb)endX=nb.x+nb.w/2;
- }else{
-  // At the last written beat, move toward the end of its bar/system instead
-  // of freezing on the note head (important for tied/sustained final beats).
-  const parentBar=(target.beat.barBounds||target.beat.parentBar?.visualBounds);
-  endX=parentBar?.x!=null?parentBar.x+parentBar.w:startX+Math.max(12,b.w);
- }
- // tickCache may expose the next playback beat and transition ticks. Use them
- // when available; otherwise keep alphaTab's exact current beat position.
- const beatStart=found.currentBeatStart??found.startTick??found.currentTick;
- const nextTick=found.nextBeatStart??found.endTick;
- let x=startX;
- if(Number.isFinite(beatStart)&&Number.isFinite(nextTick)&&nextTick>beatStart){
-  const p=Math.max(0,Math.min(1,(tick-beatStart)/(nextTick-beatStart)));
-  x=startX+(endX-startX)*p;
- }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
- playCursor.style.left=x+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
+ playCursor.style.left=(b.x+b.w/2)+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  const tabRect=tab.getBoundingClientRect(),systemTop=tabRect.top+sys.y,systemBottom=systemTop+sys.h;
  if(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24){
   window.scrollTo({top:Math.max(0,window.scrollY+systemTop-window.innerHeight*.34),behavior:'smooth'});
@@ -956,6 +942,9 @@ async function loadWithAlphaTab(file){
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
+ // playedBeatChanged comes from alphaTab's actual playback sequencer. It follows
+ // GP repeats automatically and is not confused by written-score absolute ticks.
+ if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{alphaPlayedBeat=beat||null;updatePlayCursor(api,api.tickPosition||0);});
  api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
