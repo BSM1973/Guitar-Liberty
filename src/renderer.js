@@ -574,7 +574,7 @@ function paintSmartFretboard(){
  const host=document.querySelector('#smartFretboard'),state=document.querySelector('#fretboardState'),title=document.querySelector('#fretboardCoachTitle'),text=document.querySelector('#fretboardCoachText');if(!host)return;
  const names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],strings=[['E',64],['B',59],['G',55],['D',50],['A',45],['E',40]],data=smartFretboardNotes();
  let out='<div class="fretboard-grid"><div class="fret-cell fret-corner"></div>'+Array.from({length:13},(_,f)=>'<div class="fret-cell fret-number">'+f+'</div>').join('');
- strings.forEach(([name,midi])=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),cls=isRoot?'root':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'" data-midi="'+(midi+fret)+'">'+names[pc]+'</span></div>'}});
+ strings.forEach(([name,midi],row)=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),cls=isRoot?'root':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'" data-string="'+row+'" data-fret="'+fret+'" data-midi="'+(midi+fret)+'">'+names[pc]+'</span></div>'}});
  host.innerHTML=out+'</div>';
  host.querySelectorAll('.note-dot').forEach(dot=>dot.dataset.baseClass=dot.className);
  if(!practiceScore){state.textContent='EN ATTENTE';return}
@@ -1143,16 +1143,22 @@ async function loadWithAlphaTab(file){
   if(host){
    host.querySelectorAll('.note-dot.tab-playing').forEach(d=>d.classList.remove('tab-playing'));
    const notes=beat?.notes||[];
+   let firstName='';
    notes.forEach(n=>{
-    const midi=n.realValue??n.realValueWithoutHarmonic??n.displayValue??n.midiValue;
-    if(!Number.isFinite(midi))return;
-    const dot=host.querySelector('.note-dot[data-midi="'+midi+'"]');if(dot)dot.classList.add('tab-playing');
+    const fret=n.fret,sourceString=n.string;
+    // alphaTab/Guitar Pro string 1 = high E, 6 = low E; our rows use the same visual order.
+    if(Number.isFinite(fret)&&Number.isFinite(sourceString)){
+     const dot=host.querySelector('.note-dot[data-string="'+(sourceString-1)+'"][data-fret="'+fret+'"]');
+     if(dot){dot.classList.add('tab-playing');if(!firstName)firstName=dot.textContent}
+    }
    });
-   if(state&&notes.length){const n=notes[0],m=n.realValue??n.realValueWithoutHarmonic??n.displayValue??n.midiValue;if(Number.isFinite(m))state.textContent='TAB • '+midiName(m)}
+   if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
  api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
+  const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
+  const lockedPaperY=!playbackFollowEnabled?document.querySelector('.paper')?.scrollTop:null;
   const tick=e.currentTick??e.tick??0;
   updatePlayCursor(api,tick);if(listening)updateExpectedFromTick(api,tick);
   if(!practiceLoop)return;
@@ -1181,6 +1187,10 @@ async function loadWithAlphaTab(file){
    }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
   }
   lastLoopTick=tick;
+  if(!playbackFollowEnabled){
+   if(Number.isFinite(lockedPageY)&&Math.abs(window.scrollY-lockedPageY)>1)window.scrollTo(0,lockedPageY);
+   const paper=document.querySelector('.paper');if(paper&&Number.isFinite(lockedPaperY)&&Math.abs(paper.scrollTop-lockedPaperY)>1)paper.scrollTop=lockedPaperY;
+  }
  });
 
  let completed=false;
