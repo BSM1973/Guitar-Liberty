@@ -681,6 +681,35 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
+let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1;
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText');
+function playWithMePaint(phase){
+ playWithMePhase=phase;
+ const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
+ listen?.classList.toggle('active',phase==='listen');answer?.classList.toggle('active',phase==='answer');
+ if(phase==='listen'){playWithMeState.textContent='ÉCOUTE';playWithMeText.textContent='Écoute la phrase sans jouer. Mémorise le rythme et le mouvement.'}
+ else if(phase==='answer'){playWithMeState.textContent='À TOI';playWithMeText.textContent='La lecture est en pause : rejoue maintenant exactement la même phrase.'}
+ else{playWithMeState.textContent='PRÊT';playWithMeText.textContent='Guitare Liberty joue une mesure. À toi de la rejouer juste après.'}
+}
+function playWithMeTicks(){
+ const bars=practiceBars(),start=Math.max(0,(+playWithMeBar.value||1)-1),len=Math.max(1,+playWithMeLength.value||1),a=bars[start],next=bars[start+len];
+ if(!a)return null;const last=bars[Math.min(bars.length-1,start+len-1)],endTick=next?.start??(last.start+(last.calculateDuration?.()||0));
+ return {start:a.start||0,end:endTick};
+}
+function stopPlayWithMe(){
+ playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;playWithMeStop.disabled=true;
+ const api=window.guitarLibertyAlphaTab;if(api){try{api.pause()}catch(_){}}
+}
+function startPlayWithMe(){
+ const api=window.guitarLibertyAlphaTab;if(!api||!practiceScore){playWithMeText.textContent='Charge d’abord une tablature Guitar Pro.';return}
+ const range=playWithMeTicks();if(!range)return;
+ practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(api);
+ playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeStart.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
+ try{api.tickPosition=range.start;api.play()}catch(e){stopPlayWithMe()}
+}
+playWithMeStart?.addEventListener('click',startPlayWithMe);
+playWithMeStop?.addEventListener('click',stopPlayWithMe);
+
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
@@ -1161,6 +1190,13 @@ async function loadWithAlphaTab(file){
   const lockedPaperY=!playbackFollowEnabled?document.querySelector('.paper')?.scrollTop:null;
   const tick=e.currentTick??e.tick??0;
   updatePlayCursor(api,tick);if(listening)updateExpectedFromTick(api,tick);
+  if(playWithMeActive&&playWithMePhase==='listen'&&playWithMeRange){
+   if(playWithMeLastTick>=0&&tick>=playWithMeRange.end-1){
+    try{api.pause();api.tickPosition=playWithMeRange.start}catch(_){}
+    playWithMePaint('answer');
+   }
+   playWithMeLastTick=tick;
+  }
   if(!practiceLoop)return;
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
@@ -1197,7 +1233,7 @@ async function loadWithAlphaTab(file){
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
-  practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
+  practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)} tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
   currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
