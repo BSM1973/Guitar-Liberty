@@ -543,15 +543,18 @@ let alphaPlayedBeat=null;
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
  let modelBeat=alphaPlayedBeat;
- if(!modelBeat&&api.tickCache?.findBeat){
+ // Query the playback tick cache on EVERY position event. playedBeatChanged is
+ // perfect for repeats, but alphaTab can intentionally keep the same played
+ // beat across a tie. tickCache still advances through the metrical destination
+ // beat, so it takes priority whenever it returns a beat.
+ if(api.tickCache?.findBeat){
   try{
-   // alphaTab examples use the score/MIDI track indexes. Do not use Track.index:
-   // depending on the imported GP model it can be absent or different.
    const tracks=new Set();
    const scoreTracks=api.score?.tracks||[];
    for(let i=0;i<scoreTracks.length;i++)tracks.add(i);
    if(!tracks.size)tracks.add(0);
-   modelBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat||null;
+   const timedBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat;
+   if(timedBeat)modelBeat=timedBeat;
   }catch(_){}
  }
  let target=null;
