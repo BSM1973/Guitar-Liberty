@@ -36,6 +36,19 @@ ipcMain.handle('read-score', async (_event, filePath) => {
 });
 
 function createWindow() {
+  const splash = new BrowserWindow({
+    width: 760,
+    height: 360,
+    frame: false,
+    transparent: false,
+    resizable: false,
+    alwaysOnTop: true,
+    center: true,
+    show: false,
+    backgroundColor: '#000000',
+    webPreferences: { contextIsolation: true }
+  });
+
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -43,10 +56,24 @@ function createWindow() {
     minHeight: 700,
     backgroundColor: '#101216',
     title: 'Guitare Liberty',
+    show: false,
     webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
+
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+  splash.once('ready-to-show', () => splash.show());
+
   win.maximize();
   win.loadFile(path.join(__dirname, 'index.html'));
+
+  const revealApp = () => {
+    if (!splash.isDestroyed()) splash.close();
+    if (!win.isDestroyed()) {
+      win.show();
+      win.focus();
+    }
+  };
+  setTimeout(revealApp, 2600);
 }
 
 app.whenReady().then(() => {
