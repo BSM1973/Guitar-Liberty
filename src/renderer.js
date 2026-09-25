@@ -574,14 +574,14 @@ function paintSmartFretboard(){
  const host=document.querySelector('#smartFretboard'),state=document.querySelector('#fretboardState'),title=document.querySelector('#fretboardCoachTitle'),text=document.querySelector('#fretboardCoachText');if(!host)return;
  const names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],strings=[['E',40],['A',45],['D',50],['G',55],['B',59],['E',64]],data=smartFretboardNotes();
  let out='<div class="fretboard-grid">';
- strings.forEach(([name,midi])=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),isUsed=data.used.has(pc),cls=isRoot?'root':isUsed?'used':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'">'+names[pc]+'</span></div>'}});
+ strings.forEach(([name,midi])=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),cls=isRoot?'root':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'" data-midi="'+(midi+fret)+'">'+names[pc]+'</span></div>'}});
  host.innerHTML=out+'</div>';
  host.querySelectorAll('.note-dot').forEach(dot=>dot.dataset.baseClass=dot.className);
  if(!practiceScore){state.textContent='EN ATTENTE';return}
- state.textContent=data.used.size+' NOTES REPÉRÉES';
+ state.textContent='PRÊT À SUIVRE LA TAB';
  if(currentMusicGoal()==='fretboard'){title.textContent='Ton objectif est de connaître le manche.';text.textContent='Commence par retrouver les notes mises en évidence sur plusieurs cordes. Cherche les mêmes sons ailleurs plutôt que de mémoriser une seule forme.'}
- else if(currentMusicGoal()==='impro'){title.textContent='Transforme la position en territoire musical.';text.textContent='Les notes mises en évidence viennent de la tablature. Repère la tonique, puis crée de petites phrases autour d’elle sans suivre la TAB note par note.'}
- else{title.textContent='Relie ce que tu lis à ce que tu touches.';text.textContent='Les notes mises en évidence sont présentes dans la tablature. Observe comment elles se répètent et se déplacent sur les six cordes.'}
+ else if(currentMusicGoal()==='impro'){title.textContent='Transforme la position en territoire musical.';text.textContent='Pendant la lecture, observe la position active sur le manche puis essaie progressivement de t’en détacher.'}
+ else{title.textContent='Relie ce que tu lis à ce que tu touches.';text.textContent='Pendant la lecture, le manche suit la note jouée par la tablature et montre sa position réelle.'}
 }
 
 let journalFeeling='';
@@ -1141,7 +1141,20 @@ async function loadWithAlphaTab(file){
  });
  // playedBeatChanged comes from alphaTab's actual playback sequencer. It follows
  // GP repeats automatically and is not confused by written-score absolute ticks.
- if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{alphaPlayedBeat=beat||null;updatePlayCursor(api,api.tickPosition||0);});
+ if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{
+  alphaPlayedBeat=beat||null;updatePlayCursor(api,api.tickPosition||0);
+  const host=document.querySelector('#smartFretboard'),state=document.querySelector('#fretboardState');
+  if(host){
+   host.querySelectorAll('.note-dot.tab-playing').forEach(d=>d.classList.remove('tab-playing'));
+   const notes=beat?.notes||[];
+   notes.forEach(n=>{
+    const midi=n.realValue??n.realValueWithoutHarmonic??n.displayValue??n.midiValue;
+    if(!Number.isFinite(midi))return;
+    const dot=host.querySelector('.note-dot[data-midi="'+midi+'"]');if(dot)dot.classList.add('tab-playing');
+   });
+   if(state&&notes.length){const n=notes[0],m=n.realValue??n.realValueWithoutHarmonic??n.displayValue??n.midiValue;if(Number.isFinite(m))state.textContent='TAB • '+midiName(m)}
+  }
+ });
  api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
