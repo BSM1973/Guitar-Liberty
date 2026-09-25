@@ -37,13 +37,11 @@ ipcMain.handle('read-score', async (_event, filePath) => {
 
 function createWindow() {
   const splash = new BrowserWindow({
-    width: 760,
-    height: 360,
+    fullscreen: true,
     frame: false,
     transparent: false,
     resizable: false,
     alwaysOnTop: true,
-    center: true,
     show: false,
     backgroundColor: '#000000',
     webPreferences: { contextIsolation: true }
@@ -73,7 +71,7 @@ function createWindow() {
       win.focus();
     }
   };
-  setTimeout(revealApp, 2600);
+  setTimeout(revealApp, 4200);
 }
 
 app.whenReady().then(() => {
