@@ -677,7 +677,10 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-let alphaPlayedBeat=null;
+let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false;
+window.addEventListener('wheel',()=>{if(!autoTabScrolling)manualScrollUntil=Date.now()+12000},{passive:true});
+window.addEventListener('touchmove',()=>{if(!autoTabScrolling)manualScrollUntil=Date.now()+12000},{passive:true});
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))manualScrollUntil=Date.now()+12000});
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
  let modelBeat=alphaPlayedBeat;
@@ -744,8 +747,10 @@ function updatePlayCursor(api,tick){
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  const tabRect=tab.getBoundingClientRect(),systemTop=tabRect.top+sys.y,systemBottom=systemTop+sys.h;
- if(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24){
+ if(Date.now()>=manualScrollUntil&&(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24)){
+  autoTabScrolling=true;
   window.scrollTo({top:Math.max(0,window.scrollY+systemTop-window.innerHeight*.34),behavior:'smooth'});
+  setTimeout(()=>{autoTabScrolling=false},450);
  }
 }
 function metronomeClick(accent=false){
