@@ -542,23 +542,12 @@ function setAlphaTempo(api){
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
  let target=null;
- // Map the player's repeat-expanded tick back onto the written score using
- // alphaTab's current playback bar/beat when available. Do not compare the
- // expanded tick directly with written absoluteStart values.
- const activeBeat=api?.player?.currentBeat||api?.currentBeat;
- if(activeBeat){
-  outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-   if(beat.beat===activeBeat){target={beat,system};break outer;}
-  }
- }
- // Normal (non-repeat) fallback. This is deliberately based on the written
- // score timeline only and is used when alphaTab does not expose currentBeat.
- if(!target){
-  for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-   const bt=beat.beat?.absoluteStart;
-   if(!Number.isFinite(bt)||bt>tick)continue;
-   if(!target||bt>=target.tick)target={tick:bt,beat,system};
-  }
+ // Stable cursor mapping: always keep a visible written-score fallback.
+ // Repeats are handled separately from this basic cursor so they cannot make it disappear.
+ for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+  const bt=beat.beat?.absolutePlaybackStart??beat.beat?.absoluteStart??beat.beat?.playbackStart;
+  if(bt==null||bt>tick)continue;
+  if(!target||bt>=target.tick)target={tick:bt,beat,system};
  }
  if(!target)return;
  const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
