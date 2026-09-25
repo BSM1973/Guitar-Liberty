@@ -882,45 +882,6 @@ function drawLeftHandFingerings(api){
  if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
-function raiseChordNames(){
- // alphaTab 1.8 renders chord labels in SVG groups, not reliably as <text>.
- // Identify the actual SVG text/group for chord names and translate the whole
- // rendered chord object so A7/D7/E7 move without touching pick strokes.
- const chordNames=new Set();
- try{
-  for(const track of practiceScore?.tracks||[])for(const staff of track.staves||[]){
-   const chords=staff.chords;
-   if(chords){
-    if(typeof chords.values==='function')for(const chord of chords.values())if(chord?.name)chordNames.add(chord.name);
-    else if(Array.isArray(chords))for(const chord of chords)if(chord?.name)chordNames.add(chord.name);
-   }
-  }
- }catch(e){}
- // Guitar Pro files can expose chord labels only on beats; include those too.
- try{
-  for(const track of practiceScore?.tracks||[])for(const staff of track.staves||[])for(const bar of staff.bars||[])for(const voice of bar.voices||[])for(const beat of voice.beats||[]){
-   const name=beat?.chord?.name||beat?.chord;
-   if(typeof name==='string'&&name.trim())chordNames.add(name.trim());
-  }
- }catch(e){}
- if(!chordNames.size)return;
- const moved=new Set();
- for(const node of tab.querySelectorAll('svg text,svg tspan')){
-  const label=(node.textContent||'').trim();
-  if(!chordNames.has(label))continue;
-  let target=node;
-  while(target.parentElement&&target.parentElement.tagName?.toLowerCase()==='g'){
-   const parent=target.parentElement;
-   const txt=(parent.textContent||'').trim();
-   if(txt!==label)break;
-   target=parent;
-  }
-  if(moved.has(target))continue;
-  moved.add(target);
-  const old=target.getAttribute('transform')||'';
-  target.setAttribute('transform',old+' translate(0,-32)');
- }
-}
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  stop();
@@ -971,7 +932,7 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);raiseChordNames();}); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
