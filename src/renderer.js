@@ -681,8 +681,9 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true;
+let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
+window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){manualScrollUntil=Infinity;playbackFollowEnabled=false}});
 function updatePlayCursor(api,tick){
@@ -1155,7 +1156,7 @@ async function loadWithAlphaTab(file){
    if(state&&notes.length){const n=notes[0],m=n.realValue??n.realValueWithoutHarmonic??n.displayValue??n.midiValue;if(Number.isFinite(m))state.textContent='TAB • '+midiName(m)}
   }
  });
- api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
   updatePlayCursor(api,tick);if(listening)updateExpectedFromTick(api,tick);
