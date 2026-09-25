@@ -420,6 +420,16 @@ function refreshDashboard(){
  document.querySelectorAll('[data-liberty-step]').forEach((el,i)=>{el.classList.toggle('done',i<stageIndex);el.classList.toggle('active',i===stageIndex)});
  const stateEl=q('#libertyPathState'),recEl=q('#libertyRecommendation'),reasonEl=q('#libertyReason');
  if(stateEl)stateEl.textContent=state;if(recEl)recEl.textContent=recommendation;if(reasonEl)reasonEl.textContent=reason;
+ // Humanist coach: progress vocabulary is descriptive, never punitive.
+ let humanLevel=0,humanState='À DÉCOUVRIR',humanTitle='Chaque séance compte.',humanText='Ici, on mesure les progrès pour mieux t’accompagner, jamais pour te juger.';
+ if(currentRows.length||currentReps){humanLevel=1;humanState='EN APPRENTISSAGE';humanTitle='Tu construis tes repères.';humanText='Prends le temps d’installer le geste. La régularité viendra avant la vitesse.';}
+ if(currentReps>=3){humanLevel=2;humanState='EN PROGRÈS';humanTitle='Ton travail commence à s’installer.';humanText='Les répétitions portent leurs fruits. Garde un tempo où ton jeu reste confortable et musical.';}
+ if(currentRows.length>=2&&currentBest>=suggested){humanLevel=3;humanState='ACQUIS';humanTitle='Ce passage devient solide.';humanText='Tu peux maintenant chercher davantage de fluidité, de son et de plaisir plutôt que simplement plus de BPM.';}
+ if(pct===100&&buttons.length){humanLevel=4;humanState='MAÎTRISÉ';humanTitle='Tu as construit une vraie autonomie.';humanText='La maîtrise n’est pas une fin : utilise maintenant ces acquis pour jouer, créer et te libérer de la TAB.';}
+ const hs=q('#humanCoachState'),ht=q('#humanCoachTitle'),hx=q('#humanCoachText');
+ if(hs)hs.textContent=humanState;if(ht)ht.textContent=humanTitle;if(hx)hx.textContent=humanText;
+ document.querySelectorAll('[data-human-level]').forEach((el,i)=>{el.classList.toggle('done',i<humanLevel);el.classList.toggle('active',i===humanLevel)});
+
  const goLiberty=q('#libertyGo');if(goLiberty)goLiberty.onclick=()=>{go();if(stage!=='learn')startGuided()};
 
 }
