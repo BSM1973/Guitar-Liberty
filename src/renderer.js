@@ -882,6 +882,29 @@ function drawLeftHandFingerings(api){
  if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
+function raiseChordNames(){
+ // alphaTab renders chord names as SVG text. Move only chord-name glyphs upward,
+ // keeping notes, bar numbers, pick strokes and other effects untouched.
+ const chordNames=new Set();
+ try{
+  for(const track of practiceScore?.tracks||[])for(const staff of track.staves||[]){
+   const chords=staff.chords;
+   if(chords){
+    if(typeof chords.values==='function')for(const chord of chords.values())if(chord?.name)chordNames.add(chord.name);
+    else if(Array.isArray(chords))for(const chord of chords)if(chord?.name)chordNames.add(chord.name);
+   }
+  }
+ }catch(e){}
+ if(!chordNames.size)return;
+ for(const node of tab.querySelectorAll('svg text')){
+  const label=(node.textContent||'').trim();
+  if(!chordNames.has(label))continue;
+  const y=parseFloat(node.getAttribute('y'));
+  if(Number.isFinite(y))node.setAttribute('y',String(y-14));
+  else node.setAttribute('transform',(node.getAttribute('transform')||'')+' translate(0,-14)');
+ }
+}
+
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  stop();
@@ -895,7 +918,7 @@ async function loadWithAlphaTab(file){
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
   display:{layoutMode:'page',barsPerRow:4,justifyLastSystem:true,resources:{effectFontSize:12}} ,
-  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectFingering:false,effectText:true,effectMarker:true}}
+  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectTempo:false,effectFingering:false,effectText:true,effectMarker:true,effectChordNames:true}}
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
@@ -932,7 +955,7 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);raiseChordNames();}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
