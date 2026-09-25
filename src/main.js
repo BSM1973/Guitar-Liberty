@@ -45,6 +45,7 @@ function createWindow() {
     title: 'Guitare Liberty',
     webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
+  win.maximize();
   win.loadFile(path.join(__dirname, 'index.html'));
 }
 
