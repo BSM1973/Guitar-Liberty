@@ -541,25 +541,46 @@ function setAlphaTempo(api){
 }
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
- let target=null;
- // Stable cursor mapping: always keep a visible written-score fallback.
- // Repeats are handled separately from this basic cursor so they cannot make it disappear.
- for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-  const bt=beat.beat?.absolutePlaybackStart??beat.beat?.absoluteStart??beat.beat?.playbackStart;
-  if(bt==null||bt>tick)continue;
-  if(!target||bt>=target.tick)target={tick:bt,beat,system};
+ // Build visual bar ranges first. The cursor follows musical time inside the
+ // current measure, not note-head positions, so ties/rests do not skip beats.
+ const bars=[];
+ for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[]){
+  const beats=bar.beats||[];if(!beats.length)continue;
+  const first=beats[0]?.beat,last=beats[beats.length-1]?.beat;
+  const startTick=first?.absolutePlaybackStart??first?.absoluteStart??first?.playbackStart;
+  if(!Number.isFinite(startTick))continue;
+  let endTick=null;
+  const lastStart=last?.absolutePlaybackStart??last?.absoluteStart??last?.playbackStart;
+  const lastDur=last?.playbackDuration??last?.duration;
+  if(Number.isFinite(lastStart)&&Number.isFinite(lastDur))endTick=lastStart+lastDur;
+  const bounds=bar.visualBounds||bar.realBounds||bar.bounds||master.visualBounds||master.realBounds||master.bounds;
+  if(!bounds)continue;
+  bars.push({startTick,endTick,bounds,system});
  }
- if(!target)return;
- const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
- const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
- if(!b||!sys)return;
+ if(!bars.length)return;
+ bars.sort((a,b)=>a.startTick-b.startTick);
+ for(let i=0;i<bars.length;i++)if(!Number.isFinite(bars[i].endTick)||bars[i].endTick<=bars[i].startTick){
+  bars[i].endTick=i+1<bars.length?bars[i+1].startTick:bars[i].startTick+1;
+ }
+ let currentBar=null;
+ for(const bar of bars){
+  if(tick>=bar.startTick&&tick<bar.endTick){currentBar=bar;break;}
+  if(tick>=bar.startTick)currentBar=bar;
+ }
+ if(!currentBar)return;
+ const bb=currentBar.bounds;
+ const sys=currentBar.system.visualBounds||currentBar.system.realBounds||currentBar.system.bounds;
+ if(!sys)return;
+ const duration=Math.max(1,currentBar.endTick-currentBar.startTick);
+ const progress=Math.max(0,Math.min(.999,(tick-currentBar.startTick)/duration));
+ // Small inset keeps the line inside the printed barlines.
+ const inset=Math.min(8,bb.w*.04);
+ const cursorX=bb.x+inset+progress*Math.max(1,bb.w-inset*2);
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
- playCursor.style.left=(b.x+b.w/2)+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
+ playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  const tabRect=tab.getBoundingClientRect();
- const systemTop=tabRect.top+sys.y;
- const systemBottom=systemTop+sys.h;
- const safeTop=window.innerHeight*.24;
- const safeBottom=window.innerHeight*.76;
+ const systemTop=tabRect.top+sys.y,systemBottom=systemTop+sys.h;
+ const safeTop=window.innerHeight*.24,safeBottom=window.innerHeight*.76;
  if(systemBottom>safeBottom||systemTop<safeTop){
   const targetY=window.scrollY+systemTop-window.innerHeight*.34;
   window.scrollTo({top:Math.max(0,targetY),behavior:'smooth'});
