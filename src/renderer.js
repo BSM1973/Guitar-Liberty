@@ -382,9 +382,26 @@ function paintGuided(){
    guidedSummary.innerHTML='<b>Temps : '+formatDashTime(sec)+'</b><b>Répétitions : '+reps+'</b><b>BPM : '+guidedStartBpm+' → '+tempo.value+'</b><b>Progression : +'+gain+' BPM</b>';
  }
 }
-function startGuided(){
+let guidedMinutes=0;
+function selectTimedSession(minutes,button){
+ guidedMinutes=minutes;
+ document.querySelectorAll('[data-session-minutes]').forEach(b=>b.classList.toggle('active',b===button));
+ const choice=document.querySelector('#timeSessionChoice'),plan=document.querySelector('#timeSessionPlan');
+ if(!minutes){choice.textContent='LIBERTÉ';plan.innerHTML='<strong>Aujourd’hui, joue simplement.</strong><small>Pas de chronomètre à battre, pas de performance à prouver. Choisis un cours ou un backing et fais de la musique.</small>';return}
+ choice.textContent=minutes+' MINUTES POUR TOI';
+ const plans={5:['UNE SEULE CHOSE','1 min pour te poser • 3 min sur le passage prioritaire • 1 min pour le rejouer librement.'],15:['COURT ET CIBLÉ','3 min d’échauffement • 4 min de révision • 6 min sur le cours actuel • 2 min de jeu libre.'],30:['CONSTRUIRE ET JOUER','5 min d’échauffement • 5 min de révision • 12 min de travail ciblé • 5 min d’application musicale • 3 min de bilan.']};
+ const p=plans[minutes];plan.innerHTML='<strong>'+p[0]+'</strong><small>'+p[1]+'</small>';
+ setTimeout(()=>startGuided(minutes),150);
+}
+document.querySelectorAll('[data-session-minutes]').forEach(b=>b.onclick=()=>selectTimedSession(+b.dataset.sessionMinutes,b));
+function startGuided(minutes=guidedMinutes){
+ guidedMinutes=minutes||0;
  guidedStep=0;guidedStartedAt=Date.now();guidedStartBpm=+tempo.value||0;guidedStartReps=sessionRepCount||0;guidedSession.hidden=false;paintGuided();
- clearInterval(guidedTimer);guidedTimer=setInterval(()=>guidedClock.textContent=formatDashTime((Date.now()-guidedStartedAt)/1000),1000);
+ clearInterval(guidedTimer);guidedTimer=setInterval(()=>{
+  const elapsed=(Date.now()-guidedStartedAt)/1000;
+  if(guidedMinutes){const left=Math.max(0,guidedMinutes*60-elapsed);guidedClock.textContent='RESTE '+formatDashTime(left);if(left<=0){clearInterval(guidedTimer);guidedTimer=null;guidedClock.textContent='TEMPS LIBRE';}}
+  else guidedClock.textContent=formatDashTime(elapsed);
+ },1000);
  guidedSession.scrollIntoView({behavior:'smooth',block:'start'});
 }
 document.querySelector('#guidedNext').onclick=()=>{if(guidedStep<4){guidedStep++;paintGuided()}else{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true;saveCurrentSession();refreshDashboard()}};
