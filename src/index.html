@@ -176,6 +176,17 @@
  <label>Compte <select id="countIn"><option value="0">OFF</option><option value="1">1 mesure</option><option value="2">2 mesures</option></select></label>
  <div class="practice-feedback"><span id="practiceStatus">Prêt</span><div class="practice-progress"><i id="practiceProgress"></i></div></div>
 </div>
+<section class="play-with-me">
+ <div class="play-with-me-head"><div><small>JOUE AVEC MOI</small><strong>ÉCOUTE • RÉPONDS • JOUE</strong></div><span id="playWithMeState">PRÊT</span></div>
+ <p id="playWithMeText">Guitare Liberty joue une mesure. À toi de la rejouer juste après.</p>
+ <div class="play-with-me-controls">
+  <label>Départ <input id="playWithMeBar" type="number" min="1" value="1"></label>
+  <label>Format <select id="playWithMeLength"><option value="1">1 mesure / 1 mesure</option><option value="2">2 mesures / 2 mesures</option></select></label>
+  <button id="playWithMeStart" type="button">▶ COMMENCER</button>
+  <button id="playWithMeStop" type="button" disabled>■ ARRÊTER</button>
+ </div>
+ <div class="play-with-me-turns"><div id="playWithMeListen"><b>1</b><span>ÉCOUTE</span><small>Guitare Liberty joue</small></div><div id="playWithMeAnswer"><b>2</b><span>À TOI</span><small>Rejoue la phrase</small></div></div>
+</section>
 <div class="session-stats"><span>SESSION</span><b id="sessionTime">00:00</b><span>Séries <b id="sessionSeries">0</b></span><span>Répétitions <b id="sessionReps">0</b></span><span>Meilleur BPM <b id="sessionBestBpm">0</b></span><span>Progression <b id="sessionGain">+0 BPM</b></span><button id="resetSession" type="button">Réinitialiser</button></div>
 <section class="learning-path"><div class="path-head"><strong>PARCOURS GUITARE LIBERTY</strong><span id="pathSummary">0 exercice suivi</span></div><div id="pathList" class="path-list"><p>Entraîne-toi sur une tablature pour démarrer ton parcours.</p></div></section>
 <section class="guitar-journal">
