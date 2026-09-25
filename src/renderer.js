@@ -1139,7 +1139,7 @@ async function loadWithAlphaTab(file){
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
-  player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
+  player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2',scrollMode:'off'},
   display:{layoutMode:'page',barsPerRow:4,justifyLastSystem:true,resources:{effectFontSize:12}} ,
   notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectTempo:false,effectFingering:false,effectText:true,effectMarker:true,effectChordNames:true,effectPickStroke:true}}
  });
