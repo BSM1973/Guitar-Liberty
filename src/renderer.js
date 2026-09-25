@@ -516,8 +516,22 @@ function renderExerciseProgress(items=readHistory()){
  vals.forEach((v,i)=>{const x=pad+(w-pad-12)*(vals.length===1?.5:i/(vals.length-1)),y=8+(h-pad-12)*(1-(v-min)/(max-min));i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
  ctx.stroke();const record=Math.max(...vals);exerciseProgressStats.textContent=own.length+' session'+(own.length>1?'s':'')+' • départ '+own[0].start+' BPM • record '+record+' BPM';personalBest.textContent=record+' BPM';const delta=(+tempo.value||0)-record;recordDelta.textContent=delta>0?'Nouveau record potentiel : +'+delta+' BPM':delta===0?'Tu es au niveau de ton record.':'Encore '+Math.abs(delta)+' BPM pour égaler ton record.';const goal=Math.max(1,+targetBpm.value||120),start=Math.max(1,+own[0].start||40),pct=Math.max(0,Math.min(100,Math.round((record-start)/Math.max(1,goal-start)*100)));masteryBar.style.width=pct+'%';masteryInfo.textContent=pct+' %';masteryLevel.textContent=pct>=100?'Maîtrisé':pct>=75?'Avancé':pct>=50?'Intermédiaire':pct>=25?'En progression':'Débutant';
 }
+function renderGuitarMemory(items){
+ const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
+ if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
+ const chronological=items.slice().reverse(),events=[],seen=new Set();let record=0,totalReps=0;
+ chronological.forEach((x,i)=>{
+  const name=x.exercise||'Exercice';
+  if(!seen.has(name)){seen.add(name);events.push({date:x.date,title:i===0?'Le voyage commence':'Un nouveau chapitre',text:'Première séance sur « '+name+' ».'})}
+  const best=+x.best||0;if(best>record){const previous=record;record=best;events.push({date:x.date,title:previous?'Nouveau repère personnel':'Premier tempo de référence',text:'Tu as installé un nouveau repère à '+best+' BPM. Ce nombre raconte une étape, pas ta valeur de musicien.'})}
+  const before=totalReps;totalReps+=+x.reps||0;
+  [10,25,50,100,250].forEach(m=>{if(before<m&&totalReps>=m)events.push({date:x.date,title:m+' répétitions vécues',text:'Du temps passé avec l’instrument : c’est cette continuité qui construit ton jeu.'})});
+ });
+ count.textContent=events.length+' SOUVENIR'+(events.length>1?'S':'');
+ box.innerHTML=events.slice(-8).reverse().map(e=>'<article class="memory-event"><time>'+e.date+'</time><strong>'+e.title+'</strong><small>'+e.text+'</small></article>').join('');
+}
 function renderHistory(){
- const items=readHistory();historyCount.textContent=items.length+' session'+(items.length>1?'s':'');historySessions.textContent=items.length;
+ const items=readHistory();renderGuitarMemory(items);historyCount.textContent=items.length+' session'+(items.length>1?'s':'');historySessions.textContent=items.length;
  const totalSec=items.reduce((sum,x)=>{const p=String(x.duration||'0:0').split(':').map(Number);return sum+(p[0]||0)*60+(p[1]||0)},0);
  historyTime.textContent=String(Math.floor(totalSec/60)).padStart(2,'0')+':'+String(totalSec%60).padStart(2,'0');
  historyRecord.textContent=items.length?Math.max(...items.map(x=>+x.best||0))+' BPM':'—';
