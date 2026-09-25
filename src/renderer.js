@@ -520,7 +520,7 @@ function setLessonInfo(button){
  lessonObjective.textContent=button?.dataset.objective||'Travailler la tablature proprement au tempo indiqué.';
  lessonPrereq.textContent=button?.dataset.prereq||'Accordage standard • lecture de TAB';
  lessonDifficulty.textContent=button?.dataset.difficulty||'Débutant';
- lessonKey.textContent=button?.dataset.key||'—';
+ lessonKey.textContent=button?.dataset.key||'—';setTimeout(paintSmartFretboard,0);
  lessonTempo.textContent=(button?.dataset.bpm?button.dataset.bpm+' BPM':'—');
  paintLessonComplete();
  paintLessonMastery();
@@ -555,6 +555,31 @@ function renderExerciseProgress(items=readHistory()){
  vals.forEach((v,i)=>{const x=pad+(w-pad-12)*(vals.length===1?.5:i/(vals.length-1)),y=8+(h-pad-12)*(1-(v-min)/(max-min));i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
  ctx.stroke();const record=Math.max(...vals);exerciseProgressStats.textContent=own.length+' session'+(own.length>1?'s':'')+' • départ '+own[0].start+' BPM • record '+record+' BPM';personalBest.textContent=record+' BPM';const delta=(+tempo.value||0)-record;recordDelta.textContent=delta>0?'Nouveau record potentiel : +'+delta+' BPM':delta===0?'Tu es au niveau de ton record.':'Encore '+Math.abs(delta)+' BPM pour égaler ton record.';const goal=Math.max(1,+targetBpm.value||120),start=Math.max(1,+own[0].start||40),pct=Math.max(0,Math.min(100,Math.round((record-start)/Math.max(1,goal-start)*100)));masteryBar.style.width=pct+'%';masteryInfo.textContent=pct+' %';masteryLevel.textContent=pct>=100?'Maîtrisé':pct>=75?'Avancé':pct>=50?'Intermédiaire':pct>=25?'En progression':'Débutant';
 }
+function smartFretboardNotes(){
+ const used=new Set(),roots=new Set(),score=practiceScore;
+ try{
+  for(const track of score?.tracks||[])for(const staff of track.staves||[])for(const bar of staff.bars||[])for(const voice of bar.voices||[])for(const beat of voice.beats||[])for(const note of beat.notes||[]){
+   const midi=note.realValue??note.realValueWithoutHarmonic??note.midiValue;
+   if(Number.isFinite(midi))used.add(((midi%12)+12)%12);
+  }
+ }catch(_){}
+ const keyText=(lessonKey?.textContent||'').toUpperCase(),map={C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11};
+ const match=keyText.match(/[A-G](?:#|B)?/);if(match&&map[match[0]]!==undefined)roots.add(map[match[0]]);
+ return {used,roots};
+}
+function paintSmartFretboard(){
+ const host=document.querySelector('#smartFretboard'),state=document.querySelector('#fretboardState'),title=document.querySelector('#fretboardCoachTitle'),text=document.querySelector('#fretboardCoachText');if(!host)return;
+ const names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],strings=[['E',40],['A',45],['D',50],['G',55],['B',59],['E',64]],data=smartFretboardNotes();
+ let out='<div class="fretboard-grid">';
+ strings.forEach(([name,midi])=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),isUsed=data.used.has(pc),cls=isRoot?'root':isUsed?'used':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'">'+names[pc]+'</span></div>'}});
+ host.innerHTML=out+'</div>';
+ if(!practiceScore){state.textContent='EN ATTENTE';return}
+ state.textContent=data.used.size+' NOTES REPÉRÉES';
+ if(currentMusicGoal()==='fretboard'){title.textContent='Ton objectif est de connaître le manche.';text.textContent='Commence par retrouver les notes mises en évidence sur plusieurs cordes. Cherche les mêmes sons ailleurs plutôt que de mémoriser une seule forme.'}
+ else if(currentMusicGoal()==='impro'){title.textContent='Transforme la position en territoire musical.';text.textContent='Les notes mises en évidence viennent de la tablature. Repère la tonique, puis crée de petites phrases autour d’elle sans suivre la TAB note par note.'}
+ else{title.textContent='Relie ce que tu lis à ce que tu touches.';text.textContent='Les notes mises en évidence sont présentes dans la tablature. Observe comment elles se répètent et se déplacent sur les six cordes.'}
+}
+
 let journalFeeling='';
 function readGuitarJournal(){try{return JSON.parse(localStorage.getItem(GUITAR_JOURNAL_KEY)||'[]')}catch{return []}}
 function renderGuitarJournal(){
@@ -602,7 +627,7 @@ function saveCurrentSession(){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
  const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
  items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
- writeHistory(items);renderHistory();
+ writeHistory(items);renderHistory();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
