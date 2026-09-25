@@ -795,7 +795,25 @@ document.querySelector('#play').onclick=async()=>{
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
  playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()
 };
-render();
+// L'application démarre désormais sur l'accueil, sans charger l'ancien exercice de démonstration.
+const homePage=document.querySelector('#homePage'),appWorkspace=document.querySelector('#appWorkspace');
+function openWorkspace(target){
+ homePage.hidden=true;appWorkspace.hidden=false;
+ let back=document.querySelector('#homeBack');
+ if(!back){back=document.createElement('button');back.id='homeBack';back.className='home-back';back.textContent='⌂ ACCUEIL';document.body.appendChild(back);back.onclick=showHome;}
+ back.hidden=false;
+ requestAnimationFrame(()=>{
+  if(target==='dashboard')document.querySelector('.student-dashboard')?.scrollIntoView({behavior:'smooth',block:'start'});
+  if(target==='courses')document.querySelector('.course-nav')?.scrollIntoView({behavior:'smooth',block:'start'});
+  if(target==='coach')document.querySelector('.ai-coach')?.scrollIntoView({behavior:'smooth',block:'start'});
+  if(target==='listen')document.querySelector('.ai-listening')?.scrollIntoView({behavior:'smooth',block:'start'});
+ });
+}
+function showHome(){stop();appWorkspace.hidden=true;homePage.hidden=false;const back=document.querySelector('#homeBack');if(back)back.hidden=true;window.scrollTo({top:0,behavior:'smooth'});}
+document.querySelector('#homeStart')?.addEventListener('click',()=>openWorkspace('dashboard'));
+document.querySelector('#homeLibrary')?.addEventListener('click',()=>openWorkspace('courses'));
+document.querySelector('#homeImport')?.addEventListener('click',()=>{openWorkspace('courses');setTimeout(()=>document.querySelector('#importScore')?.click(),120)});
+document.querySelectorAll('[data-home-target]').forEach(b=>b.addEventListener('click',()=>openWorkspace(b.dataset.homeTarget)));
 
 const backingToggle=document.querySelector('#backingToggle');
 const backingVolume=document.querySelector('#backingVolume');
