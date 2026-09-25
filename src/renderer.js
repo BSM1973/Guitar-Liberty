@@ -882,6 +882,30 @@ function drawLeftHandFingerings(api){
  if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
+function separateChordNamesFromPickStrokes(){
+ // alphaTab positions EffectChordNames and EffectPickStroke in the same effect band.
+ // Move the pick-stroke glyphs DOWN, not the chord text: this creates real
+ // vertical separation while keeping A7/D7/E7 in alphaTab's native position.
+ const svg=tab.querySelectorAll('svg');
+ for(const root of svg){
+  for(const el of root.querySelectorAll('text,tspan')){
+   const value=(el.textContent||'').trim();
+   if(!['V','∧','∨','^'].includes(value))continue;
+   let target=el;
+   while(target.parentElement&&target.parentElement.tagName?.toLowerCase()==='g'){
+    const parent=target.parentElement;
+    const txt=(parent.textContent||'').trim();
+    if(txt!==value)break;
+    target=parent;
+   }
+   if(target.dataset?.glPickShifted==='1')continue;
+   if(target.dataset)target.dataset.glPickShifted='1';
+   const old=target.getAttribute('transform')||'';
+   target.setAttribute('transform',old+' translate(0,16)');
+  }
+ }
+}
+
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  stop();
@@ -932,7 +956,7 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);separateChordNamesFromPickStrokes();}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
