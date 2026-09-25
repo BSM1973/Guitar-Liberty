@@ -93,6 +93,7 @@ const HISTORY_KEY='guitarLibertyPracticeHistory';
 const LESSON_KEY='guitarLibertyLessonProgress';
 const MEASURE_MASTERY_KEY='guitarLibertyMeasureMasteryV1';
 const MUSIC_GOAL_KEY='guitarLibertyMusicGoalV1';
+const GUITAR_JOURNAL_KEY='guitarLibertyJournalV1';
 const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
@@ -554,6 +555,24 @@ function renderExerciseProgress(items=readHistory()){
  vals.forEach((v,i)=>{const x=pad+(w-pad-12)*(vals.length===1?.5:i/(vals.length-1)),y=8+(h-pad-12)*(1-(v-min)/(max-min));i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
  ctx.stroke();const record=Math.max(...vals);exerciseProgressStats.textContent=own.length+' session'+(own.length>1?'s':'')+' • départ '+own[0].start+' BPM • record '+record+' BPM';personalBest.textContent=record+' BPM';const delta=(+tempo.value||0)-record;recordDelta.textContent=delta>0?'Nouveau record potentiel : +'+delta+' BPM':delta===0?'Tu es au niveau de ton record.':'Encore '+Math.abs(delta)+' BPM pour égaler ton record.';const goal=Math.max(1,+targetBpm.value||120),start=Math.max(1,+own[0].start||40),pct=Math.max(0,Math.min(100,Math.round((record-start)/Math.max(1,goal-start)*100)));masteryBar.style.width=pct+'%';masteryInfo.textContent=pct+' %';masteryLevel.textContent=pct>=100?'Maîtrisé':pct>=75?'Avancé':pct>=50?'Intermédiaire':pct>=25?'En progression':'Débutant';
 }
+let journalFeeling='';
+function readGuitarJournal(){try{return JSON.parse(localStorage.getItem(GUITAR_JOURNAL_KEY)||'[]')}catch{return []}}
+function renderGuitarJournal(){
+ const items=readGuitarJournal(),box=document.querySelector('#journalEntries'),count=document.querySelector('#journalCount');if(!box||!count)return;
+ count.textContent=items.length+' NOTE'+(items.length>1?'S':'');
+ if(!items.length){box.innerHTML='<p>Aucune note pour le moment.</p>';return}
+ const labels={fluide:'FLUIDE',concentre:'CONCENTRÉ',detendu:'DÉTENDU',difficile:'EXIGEANT',inspire:'INSPIRÉ'};
+ box.innerHTML=items.slice(0,5).map(x=>'<article class="journal-note"><div><time>'+x.date+'</time><b>'+(labels[x.feeling]||'RESSENTI LIBRE')+'</b></div><p>'+String(x.text||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</p></article>').join('');
+}
+document.querySelectorAll('[data-journal-feeling]').forEach(b=>b.onclick=()=>{journalFeeling=b.dataset.journalFeeling;document.querySelectorAll('[data-journal-feeling]').forEach(x=>x.classList.toggle('active',x===b))});
+document.querySelector('#journalSave').onclick=()=>{
+ const input=document.querySelector('#journalText'),text=input.value.trim();if(!text&&!journalFeeling)return;
+ const items=readGuitarJournal();items.unshift({date:new Date().toLocaleString('fr-FR'),feeling:journalFeeling,text:text||'Une séance vécue sans mots.'});
+ localStorage.setItem(GUITAR_JOURNAL_KEY,JSON.stringify(items.slice(0,100)));input.value='';journalFeeling='';document.querySelectorAll('[data-journal-feeling]').forEach(x=>x.classList.remove('active'));renderGuitarJournal();
+};
+document.querySelector('#journalText').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.querySelector('#journalSave').click()}});
+renderGuitarJournal();
+
 function renderGuitarMemory(items){
  const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
  if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
