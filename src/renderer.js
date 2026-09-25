@@ -882,28 +882,54 @@ function drawLeftHandFingerings(api){
  if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
-function separateChordNamesFromPickStrokes(){
- // alphaTab positions EffectChordNames and EffectPickStroke in the same effect band.
- // Move the pick-stroke glyphs DOWN, not the chord text: this creates real
- // vertical separation while keeping A7/D7/E7 in alphaTab's native position.
- const svg=tab.querySelectorAll('svg');
- for(const root of svg){
-  for(const el of root.querySelectorAll('text,tspan')){
-   const value=(el.textContent||'').trim();
-   if(!['V','∧','∨','^'].includes(value))continue;
-   let target=el;
-   while(target.parentElement&&target.parentElement.tagName?.toLowerCase()==='g'){
-    const parent=target.parentElement;
-    const txt=(parent.textContent||'').trim();
-    if(txt!==value)break;
-    target=parent;
+function drawChordNameOverlay(api){
+ const old=tab.querySelector('.gl-chord-layer');if(old)old.remove();
+ const lookup=api?.renderer?.boundsLookup;if(!lookup)return;
+ const layer=document.createElement('div');
+ layer.className='gl-chord-layer';
+ Object.assign(layer.style,{position:'absolute',inset:'0',pointerEvents:'none',zIndex:'8'});
+ let count=0;
+ for(const system of lookup.staffSystems||[]){
+  const beats=[];
+  let minNoteY=Infinity;
+  for(const master of system.bars||[])for(const bar of master.bars||[])for(const bb of bar.beats||[]){
+   const model=bb.beat;
+   let name='';
+   const chord=model?.chord;
+   if(typeof chord==='string')name=chord;
+   else if(chord?.name)name=chord.name;
+   if(!name&&model?.hasChord&&model?.voice?.bar?.staff?.chords){
+    try{
+     const chords=model.voice.bar.staff.chords;
+     const id=model.chordId??model.chord;
+     const found=typeof chords.get==='function'?chords.get(id):null;
+     if(found?.name)name=found.name;
+    }catch(e){}
    }
-   if(target.dataset?.glPickShifted==='1')continue;
-   if(target.dataset)target.dataset.glPickShifted='1';
-   const old=target.getAttribute('transform')||'';
-   target.setAttribute('transform',old+' translate(0,16)');
+   let x=null;
+   const vb=bb.visualBounds||bb.realBounds||bb.bounds;
+   if(vb)x=vb.x+vb.w/2;
+   for(const nb of bb.notes||[]){
+    const b=nb.noteHeadBounds;
+    if(b){
+     minNoteY=Math.min(minNoteY,b.y);
+     if(x==null)x=b.x+b.w/2;
+    }
+   }
+   if(name&&x!=null)beats.push({name:String(name).trim(),x});
+  }
+  if(!beats.length||!Number.isFinite(minNoteY))continue;
+  // Dedicated chord lane: clearly above pick-strokes/effects and independent
+  // from alphaTab's effect-band collision/layout.
+  const y=Math.max(4,minNoteY-58);
+  for(const item of beats){
+   const el=document.createElement('span');
+   el.textContent=item.name;
+   Object.assign(el.style,{position:'absolute',left:item.x+'px',top:y+'px',transform:'translateX(-50%)',fontSize:'13px',fontWeight:'700',lineHeight:'1',color:'#111',whiteSpace:'nowrap'});
+   layer.appendChild(el);count++;
   }
  }
+ if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
 async function loadWithAlphaTab(file){
@@ -919,7 +945,7 @@ async function loadWithAlphaTab(file){
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2'},
   display:{layoutMode:'page',barsPerRow:4,justifyLastSystem:true,resources:{effectFontSize:12}} ,
-  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectTempo:false,effectFingering:false,effectText:true,effectMarker:true,effectChordNames:true}}
+  notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectTempo:false,effectFingering:false,effectText:true,effectMarker:true,effectChordNames:false}}
  });
  window.guitarLibertyAlphaTab=api;
  api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
@@ -956,7 +982,7 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);separateChordNamesFromPickStrokes();}); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);drawChordNameOverlay(api);}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
