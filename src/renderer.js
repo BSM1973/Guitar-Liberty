@@ -882,19 +882,6 @@ function drawLeftHandFingerings(api){
  if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
-function removeAlphaTabAttribution(){
- for(const el of tab.querySelectorAll('text,tspan,div,span,a')){
-  const label=(el.textContent||'').trim().toLowerCase();
-  if(label==='rendered by alphatab'||label.includes('rendered by alphatab')){
-   // SVG text cannot reliably be hidden through stylesheet selectors,
-   // so remove the exact attribution node after every render.
-   let target=el;
-   if((el.tagName||'').toLowerCase()==='tspan'&&el.parentElement)target=el.parentElement;
-   target.remove();
-  }
- }
-}
-
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  stop();
@@ -945,7 +932,7 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);removeAlphaTabAttribution();}); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>drawLeftHandFingerings(api)); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
