@@ -553,8 +553,19 @@ function updatePlayCursor(api,tick){
  const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
  if(!b||!sys)return;
+ // Move continuously through the beat duration. This is important for tied or
+ // sustained notes: alphaTab can keep the same source beat while playback has
+ // already advanced to the next metrical beat.
+ let cursorX=b.x+b.w/2;
+ const model=target.beat.beat;
+ const start=target.tick;
+ const duration=model?.playbackDuration??model?.duration;
+ if(Number.isFinite(start)&&Number.isFinite(duration)&&duration>0&&tick>start){
+  const progress=Math.max(0,Math.min(1,(tick-start)/duration));
+  cursorX=b.x+b.w*progress;
+ }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
- playCursor.style.left=(b.x+b.w/2)+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
+ playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  const tabRect=tab.getBoundingClientRect();
  const systemTop=tabRect.top+sys.y;
  const systemBottom=systemTop+sys.h;
