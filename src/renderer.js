@@ -405,6 +405,23 @@ function refreshDashboard(){
  q('#todayGoal').textContent=next?'Objectif : '+(next.dataset.bpm||targetBpm.value)+' BPM • '+(next.dataset.difficulty||'progression régulière'):'Continue à consolider tes acquis.';
  const go=()=>{if(next){next.click();next.scrollIntoView({behavior:'smooth',block:'center'})}};
  q('#continueCourse').onclick=go;q('#todayStart').onclick=()=>{go();startGuided()};
+ // Chemin de Liberté: derive a simple, explainable next step from existing
+ // course/session data. No opaque scoring and no change to the playback engine.
+ const currentName=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours consolidé':'Premier cours');
+ const currentRows=history.filter(x=>!next||x.title===currentName);
+ const currentReps=currentRows.reduce((n,x)=>n+(+x.reps||0),0);
+ const currentBest=currentRows.reduce((n,x)=>Math.max(n,+x.bestBpm||0),0);
+ const suggested=+(next?.dataset.bpm||targetBpm.value||50);
+ let stage='learn',state='EN APPRENTISSAGE',recommendation='Découvre '+currentName+'.',reason='Prends le temps de comprendre le geste avant de chercher la vitesse.';
+ if(currentRows.length>=1||currentReps>=3){stage='play';state='EN PROGRÈS';recommendation='Consolide '+currentName+' avec quelques répétitions propres.';reason='Tu as déjà commencé ce travail : la régularité compte maintenant davantage que la vitesse.';}
+ if(currentRows.length>=2&&currentReps>=6&&currentBest>=suggested){stage='free';state='PRÊT À SE LIBÉRER';recommendation='Joue '+currentName+' avec moins de dépendance à la TAB.';reason='Le passage est suffisamment travaillé pour commencer à transformer l’exercice en musique.';}
+ if(!next&&buttons.length){stage='free';state='PARCOURS ACQUIS';recommendation='Rejoue librement un cours que tu aimes.';reason='Tes cours disponibles sont validés : entretiens maintenant le plaisir et la liberté de jeu.';}
+ const stages=['learn','play','free'],stageIndex=stages.indexOf(stage);
+ document.querySelectorAll('[data-liberty-step]').forEach((el,i)=>{el.classList.toggle('done',i<stageIndex);el.classList.toggle('active',i===stageIndex)});
+ const stateEl=q('#libertyPathState'),recEl=q('#libertyRecommendation'),reasonEl=q('#libertyReason');
+ if(stateEl)stateEl.textContent=state;if(recEl)recEl.textContent=recommendation;if(reasonEl)reasonEl.textContent=reason;
+ const goLiberty=q('#libertyGo');if(goLiberty)goLiberty.onclick=()=>{go();if(stage!=='learn')startGuided()};
+
 }
 function refreshCourseProgress(){
  const buttons=courseButtons(),p=lessonProgress();let completed=0;
