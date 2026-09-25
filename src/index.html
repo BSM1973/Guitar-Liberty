@@ -178,6 +178,19 @@
 </div>
 <div class="session-stats"><span>SESSION</span><b id="sessionTime">00:00</b><span>Séries <b id="sessionSeries">0</b></span><span>Répétitions <b id="sessionReps">0</b></span><span>Meilleur BPM <b id="sessionBestBpm">0</b></span><span>Progression <b id="sessionGain">+0 BPM</b></span><button id="resetSession" type="button">Réinitialiser</button></div>
 <section class="learning-path"><div class="path-head"><strong>PARCOURS GUITARE LIBERTY</strong><span id="pathSummary">0 exercice suivi</span></div><div id="pathList" class="path-list"><p>Entraîne-toi sur une tablature pour démarrer ton parcours.</p></div></section>
+<section class="guitar-journal">
+ <div class="guitar-journal-head"><div><small>JOURNAL DU GUITARISTE</small><strong>COMMENT AS-TU VÉCU TON JEU ?</strong></div><span id="journalCount">0 NOTE</span></div>
+ <div class="journal-feelings">
+  <button type="button" data-journal-feeling="fluide">FLUIDE</button>
+  <button type="button" data-journal-feeling="concentre">CONCENTRÉ</button>
+  <button type="button" data-journal-feeling="detendu">DÉTENDU</button>
+  <button type="button" data-journal-feeling="difficile">EXIGEANT</button>
+  <button type="button" data-journal-feeling="inspire">INSPIRÉ</button>
+ </div>
+ <div class="journal-entry"><input id="journalText" type="text" maxlength="180" placeholder="Une phrase suffit : sensation, difficulté, petite victoire…"><button id="journalSave" type="button">ENREGISTRER</button></div>
+ <small id="journalHint" class="journal-hint">Il n’y a pas de bonne réponse. Ce journal appartient au musicien, pas aux statistiques.</small>
+ <div id="journalEntries" class="journal-entries"><p>Aucune note pour le moment.</p></div>
+</section>
 <section class="guitar-memory">
  <div class="guitar-memory-head"><div><small>MÉMOIRE DU GUITARISTE</small><strong>TON HISTOIRE MUSICALE</strong></div><span id="memoryCount">AUCUN SOUVENIR</span></div>
  <div id="memoryTimeline" class="memory-timeline"><p>Ta première séance écrira ici le début de ton histoire.</p></div>
