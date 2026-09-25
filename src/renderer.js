@@ -572,8 +572,8 @@ function smartFretboardNotes(){
 }
 function paintSmartFretboard(){
  const host=document.querySelector('#smartFretboard'),state=document.querySelector('#fretboardState'),title=document.querySelector('#fretboardCoachTitle'),text=document.querySelector('#fretboardCoachText');if(!host)return;
- const names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],strings=[['E',40],['A',45],['D',50],['G',55],['B',59],['E',64]],data=smartFretboardNotes();
- let out='<div class="fretboard-grid">';
+ const names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],strings=[['E',64],['B',59],['G',55],['D',50],['A',45],['E',40]],data=smartFretboardNotes();
+ let out='<div class="fretboard-grid"><div class="fret-cell fret-corner"></div>'+Array.from({length:13},(_,f)=>'<div class="fret-cell fret-number">'+f+'</div>').join('');
  strings.forEach(([name,midi])=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),cls=isRoot?'root':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'" data-midi="'+(midi+fret)+'">'+names[pc]+'</span></div>'}});
  host.innerHTML=out+'</div>';
  host.querySelectorAll('.note-dot').forEach(dot=>dot.dataset.baseClass=dot.className);
@@ -751,12 +751,7 @@ function updatePlayCursor(api,tick){
  }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
- const tabRect=tab.getBoundingClientRect(),systemTop=tabRect.top+sys.y,systemBottom=systemTop+sys.h;
- if(playbackFollowEnabled&&Date.now()>=manualScrollUntil&&(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24)){
-  autoTabScrolling=true;
-  window.scrollTo({top:Math.max(0,window.scrollY+systemTop-window.innerHeight*.34),behavior:'smooth'});
-  setTimeout(()=>{autoTabScrolling=false},450);
- }
+ // Viewport is deliberately never moved by playback. The orange cursor continues independently.
 }
 function metronomeClick(accent=false){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
