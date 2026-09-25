@@ -204,3 +204,6 @@ header{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-i
 
 /* Note jouée en direct sur le Manche Intelligent */
 .fret-cell .note-dot.playing{opacity:1!important;transform:scale(1.32);background:#fff!important;color:#111!important;border-color:#fff!important;box-shadow:0 0 0 3px #e9b44c,0 0 14px #e9b44c;transition:transform .06s ease,box-shadow .06s ease}
+
+/* Position réellement jouée par la TAB */
+.fret-cell .note-dot.tab-playing{opacity:1!important;transform:scale(1.3);background:#e9b44c!important;color:#111!important;border-color:#e9b44c!important;box-shadow:0 0 0 3px #e9b44c55,0 0 16px #e9b44c;transition:transform .05s ease,box-shadow .05s ease}
