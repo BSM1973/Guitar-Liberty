@@ -92,6 +92,7 @@ let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,ses
 const HISTORY_KEY='guitarLibertyPracticeHistory';
 const LESSON_KEY='guitarLibertyLessonProgress';
 const MEASURE_MASTERY_KEY='guitarLibertyMeasureMasteryV1';
+const MUSIC_GOAL_KEY='guitarLibertyMusicGoalV1';
 const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
@@ -382,6 +383,24 @@ function paintGuided(){
    guidedSummary.innerHTML='<b>Temps : '+formatDashTime(sec)+'</b><b>Répétitions : '+reps+'</b><b>BPM : '+guidedStartBpm+' → '+tempo.value+'</b><b>Progression : +'+gain+' BPM</b>';
  }
 }
+const MUSIC_GOALS={
+ impro:{label:'IMPROVISER',title:'Chercher la liberté musicale.',text:'Privilégie les phrases, les respirations et l’utilisation personnelle des notes apprises.'},
+ clean:{label:'JOUER PLUS PROPRE',title:'Faire sonner chaque geste.',text:'Privilégie un tempo confortable, la détente et la netteté avant toute accélération.'},
+ rhythm:{label:'RYTHME',title:'Habiter la pulsation.',text:'Privilégie le métronome, le placement et plusieurs répétitions régulières au même tempo.'},
+ fretboard:{label:'CONNAÎTRE LE MANCHE',title:'Construire tes repères.',text:'Observe les positions, les notes communes et les déplacements plutôt que de mémoriser mécaniquement.'},
+ speed:{label:'GAGNER EN AISANCE',title:'Faire évoluer le tempo intelligemment.',text:'Augmente seulement quand le geste reste détendu, précis et musical.'}
+};
+function currentMusicGoal(){return localStorage.getItem(MUSIC_GOAL_KEY)||''}
+function paintMusicGoal(){
+ const id=currentMusicGoal(),g=MUSIC_GOALS[id],state=document.querySelector('#musicGoalState'),advice=document.querySelector('#musicGoalAdvice');
+ document.querySelectorAll('[data-music-goal]').forEach(b=>b.classList.toggle('active',b.dataset.musicGoal===id));
+ if(!state||!advice)return;
+ if(!g){state.textContent='CHOISIS TON CAP';advice.innerHTML='<strong>Ton objectif peut changer quand tu veux.</strong><small>Guitare Liberty utilisera ce cap pour orienter ses conseils, sans t’enfermer dans un programme.</small>';return}
+ state.textContent=g.label;advice.innerHTML='<strong>'+g.title+'</strong><small>'+g.text+'</small>';
+}
+document.querySelectorAll('[data-music-goal]').forEach(b=>b.onclick=()=>{localStorage.setItem(MUSIC_GOAL_KEY,b.dataset.musicGoal);paintMusicGoal();refreshDashboard()});
+paintMusicGoal();
+
 let guidedMinutes=0;
 function selectTimedSession(minutes,button){
  guidedMinutes=minutes;
@@ -438,6 +457,8 @@ function refreshDashboard(){
  const stages=['learn','play','free'],stageIndex=stages.indexOf(stage);
  document.querySelectorAll('[data-liberty-step]').forEach((el,i)=>{el.classList.toggle('done',i<stageIndex);el.classList.toggle('active',i===stageIndex)});
  const stateEl=q('#libertyPathState'),recEl=q('#libertyRecommendation'),reasonEl=q('#libertyReason');
+ const selectedGoal=MUSIC_GOALS[currentMusicGoal()];
+ if(selectedGoal)reason=selectedGoal.text;
  if(stateEl)stateEl.textContent=state;if(recEl)recEl.textContent=recommendation;if(reasonEl)reasonEl.textContent=reason;
  // Humanist coach: progress vocabulary is descriptive, never punitive.
  let humanLevel=0,humanState='À DÉCOUVRIR',humanTitle='Chaque séance compte.',humanText='Ici, on mesure les progrès pour mieux t’accompagner, jamais pour te juger.';
