@@ -279,9 +279,12 @@ function listenLoop(){
  document.querySelector('#inputMeterBar').style.width=level+'%';document.querySelector('#inputLevel').textContent=level+'%';
  if(r.freq>=70&&r.freq<=1200){const p=pitchName(r.freq),now=performance.now(),newAttack=lastDetectedMidi!==p.midi||now-lastSoundingAt>180;document.querySelector('#detectedNote').textContent=p.name;document.querySelector('#detectedFreq').textContent=r.freq.toFixed(1)+' Hz';document.querySelector('#detectedCents').textContent=(p.cents>0?'+':'')+p.cents+' cents';
   if(newAttack&&now-lastAttackAt>90){const inWindow=Number.isFinite(expectedMidi)&&Math.abs(now-expectedSince)<=430;if(!inWindow)registerParasiteNote(currentAnalysisMeasure);else paintPerformance(p.midi);lastAttackAt=now}
+  const fretPc=((p.midi%12)+12)%12;
+  document.querySelectorAll('#smartFretboard .note-dot').forEach(dot=>{const names=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];dot.classList.toggle('playing',names[fretPc]===dot.textContent)});
+  const fs=document.querySelector('#fretboardState');if(fs)fs.textContent='TU JOUES '+p.name;
   lastDetectedMidi=p.midi;lastSoundingAt=now;
  }
- else{document.querySelector('#detectedNote').textContent='—';document.querySelector('#detectedFreq').textContent='— Hz';document.querySelector('#detectedCents').textContent='—';}
+ else{document.querySelector('#detectedNote').textContent='—';document.querySelector('#detectedFreq').textContent='— Hz';document.querySelector('#detectedCents').textContent='—';document.querySelectorAll('#smartFretboard .note-dot.playing').forEach(dot=>dot.classList.remove('playing'));}
  listenFrame=requestAnimationFrame(listenLoop);
 }
 async function startListening(){
@@ -573,6 +576,7 @@ function paintSmartFretboard(){
  let out='<div class="fretboard-grid">';
  strings.forEach(([name,midi])=>{out+='<div class="fret-cell string-name">'+name+'</div>';for(let fret=0;fret<=12;fret++){const pc=(midi+fret)%12,isRoot=data.roots.has(pc),isUsed=data.used.has(pc),cls=isRoot?'root':isUsed?'used':'available';out+='<div class="fret-cell"><span class="note-dot '+cls+'">'+names[pc]+'</span></div>'}});
  host.innerHTML=out+'</div>';
+ host.querySelectorAll('.note-dot').forEach(dot=>dot.dataset.baseClass=dot.className);
  if(!practiceScore){state.textContent='EN ATTENTE';return}
  state.textContent=data.used.size+' NOTES REPÉRÉES';
  if(currentMusicGoal()==='fretboard'){title.textContent='Ton objectif est de connaître le manche.';text.textContent='Commence par retrouver les notes mises en évidence sur plusieurs cordes. Cherche les mêmes sons ailleurs plutôt que de mémoriser une seule forme.'}
@@ -677,10 +681,10 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false;
-window.addEventListener('wheel',()=>{if(!autoTabScrolling)manualScrollUntil=Date.now()+12000},{passive:true});
-window.addEventListener('touchmove',()=>{if(!autoTabScrolling)manualScrollUntil=Date.now()+12000},{passive:true});
-window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))manualScrollUntil=Date.now()+12000});
+let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true;
+window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
+window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){manualScrollUntil=Infinity;playbackFollowEnabled=false}});
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
  let modelBeat=alphaPlayedBeat;
@@ -747,7 +751,7 @@ function updatePlayCursor(api,tick){
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  const tabRect=tab.getBoundingClientRect(),systemTop=tabRect.top+sys.y,systemBottom=systemTop+sys.h;
- if(Date.now()>=manualScrollUntil&&(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24)){
+ if(playbackFollowEnabled&&Date.now()>=manualScrollUntil&&(systemBottom>window.innerHeight*.76||systemTop<window.innerHeight*.24)){
   autoTabScrolling=true;
   window.scrollTo({top:Math.max(0,window.scrollY+systemTop-window.innerHeight*.34),behavior:'smooth'});
   setTimeout(()=>{autoTabScrolling=false},450);
@@ -1138,7 +1142,7 @@ async function loadWithAlphaTab(file){
  // playedBeatChanged comes from alphaTab's actual playback sequencer. It follows
  // GP repeats automatically and is not confused by written-score absolute ticks.
  if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{alphaPlayedBeat=beat||null;updatePlayCursor(api,api.tickPosition||0);});
- api.playerStateChanged.on(e=>{document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const tick=e.currentTick??e.tick??0;
   updatePlayCursor(api,tick);if(listening)updateExpectedFromTick(api,tick);
