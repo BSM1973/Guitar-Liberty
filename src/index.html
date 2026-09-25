@@ -3,7 +3,34 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guitare Liberty</title><link rel="stylesheet" href="style.css"></head>
 <body>
 <header><div class="brand"><h1>Guitare <span>Liberty</span></h1><p>S'ENTRAÎNER – JOUER – PROGRESSER</p></div><div class="jrp-edition"><small>ÉDITION JRP</small><strong>JEUX – RÊVES – PENTA</strong></div><div class="badge">v0.4 TAB</div></header>
-<main>
+<section id="homePage" class="home-page">
+ <div class="home-hero">
+  <small>BIENVENUE DANS</small>
+  <h2>Guitare <span>Liberty</span></h2>
+  <p>Une méthode interactive pour apprendre, jouer et progresser à la guitare avec des tablatures, des exercices guidés, le travail en boucle, le suivi de progression et les outils d'analyse de Guitare Liberty.</p>
+  <div class="home-actions">
+   <button id="homeStart" type="button">▶ COMMENCER MON PARCOURS</button>
+   <button id="homeLibrary" type="button">🎸 ACCÉDER AUX COURS</button>
+   <button id="homeImport" type="button">⇩ IMPORTER UNE TAB</button>
+  </div>
+ </div>
+ <div class="home-content">
+  <article class="home-video">
+   <div class="home-section-title"><small>DÉCOUVRIR GUITARE LIBERTY</small><strong>COMMENT ÇA FONCTIONNE ?</strong></div>
+   <div id="homeVideoStage" class="home-video-stage" data-video-url="">
+    <div><span>▶</span><strong>VIDÉO DE PRÉSENTATION</strong><small>Ta vidéo d'explication pourra être intégrée ici.</small></div>
+   </div>
+  </article>
+  <aside class="home-shortcuts">
+   <div class="home-section-title"><small>ACCÈS RAPIDE</small><strong>OÙ VEUX-TU ALLER ?</strong></div>
+   <button data-home-target="dashboard"><b>MON PARCOURS</b><small>Progression, cours actuel et objectifs</small></button>
+   <button data-home-target="courses"><b>COURS & EXERCICES</b><small>Niveaux JEUX – RÊVES – PENTA</small></button>
+   <button data-home-target="coach"><b>COACH IA</b><small>Analyse et conseils de progression</small></button>
+   <button data-home-target="listen"><b>ÉCOUTE IA</b><small>Analyse de ton jeu en temps réel</small></button>
+  </aside>
+ </div>
+</section>
+<main id="appWorkspace" hidden>
 <aside class="course-nav">
 <details class="level-menu" open><summary>NIVEAU 0</summary>
  <details class="category-menu" open><summary>#1 - JEUX</summary><button class="library-exercise" data-score="../assets/exercises/niveau-0/jeux/IMPRO - Am Penta 1ère Improvisation.gp" data-backing="../assets/exercises/niveau-0/jeux/IMPRO - Am Penta 1ere Improvisation 50 BPM.mp3" data-bpm="50" data-backing-lead-beats="1.25">Am Penta 1ère Improvisation<small>Improvisation • Am Pentatonique</small></button></details>
