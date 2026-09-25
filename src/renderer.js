@@ -541,40 +541,23 @@ function setAlphaTempo(api){
 }
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
- let target=null,bestDistance=Infinity;
- // IMPORTANT: currentTick is a PLAYBACK tick. With Guitar Pro repeats, the same
- // written beat can occur several times in the playback timeline. alphaTab's
- // playbackStart is repeat-aware; absoluteStart is only the written score time.
- for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-  const model=beat.beat;
-  const starts=[];
-  const playback=model?.playbackStart;
-  if(Number.isFinite(playback))starts.push(playback);
-  // Some alphaTab builds expose repeat-expanded starts through playbackStart
-  // collections/objects rather than a single scalar.
-  if(Array.isArray(playback))for(const v of playback)if(Number.isFinite(v))starts.push(v);
-  const all=model?.playbackStarts||model?.playbackStartTicks;
-  if(Array.isArray(all))for(const v of all)if(Number.isFinite(v))starts.push(v);
-  if(!starts.length){
-   const fallback=model?.absolutePlaybackStart;
-   if(Number.isFinite(fallback))starts.push(fallback);
-  }
-  if(!starts.length){
-   const written=model?.absoluteStart;
-   if(Number.isFinite(written))starts.push(written);
-  }
-  for(const bt of starts){
-   if(bt>tick)continue;
-   const distance=tick-bt;
-   if(distance<bestDistance){bestDistance=distance;target={tick:bt,beat,system};}
-  }
- }
- // Fallback for repeated playback: alphaTab's player exposes the currently
- // played beat/bar on some builds. Prefer it when available.
+ let target=null;
+ // Map the player's repeat-expanded tick back onto the written score using
+ // alphaTab's current playback bar/beat when available. Do not compare the
+ // expanded tick directly with written absoluteStart values.
  const activeBeat=api?.player?.currentBeat||api?.currentBeat;
  if(activeBeat){
   outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-   if(beat.beat===activeBeat){target={beat,system,tick};break outer;}
+   if(beat.beat===activeBeat){target={beat,system};break outer;}
+  }
+ }
+ // Normal (non-repeat) fallback. This is deliberately based on the written
+ // score timeline only and is used when alphaTab does not expose currentBeat.
+ if(!target){
+  for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+   const bt=beat.beat?.absoluteStart;
+   if(!Number.isFinite(bt)||bt>tick)continue;
+   if(!target||bt>=target.tick)target={tick:bt,beat,system};
   }
  }
  if(!target)return;
@@ -583,7 +566,6 @@ function updatePlayCursor(api,tick){
  if(!b||!sys)return;
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=(b.x+b.w/2)+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
-
  const tabRect=tab.getBoundingClientRect();
  const systemTop=tabRect.top+sys.y;
  const systemBottom=systemTop+sys.h;
