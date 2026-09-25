@@ -900,8 +900,8 @@ function raiseChordNames(){
   const label=(node.textContent||'').trim();
   if(!chordNames.has(label))continue;
   const y=parseFloat(node.getAttribute('y'));
-  if(Number.isFinite(y))node.setAttribute('y',String(y-14));
-  else node.setAttribute('transform',(node.getAttribute('transform')||'')+' translate(0,-14)');
+  if(Number.isFinite(y))node.setAttribute('y',String(y-30));
+  else node.setAttribute('transform',(node.getAttribute('transform')||'')+' translate(0,-30)');
  }
 }
 
