@@ -689,7 +689,7 @@ function paintSessionInsight(data=null,finished=false){
  if(!sessionStarted&&currentPracticeTitle&&currentPracticeTitle!=='Exercice'){
   const exerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle&&Number.isFinite(+h.libertyLevel));
   if(exerciseRows.length){
-   const bestFreedom=exerciseRows.reduce((n,h)=>Math.min(n,+h.libertyLevel),100),noTabSessions=exerciseRows.filter(h=>+h.libertyLevel===0).length,allExerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle),lastExercise=allExerciseRows[0]||null,recordBpm=allExerciseRows.reduce((n,h)=>Math.max(n,+h.best||0),0),tempoHint=lastExercise&&+lastExercise.best?' Dernier repère : '+lastExercise.best+' BPM'+(recordBpm&&recordBpm!==+lastExercise.best?' • record '+recordBpm+' BPM':'')+'.':'';
+   const bestFreedom=exerciseRows.reduce((n,h)=>Math.min(n,+h.libertyLevel),100),noTabSessions=exerciseRows.filter(h=>+h.libertyLevel===0).length,allExerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle),lastExercise=latestExerciseSession(allExerciseRows),recordBpm=allExerciseRows.reduce((n,h)=>Math.max(n,+h.best||0),0),tempoHint=lastExercise&&+lastExercise.best?' Dernier repère : '+lastExercise.best+' BPM'+(recordBpm&&recordBpm!==+lastExercise.best?' • record '+recordBpm+' BPM':'')+'.':'';
    if(bestFreedom===0&&noTabSessions>=2){state='AUTONOMIE CONSOLIDÉE';msg='Tu as déjà retrouvé « '+currentPracticeTitle+' » sans TAB sur plusieurs séances.';next='Repars librement : la TAB reste disponible, mais elle n’est plus ton point de départ.'+tempoHint;}
    else if(bestFreedom===0){state='DÉJÀ JOUÉ SANS TAB';msg='Tu as déjà joué « '+currentPracticeTitle+' » sans TAB.';next='Essaie de retrouver cette liberté avec le même confort, sans forcer le résultat.'+tempoHint;}
    else if(bestFreedom<100){state='AUTONOMIE À RETROUVER';msg='Sur « '+currentPracticeTitle+' », tu as déjà réduit la TAB jusqu’à '+bestFreedom+' %.';next='Tu peux repartir avec la TAB complète, puis retrouver progressivement ce niveau.'+tempoHint;}
@@ -717,9 +717,15 @@ function previousLibertyLevel(){
  const rows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle&&Number.isFinite(+x.libertyLevel));
  return rows.length?rows.reduce((n,x)=>Math.min(n,+x.libertyLevel),100):null;
 }
+function latestExerciseSession(rows){
+ if(!rows.length)return null;
+ const dated=rows.map((row,index)=>({row,index,time:Date.parse(row.date||'')})).filter(x=>Number.isFinite(x.time));
+ if(dated.length)return dated.reduce((latest,x)=>x.time>latest.time?x:latest).row;
+ return rows[0]||null;
+}
 function startSession(){
  if(sessionStarted)return;
- const previousFreedom=previousLibertyLevel(),previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=previousRows[0]||null,previousTempo=previousSession&&+previousSession.best?+previousSession.best:null,previousRecord=previousRows.reduce((n,x)=>Math.max(n,+x.best||0),0);
+ const previousFreedom=previousLibertyLevel(),previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),previousTempo=previousSession&&+previousSession.best?+previousSession.best:null,previousRecord=previousRows.reduce((n,x)=>Math.max(n,+x.best||0),0);
  if(libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
  sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));
  paintSession();paintSessionInsight();
