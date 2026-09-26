@@ -1509,9 +1509,15 @@ async function loadWithAlphaTab(file){
  const isCurrentGeneration=()=>loadGeneration===alphaTabLoadGeneration;
  const previousApi=window.guitarLibertyAlphaTab;
  stop();
+ // A score switch is a hard playback boundary: no delayed callback from the
+ // previous exercise may start audio or mutate practice UI after the new load.
+ if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
+ cancelDelayedPlayback();stopBacking(false);
+ if(playWithMeActive||playWithMeAnswerTimer||playWithMeCountdownTimer||playWithMeElapsedTimer)stopPlayWithMe();
  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
  index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
- practiceScore=null;playCursor=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
+ practiceScore=null;playCursor=null;alphaPlayedBeat=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
  tab.classList.remove('alphatab-score');tab.innerHTML='';
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
