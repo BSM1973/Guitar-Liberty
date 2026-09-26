@@ -433,17 +433,24 @@ document.querySelector('#guidedNext').onclick=()=>{if(guidedStep<4){guidedStep++
 document.querySelector('#guidedPrev').onclick=()=>{if(guidedStep>0){guidedStep--;paintGuided()}};
 document.querySelector('#guidedClose').onclick=()=>{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true};
 function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?h+' h '+String(m).padStart(2,'0')+' min':m?m+' min '+String(s).padStart(2,'0')+' s':s+' s'}
+function practiceDayKey(x){const t=Number.isFinite(+x?.timestamp)?+x.timestamp:Date.parse(x?.date||'');if(!Number.isFinite(t))return null;const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function practiceContinuity(history){
+ const days=[...new Set(history.map(practiceDayKey).filter(Boolean))].sort().reverse();if(!days.length)return 0;
+ let count=1,previous=new Date(days[0]+'T12:00:00');
+ for(let i=1;i<days.length;i++){const current=new Date(days[i]+'T12:00:00'),gap=Math.round((previous-current)/86400000);if(gap!==1)break;count++;previous=current}
+ return count;
+}
 function refreshDashboard(){
  const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
  const next=buttons.find((b,i)=>!p[b.dataset.score]&&(i===0||p[buttons[i-1].dataset.score]))||null;
  const history=readHistory();
- const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0),longest=history.reduce((n,x)=>Math.max(n,historySeconds(x)),0),practiceDays=new Set(history.map(x=>{const t=Number.isFinite(+x.timestamp)?+x.timestamp:Date.parse(x.date||'');if(!Number.isFinite(t))return null;const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}).filter(Boolean)).size;
+ const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0),longest=history.reduce((n,x)=>Math.max(n,historySeconds(x)),0),practiceDays=new Set(history.map(practiceDayKey).filter(Boolean)).size,continuity=practiceContinuity(history);
  const pct=buttons.length?Math.round(done.length/buttons.length*100):0;
  const q=s=>document.querySelector(s);
  q('#dashProgress').textContent=pct+' %';q('#dashProgressBar').style.width=pct+'%';
  q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
  const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
- q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
+ q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique'+(continuity>1?' • continuité : '+continuity+' jours':'')+' • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
  const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map(),noTabCounts=new Map();
  libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level));if(level===0)noTabCounts.set(name,(noTabCounts.get(name)||0)+1)});
  const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,consolidatedExercises=[...noTabCounts.values()].filter(count=>count>=2).length,startedLiberty=libertyExercises.size;
