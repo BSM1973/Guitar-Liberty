@@ -492,7 +492,8 @@ function refreshDashboard(){
  let humanLevel=0,humanState='À DÉCOUVRIR',humanTitle='Chaque séance compte.',humanText='Ici, on mesure les progrès pour mieux t’accompagner, jamais pour te juger.';
  if(currentRows.length||currentReps){humanLevel=1;humanState='EN APPRENTISSAGE';humanTitle='Tu construis tes repères.';humanText='Prends le temps d’installer le geste. La régularité viendra avant la vitesse.';}
  if(currentReps>=3){humanLevel=2;humanState='EN PROGRÈS';humanTitle='Ton travail commence à s’installer.';humanText='Les répétitions portent leurs fruits. Garde un tempo où ton jeu reste confortable et musical.';}
- if(currentRows.length>=2&&currentBest>=suggested){humanLevel=3;humanState='ACQUIS';humanTitle='Ce passage devient solide.';humanText='Tu peux maintenant chercher davantage de fluidité, de son et de plaisir plutôt que simplement plus de BPM.';}
+ const completedTempos=currentRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0;
+ if(confirmedTempo>=suggested){humanLevel=3;humanState='TEMPO CONSOLIDÉ';humanTitle='Ce tempo devient un repère stable.';humanText='Tu as terminé plusieurs séances à ce niveau. Garde maintenant la fluidité, le son et le confort plutôt que de chercher automatiquement plus de BPM.';}
  if(currentLiberty<100&&currentRows.length){
   const humanNoTabSessions=currentRows.filter(x=>Number.isFinite(+x.libertyLevel)&&+x.libertyLevel===0).length;
   humanLevel=Math.max(humanLevel,3);
