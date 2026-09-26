@@ -1100,7 +1100,15 @@ loopToggle.onclick=()=>{
  paintSession();
 };
 targetBpm.onchange=()=>{targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));renderExerciseProgress()};
-loopRepeats.onchange=()=>updatePracticeProgress(0);
+loopRepeats.onchange=()=>{
+ loopRepeats.value=Math.max(1,+loopRepeats.value||1);
+ const target=+loopRepeats.value;
+ if(practiceIteration>=target)practiceIteration=Math.max(0,target-1);
+ updatePracticeProgress(practiceIteration);
+ if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt){
+  practiceStatus.textContent=(sessionPausedAt?'Prêt à reprendre':'En cours')+' • Répétition '+(practiceIteration+1)+'/'+target;
+ }
+};
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{
  if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;
  if(sessionStarted&&sessionFirstPracticeAt&&sessionRepCount){
