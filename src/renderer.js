@@ -435,8 +435,8 @@ function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.flo
 function refreshDashboard(){
  const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
  const next=buttons.find((b,i)=>!p[b.dataset.score]&&(i===0||p[buttons[i-1].dataset.score]))||null;
- const history=(typeof practiceHistory!=='undefined'?practiceHistory:[]);
- const total=history.reduce((n,x)=>n+(+x.seconds||0),0),best=history.reduce((n,x)=>Math.max(n,+x.bestBpm||0),0);
+ const history=readHistory();
+ const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0);
  const pct=buttons.length?Math.round(done.length/buttons.length*100):0;
  const q=s=>document.querySelector(s);
  q('#dashProgress').textContent=pct+' %';q('#dashProgressBar').style.width=pct+'%';
@@ -451,9 +451,9 @@ function refreshDashboard(){
  // Chemin de Liberté: derive a simple, explainable next step from existing
  // course/session data. No opaque scoring and no change to the playback engine.
  const currentName=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours consolidé':'Premier cours');
- const currentRows=history.filter(x=>!next||x.title===currentName);
+ const currentRows=history.filter(x=>!next||(x.exercise||x.title)===currentName);
  const currentReps=currentRows.reduce((n,x)=>n+(+x.reps||0),0);
- const currentBest=currentRows.reduce((n,x)=>Math.max(n,+x.bestBpm||0),0);
+ const currentBest=currentRows.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0);
  const suggested=+(next?.dataset.bpm||targetBpm.value||50);
  let stage='learn',state='EN APPRENTISSAGE',recommendation='Découvre '+currentName+'.',reason='Prends le temps de comprendre le geste avant de chercher la vitesse.';
  if(currentRows.length>=1||currentReps>=3){stage='play';state='EN PROGRÈS';recommendation='Consolide '+currentName+' avec quelques répétitions propres.';reason='Tu as déjà commencé ce travail : la régularité compte maintenant davantage que la vitesse.';}
@@ -495,9 +495,14 @@ function refreshCourseProgress(){
  refreshDashboard();
 }
 const lessonLearningState=document.querySelector('#lessonLearningState'),lessonMasteryBar=document.querySelector('#lessonMasteryBar'),lessonMasteryText=document.querySelector('#lessonMasteryText');
+function historySeconds(x){
+ if(Number.isFinite(+x?.seconds)&&+x.seconds>0)return +x.seconds;
+ const p=String(x?.duration||'0:0').split(':').map(Number);
+ return (p[0]||0)*60+(p[1]||0);
+}
 function currentLessonStats(){
- const rows=(typeof practiceHistory!=='undefined'?practiceHistory:[]).filter(x=>x.title===currentPracticeTitle);
- return {sessions:rows.length,reps:rows.reduce((n,x)=>n+(+x.reps||0),0),seconds:rows.reduce((n,x)=>n+(+x.seconds||0),0),best:rows.reduce((n,x)=>Math.max(n,+x.bestBpm||0),0)};
+ const rows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle);
+ return {sessions:rows.length,reps:rows.reduce((n,x)=>n+(+x.reps||0),0),seconds:rows.reduce((n,x)=>n+historySeconds(x),0),best:rows.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0)};
 }
 function paintLessonMastery(){
  if(!currentLessonId)return;
@@ -631,8 +636,8 @@ function renderHistory(){
 function saveCurrentSession(){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
  const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
- items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
- writeHistory(items);renderHistory();setTimeout(paintSmartFretboard,0);
+ items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm)});
+ writeHistory(items);renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
