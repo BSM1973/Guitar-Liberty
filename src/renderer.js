@@ -717,7 +717,8 @@ function paintSessionInsight(data=null,finished=false){
   }
  }
  if(sessionStarted&&!sessionFirstPracticeAt){state='SÉANCE PRÊTE';msg='Tout est prêt. Le temps de pratique commencera à ta première répétition.';next='Prends ton instrument, installe ton geste et démarre quand tu le souhaites.';}
- if(sessionStarted&&sessionFirstPracticeAt){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
+ if(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
+ if(sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt){state='SÉANCE EN PAUSE';msg=x.reps?'Tu as déjà construit '+x.reps+' répétition'+(x.reps>1?'s':'')+'. Le temps de pratique est suspendu.':'Le temps de pratique est suspendu.';next='Reprends quand tu es prêt : rien n’est perdu pendant cette pause.';}
  if(sessionStarted&&x.reps>=3){state='TRAVAIL INSTALLÉ';msg='Tes répétitions commencent à installer le passage.';next='Refais-le encore proprement avant de décider si le tempo doit évoluer.';}
  if(sessionStarted&&x.reps>=6){state='PROGRÈS CONSOLIDÉ';msg='Tu as donné du temps au passage : c’est ce qui construit une progression durable.';next=x.gain?'Garde ce nouveau tempo seulement s’il reste musical et détendu.':'Tu n’as pas besoin d’accélérer : consolide d’abord cette sensation de contrôle.';}
  if(sessionStarted&&Number.isFinite(+x.libertyLevel)&&+x.libertyLevel<100){
