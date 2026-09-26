@@ -468,12 +468,13 @@ function refreshDashboard(){
  const currentRows=history.filter(x=>!next||(x.exercise||x.title)===currentName);
  const currentReps=currentRows.reduce((n,x)=>n+(+x.reps||0),0);
  const currentBest=currentRows.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0);
+ const pathCompletedTempos=currentRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:Number.isFinite(+x.bestBpm)?+x.bestBpm:0).filter(v=>v>0).sort((a,b)=>b-a),currentConfirmedTempo=pathCompletedTempos.length>=2?pathCompletedTempos[1]:0;
  const libertyRows=currentRows.filter(x=>Number.isFinite(+x.libertyLevel));
  const currentLiberty=libertyRows.length?libertyRows.reduce((n,x)=>Math.min(n,+x.libertyLevel),100):100;
  const suggested=+(next?.dataset.bpm||targetBpm.value||50);
  let stage='learn',state='EN APPRENTISSAGE',recommendation='Découvre '+currentName+'.',reason='Prends le temps de comprendre le geste avant de chercher la vitesse.';
  if(currentRows.length>=1||currentReps>=3){stage='play';state='EN PROGRÈS';recommendation='Consolide '+currentName+' avec quelques répétitions propres.';reason='Tu as déjà commencé ce travail : la régularité compte maintenant davantage que la vitesse.';}
- if(currentRows.length>=2&&currentReps>=6&&currentBest>=suggested){stage='free';state='PRÊT À SE LIBÉRER';recommendation='Joue '+currentName+' avec moins de dépendance à la TAB.';reason='Le passage est suffisamment travaillé pour commencer à transformer l’exercice en musique.';}
+ if(currentRows.length>=2&&currentReps>=6&&currentConfirmedTempo>=suggested){stage='free';state='PRÊT À SE LIBÉRER';recommendation='Joue '+currentName+' avec moins de dépendance à la TAB.';reason='Le tempo est confirmé sur plusieurs séances et le passage est suffisamment travaillé pour commencer à transformer l’exercice en musique.';}
  if(currentLiberty<100&&currentRows.length){
   const noTabSessions=currentRows.filter(x=>Number.isFinite(+x.libertyLevel)&&+x.libertyLevel===0).length;
   stage='free';
