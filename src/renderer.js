@@ -669,6 +669,12 @@ function paintSessionInsight(data=null,finished=false){
  if(sessionStarted){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
  if(sessionStarted&&x.reps>=3){state='TRAVAIL INSTALLÉ';msg='Tes répétitions commencent à installer le passage.';next='Refais-le encore proprement avant de décider si le tempo doit évoluer.';}
  if(sessionStarted&&x.reps>=6){state='PROGRÈS CONSOLIDÉ';msg='Tu as donné du temps au passage : c’est ce qui construit une progression durable.';next=x.gain?'Garde ce nouveau tempo seulement s’il reste musical et détendu.':'Tu n’as pas besoin d’accélérer : consolide d’abord cette sensation de contrôle.';}
+ if(sessionStarted&&Number.isFinite(+x.libertyLevel)&&+x.libertyLevel<100){
+  const freedom=+x.libertyLevel;
+  state=freedom===0?'JEU SANS TAB':'AUTONOMIE EN COURS';
+  msg=freedom===0?'Tu joues actuellement sans TAB. Reste concentré sur le son, le geste et la continuité.':'Tu as déjà réduit la TAB jusqu’à '+freedom+' % pendant cette séance.';
+  next=freedom===0?'Ne cherche rien de plus pour l’instant : rends simplement ce jeu confortable.':'Consolide ce niveau avant de laisser la TAB s’effacer davantage.';
+ }
  if(finished){
   const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:100;
   state=freedom===0?'SÉANCE LIBRE':freedom<100?'AUTONOMIE EN PROGRÈS':'SÉANCE TERMINÉE';
@@ -738,7 +744,11 @@ function setAlphaTempo(api){
 const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle'),libertyStartFade=document.querySelector('#libertyStartFade'),libertyStage=document.querySelector('#libertyStage');
 function applyLibertyMode(){
  const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tabHost=document.querySelector('#tab');
- if(sessionStarted)sessionLowestLibertyLevel=Math.min(sessionLowestLibertyLevel,level);
+ if(sessionStarted){
+  const previousSessionFreedom=sessionLowestLibertyLevel;
+  sessionLowestLibertyLevel=Math.min(sessionLowestLibertyLevel,level);
+  if(sessionLowestLibertyLevel<previousSessionFreedom)paintSessionInsight();
+ }
  if(libertyState)libertyState.textContent=level?'TAB '+level+'%':'SANS TAB';
  if(libertyText)libertyText.textContent=level===100?'La tablature est complète : observe, écoute et mémorise.':level===0?'La tablature disparaît. Continue à jouer avec l’audio, le tempo et les repères déjà appris.':'L’aide visuelle diminue. Joue davantage de mémoire sans interrompre la musique.';
  if(tabHost){tabHost.style.opacity=String(level/100);tabHost.style.visibility=level===0?'hidden':'visible';}
