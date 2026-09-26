@@ -1098,7 +1098,8 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  },beatMs);
 }
 loopToggle.onclick=()=>{
- if(!practiceLoop&&sessionHistorySaved&&sessionStarted)resetTrainingSession();
+ const restartingSavedSession=!practiceLoop&&sessionHistorySaved&&sessionStarted;
+ if(restartingSavedSession){resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
  const completedSeries=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionSeriesCount&&practiceStatus.textContent.indexOf('Série terminée')===0;
  const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
  if(completedSeries){practiceIteration=0;updatePracticeProgress(0)}
