@@ -1459,7 +1459,7 @@ async function loadWithAlphaTab(file){
    if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
- api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){const stateAt=Date.now();if(e.state===1)resumePracticeClock(stateAt);else pausePracticeClock(stateAt)}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt){const stateAt=Date.now();if(e.state===1&&practiceLoop)resumePracticeClock(stateAt);else pausePracticeClock(stateAt)}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
   const lockedPaperY=!playbackFollowEnabled?document.querySelector('.paper')?.scrollTop:null;
