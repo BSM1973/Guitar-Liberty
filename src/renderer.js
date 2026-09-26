@@ -682,7 +682,7 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto');
+const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle');
 function applyLibertyMode(){
  const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tabHost=document.querySelector('#tab');
  if(libertyState)libertyState.textContent=level?'TAB '+level+'%':'SANS TAB';
@@ -693,13 +693,19 @@ libertyLevel?.addEventListener('change',applyLibertyMode);
 libertyReset?.addEventListener('click',()=>{if(libertyLevel)libertyLevel.value='100';applyLibertyMode()});
 function updateAutomaticLiberty(api,tick){
  if(libertyAuto?.value!=='auto'||!practiceScore||!libertyLevel)return;
- const bars=practiceBars();if(!bars.length)return;
- const end=bars[bars.length-1].start+(bars[bars.length-1].calculateDuration?.()||0);if(!end)return;
- const pct=Math.max(0,Math.min(1,tick/end));let level=100;
- if(pct>=.8)level=0;else if(pct>=.6)level=25;else if(pct>=.4)level=50;else if(pct>=.2)level=75;
+ let level=100;
+ if(libertyCycle?.value==='repetition'&&practiceLoop){
+  const step=Math.max(0,Math.min(4,practiceIteration));level=[100,75,50,25,0][step];
+ }else{
+  const bars=practiceBars();if(!bars.length)return;
+  const end=bars[bars.length-1].start+(bars[bars.length-1].calculateDuration?.()||0);if(!end)return;
+  const pct=Math.max(0,Math.min(1,tick/end));
+  if(pct>=.8)level=0;else if(pct>=.6)level=25;else if(pct>=.4)level=50;else if(pct>=.2)level=75;
+ }
  if(+libertyLevel.value!==level){libertyLevel.value=String(level);applyLibertyMode();}
 }
 libertyAuto?.addEventListener('change',()=>{if(libertyAuto.value==='auto'&&libertyLevel){libertyLevel.value='100';applyLibertyMode()}});
+libertyCycle?.addEventListener('change',()=>{if(libertyAuto?.value==='auto'&&libertyLevel){libertyLevel.value='100';applyLibertyMode()}});
 
 applyLibertyMode();
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null,playWithMeStartedAt=0,playWithMeElapsedTimer=null;
