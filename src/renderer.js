@@ -706,6 +706,7 @@ function resetTrainingSession(){
  saveCurrentSession();
  if(finished){lastSessionInsight=finished;writeLastSessionInsight(finished);}
  sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
+ if(finished&&libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
  if(finished){
   paintSessionInsight(finished,true);
   const freedom=Number.isFinite(+finished.libertyLevel)?+finished.libertyLevel:100,next=document.querySelector('#insightNext');
