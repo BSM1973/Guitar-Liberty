@@ -756,17 +756,17 @@ function startSession(){
  sessionClock=setInterval(paintSession,1000)
 }
 function resetTrainingSession(){
- const finishedAt=Date.now(),finished=sessionStarted?sessionInsightData(finishedAt):null;
- const previousFreedom=finished?previousLibertyLevel():null;
+ const finishedAt=Date.now(),hasPractice=!!(sessionRepCount||sessionSeriesCount),finished=sessionStarted?sessionInsightData(finishedAt):null;
+ const previousFreedom=finished&&hasPractice?previousLibertyLevel():null;
  saveCurrentSession(finishedAt);
- if(finished){lastSessionInsight=finished;writeLastSessionInsight(finished);}
+ if(finished&&hasPractice){lastSessionInsight=finished;writeLastSessionInsight(finished);}
  sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
  if(finished&&libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
- if(finished){
+ if(finished&&hasPractice){
   paintSessionInsight(finished,true);
   const freedom=Number.isFinite(+finished.libertyLevel)?+finished.libertyLevel:100,next=document.querySelector('#insightNext');
   if(next&&freedom<100&&(previousFreedom===null||freedom<previousFreedom))next.textContent=freedom===0?'Nouveau repère d’autonomie : tu as joué ce passage sans TAB pour la première fois. Laisse maintenant cette liberté devenir naturelle.':'Nouveau repère d’autonomie : tu as réduit la TAB jusqu’à '+freedom+' %. Consolide ce niveau avant de chercher à retirer davantage d’aide.';
- }
+ }else if(finished){paintSessionInsight();}
 }
 resetSession.onclick=resetTrainingSession;
 if(lastSessionInsight)paintSessionInsight(lastSessionInsight,true);
