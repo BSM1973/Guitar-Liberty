@@ -1762,6 +1762,7 @@ if(importButton) importButton.onclick=async()=>{
   current=key; stop(); render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
+  renderExerciseProgress();renderHistory();refreshDashboard();paintMeasureMemory();if(!sessionStarted)paintSessionInsight();
   document.querySelectorAll('.exercise').forEach(b=>b.classList.remove('active'));
   importStatus.textContent=file.name+' — '+imported.length+' notes affichées';
   window.pendingImportedScore=file;
