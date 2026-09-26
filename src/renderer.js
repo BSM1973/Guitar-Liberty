@@ -682,7 +682,7 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle');
+const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle'),libertyStartFade=document.querySelector('#libertyStartFade');
 function applyLibertyMode(){
  const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tabHost=document.querySelector('#tab');
  if(libertyState)libertyState.textContent=level?'TAB '+level+'%':'SANS TAB';
@@ -695,7 +695,7 @@ function updateAutomaticLiberty(api,tick){
  if(libertyAuto?.value!=='auto'||!practiceScore||!libertyLevel)return;
  let level=100;
  if(libertyCycle?.value==='repetition'&&practiceLoop){
-  const step=Math.max(0,Math.min(4,practiceIteration));level=[100,75,50,25,0][step];
+  const hold=Math.max(1,+libertyStartFade?.value||1),step=Math.max(0,Math.min(4,practiceIteration-hold+1));level=[100,75,50,25,0][step];
  }else{
   const bars=practiceBars();if(!bars.length)return;
   const end=bars[bars.length-1].start+(bars[bars.length-1].calculateDuration?.()||0);if(!end)return;
@@ -706,6 +706,7 @@ function updateAutomaticLiberty(api,tick){
 }
 libertyAuto?.addEventListener('change',()=>{if(libertyAuto.value==='auto'&&libertyLevel){libertyLevel.value='100';applyLibertyMode()}});
 libertyCycle?.addEventListener('change',()=>{if(libertyAuto?.value==='auto'&&libertyLevel){libertyLevel.value='100';applyLibertyMode()}});
+libertyStartFade?.addEventListener('change',()=>{if(libertyAuto?.value==='auto'&&libertyLevel){libertyLevel.value='100';applyLibertyMode()}});
 
 applyLibertyMode();
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null,playWithMeStartedAt=0,playWithMeElapsedTimer=null;
