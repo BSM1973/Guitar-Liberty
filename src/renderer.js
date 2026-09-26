@@ -684,10 +684,10 @@ function setAlphaTempo(api){
 }
 const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset');
 function applyLibertyMode(){
- const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tab=document.querySelector('#alphaTab');
+ const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tabHost=document.querySelector('#tab');
  if(libertyState)libertyState.textContent=level?'TAB '+level+'%':'SANS TAB';
  if(libertyText)libertyText.textContent=level===100?'La tablature est complète : observe, écoute et mémorise.':level===0?'La tablature disparaît. Continue à jouer avec l’audio, le tempo et les repères déjà appris.':'L’aide visuelle diminue. Joue davantage de mémoire sans interrompre la musique.';
- if(tab){tab.style.opacity=String(level/100);tab.style.visibility=level===0?'hidden':'visible';}
+ if(tabHost){tabHost.style.opacity=String(level/100);tabHost.style.visibility=level===0?'hidden':'visible';}
 }
 libertyLevel?.addEventListener('change',applyLibertyMode);
 libertyReset?.addEventListener('click',()=>{if(libertyLevel)libertyLevel.value='100';applyLibertyMode()});
@@ -851,7 +851,12 @@ function updatePlayCursor(api,tick){
    let nextX=null;
    let seen=false;
    outerNext:for(const s2 of lookup.staffSystems||[])for(const m2 of s2.bars||[])for(const bar2 of m2.bars||[])for(const bt2 of bar2.beats||[]){
-    if(seen){const nb=bt2.visualBounds||bt2.realBounds||bt2.bounds;if(nb){nextX=nb.x+nb.w/2;break outerNext;}}
+    if(seen){
+     // A new staff line restarts X near the left edge. Interpolating toward it
+     // while keeping the old system Y made the cursor visibly run backwards.
+     if(s2!==target.system)break outerNext;
+     const nb=bt2.visualBounds||bt2.realBounds||bt2.bounds;if(nb){nextX=nb.x+nb.w/2;break outerNext;}
+    }
     if(bt2===target.beat)seen=true;
    }
    if(Number.isFinite(nextX)){
