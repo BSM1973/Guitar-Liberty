@@ -1088,6 +1088,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  },beatMs);
 }
 loopToggle.onclick=()=>{
+ if(!practiceLoop&&sessionHistorySaved&&sessionStarted)resetTrainingSession();
  const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount;
  if(!practiceLoop&&!resumingPausedSession&&(+autoBpm.value||0)>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
   practiceStatus.textContent='Objectif déjà atteint • '+(+tempo.value||0)+' BPM';
