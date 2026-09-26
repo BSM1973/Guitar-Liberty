@@ -691,6 +691,7 @@ function previousLibertyLevel(){
 function startSession(){
  if(sessionStarted)return;
  const previousFreedom=previousLibertyLevel();
+ if(libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
  sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));
  paintSession();paintSessionInsight();
  if(previousFreedom!==null&&previousFreedom<100){
