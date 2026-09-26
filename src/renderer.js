@@ -1117,6 +1117,7 @@ targetBpm.onchange=()=>{
   const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}
   practiceStatus.textContent='Objectif atteint • '+currentTempo+' BPM';
   paintSession();
+  if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
  }else if(!practiceLoop&&practiceStatus.textContent.indexOf('Objectif déjà atteint')===0){
   practiceStatus.textContent=target>currentTempo?'Prêt • nouvel objectif '+target+' BPM':'Objectif déjà atteint • '+currentTempo+' BPM';
  }
