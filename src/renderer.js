@@ -676,7 +676,9 @@ function renderHistory(){
  const items=readHistory();renderGuitarMemory(items);historyCount.textContent=items.length+' session'+(items.length>1?'s':'');historySessions.textContent=items.length;
  const totalSec=items.reduce((sum,x)=>sum+historySeconds(x),0);
  historyTime.textContent=formatSessionDuration(totalSec);
- historyRecord.textContent=items.length?Math.max(...items.map(x=>+x.best||0))+' BPM':'—';
+ const historyBest=items.reduce((best,x)=>Math.max(best,Number.isFinite(+x.best)?+x.best:Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.start)?+x.start:0),0);
+ historyRecord.textContent=historyBest?historyBest+' BPM':'—';
+ historyRecord.title=historyBest?'Meilleur tempo réellement atteint dans l’historique':'Aucun tempo enregistré';
  const continuity=practiceContinuity(items),streak=continuity.current?continuity.count:0;
  historyStreak.textContent=streak+' jour'+(streak>1?'s':'');
  historyStreak.title=continuity.count>1?(continuity.current?'Continuité de pratique en cours':'Dernière continuité : '+continuity.count+' jours'):'Continuité de pratique';
