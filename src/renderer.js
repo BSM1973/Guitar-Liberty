@@ -645,9 +645,15 @@ renderGuitarJournal();
 function renderGuitarMemory(items){
  const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
  if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
- const chronological=items.slice().reverse(),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false;
+ const chronological=items.slice().reverse(),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
  chronological.forEach((x,i)=>{
   const name=x.exercise||'Exercice';
+  const day=practiceDayKey(x);
+  if(day&&day!==lastPracticeDay){
+   if(lastPracticeDay){const previous=new Date(lastPracticeDay+'T12:00:00'),current=new Date(day+'T12:00:00'),gap=Math.round((current-previous)/86400000);continuityDays=gap===1?continuityDays+1:1}else continuityDays=1;
+   lastPracticeDay=day;
+   [3,7,14,30].forEach(m=>{if(continuityDays>=m&&!continuityMilestones.has(m)){continuityMilestones.add(m);events.push({date:x.date,title:m+' jours à retrouver la guitare',text:'Tu es revenu vers ton instrument plusieurs jours de suite. Ce souvenir marque une présence régulière, pas une obligation à ne jamais faire de pause.'})}});
+  }
   if(!seen.has(name)){seen.add(name);events.push({date:x.date,title:i===0?'Le voyage commence':'Un nouveau chapitre',text:'Première séance sur « '+name+' ».'})}
   const best=+x.best||0;if(best>record){const previous=record;record=best;events.push({date:x.date,title:previous?'Nouveau repère personnel':'Premier tempo de référence',text:'Tu as installé un nouveau repère à '+best+' BPM. Ce nombre raconte une étape, pas ta valeur de musicien.'})}
   const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null;
