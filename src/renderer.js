@@ -1677,13 +1677,15 @@ async function loadBundledScore(button){
  setTutorial(button.dataset.tutorial||null);
  currentBackingLeadBeats=Math.max(0,+button.dataset.backingLeadBeats||0);
  currentVideoLeadBeats=Math.max(0,+button.dataset.videoLeadBeats||0);
- if(button.dataset.bpm){tempo.value=button.dataset.bpm;syncTempo();}
+ const libraryDefaultBpm=+button.dataset.bpm||0;
+ if(libraryDefaultBpm){tempo.value=libraryDefaultBpm;syncTempo();}
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
   importStatus.textContent='Chargement de '+button.textContent.trim()+'…';
   const response=await fetch(url);if(!response.ok)throw new Error('fichier intégré introuvable');
   const bytes=new Uint8Array(await response.arrayBuffer());
   await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
+  if(currentPracticeTitle&&savedExerciseTempo(currentPracticeTitle)){tempo.value=savedExerciseTempo(currentPracticeTitle);syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab)}
  }catch(err){console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
 }
 document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked'))loadBundledScore(b)});
