@@ -708,14 +708,15 @@ function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INS
 let lastSessionInsight=readLastSessionInsight();
 function sessionInsightData(capturedAt=Date.now()){
  const sec=sessionStarted?(sessionFirstPracticeAt?activePracticeSeconds(capturedAt):0):0;
- const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),current=+tempo.value||start,best=sessionBest||start,gain=Math.max(0,best-start);
- return {sec,reps,start,current,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
+ const reps=sessionRepCount||0,series=sessionSeriesCount||0,start=sessionStartBpm||(+tempo.value||0),current=+tempo.value||start,best=sessionBest||start,gain=Math.max(0,best-start);
+ return {sec,reps,series,start,current,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
 }
 function paintSessionInsight(data=null,finished=false){
  const q=s=>document.querySelector(s);if(!q('#sessionInsightState'))return;
  const x=data||(sessionStarted?sessionInsightData():lastSessionInsight)||{sec:0,reps:0,start:+tempo.value||0,best:0,gain:0};
  q('#insightTime').textContent=formatSessionDuration(x.sec);
  q('#insightReps').textContent=x.reps;
+ q('#insightReps').title=(x.series||0)+' série'+((x.series||0)>1?'s':'')+' terminée'+((x.series||0)>1?'s':'')+' • '+(x.reps||0)+' répétition'+((x.reps||0)>1?'s':'')+' cumulée'+((x.reps||0)>1?'s':'');
  const displayedTempo=sessionStarted?(x.current||x.best):x.best;
  q('#insightTempo').textContent=displayedTempo?displayedTempo+' BPM':'—';
  q('#insightTempo').title=sessionStarted&&x.best&&x.best!==displayedTempo?'Meilleur tempo de la séance : '+x.best+' BPM':'Tempo de la séance';
