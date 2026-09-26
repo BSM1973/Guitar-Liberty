@@ -272,7 +272,7 @@ function prepareWeakPassage(measure){
  const start=document.querySelector('#practiceStart'),end=document.querySelector('#practiceEnd');
  if(start)start.value=measure;if(end)end.value=measure;
  practiceLoop=true;const loopBtn=document.querySelector('#practiceLoop');if(loopBtn){loopBtn.classList.add('active');loopBtn.textContent='LOOP ON'}
- const current=+tempo.value||50,next=Math.max(30,Math.round(current*.85));tempo.value=next;tempo.dispatchEvent(new Event('input',{bubbles:true}));
+ const current=+tempo.value||50,next=Math.max(30,Math.round(current*.85));preservePreferredTempo=true;tempo.value=next;tempo.dispatchEvent(new Event('input',{bubbles:true}));preservePreferredTempo=false;
  const auto=document.querySelector('#autoBpm');if(auto){auto.value='1';auto.dispatchEvent(new Event('change',{bubbles:true}))}
  document.querySelector('#weakPassageAdvice').textContent='Mesure '+measure+' préparée : LOOP activé, tempo réduit à '+next+' BPM, Auto BPM +1.';
 }
@@ -1282,8 +1282,9 @@ function tick(){
  index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
+let preservePreferredTempo=false;
 tempo.oninput=()=>{
- saveExerciseTempo(currentPracticeTitle,+tempo.value);
+ if(!preservePreferredTempo)saveExerciseTempo(currentPracticeTitle,+tempo.value);
  syncTempo();
  if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}
  if(videoEnabled)syncVideoTempo();
