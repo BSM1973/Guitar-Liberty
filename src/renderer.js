@@ -444,8 +444,11 @@ function refreshDashboard(){
  q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
  const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
  q('#dashTime').textContent=formatDashTime(total);q('#dashBpm').textContent=best?best+' BPM':'—';
- const dashboardLiberty=history.filter(x=>Number.isFinite(+x.libertyLevel)).reduce((n,x)=>Math.min(n,+x.libertyLevel),100),hasDashboardLiberty=history.some(x=>Number.isFinite(+x.libertyLevel));
- q('#dashValidated').textContent=(done.length+' cours validé'+(done.length>1?'s':'')+' • ')+(hasDashboardLiberty?(dashboardLiberty===0?'sans TAB':'TAB '+dashboardLiberty+' %'):'liberté —');
+ const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map();
+ libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level))});
+ const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,startedLiberty=libertyExercises.size;
+ const libertySummary=freeExercises?freeExercises+' exercice'+(freeExercises>1?'s':'')+' sans TAB':startedLiberty?'autonomie en cours':'liberté —';
+ q('#dashValidated').textContent=done.length+' cours validé'+(done.length>1?'s':'')+' • '+libertySummary;
  q('#todayCourse').textContent=next?'Travaille : '+next.childNodes[0].textContent.trim():'Tous les cours disponibles sont validés.';
  q('#todayGoal').textContent=next?'Objectif : '+(next.dataset.bpm||targetBpm.value)+' BPM • '+(next.dataset.difficulty||'progression régulière'):'Continue à consolider tes acquis.';
  const go=()=>{if(next){next.click();next.scrollIntoView({behavior:'smooth',block:'center'})}};
