@@ -1090,9 +1090,10 @@ loopToggle.onclick=()=>{
   pausePracticeClock();
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
  }
- if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount){resetTrainingSession();}
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
- practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+ if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount){
+  practiceStatus.textContent='Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1);
+ }else practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  paintSession();
 };
 targetBpm.onchange=()=>{targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));renderExerciseProgress()};
