@@ -484,7 +484,13 @@ function refreshDashboard(){
  if(currentRows.length||currentReps){humanLevel=1;humanState='EN APPRENTISSAGE';humanTitle='Tu construis tes repères.';humanText='Prends le temps d’installer le geste. La régularité viendra avant la vitesse.';}
  if(currentReps>=3){humanLevel=2;humanState='EN PROGRÈS';humanTitle='Ton travail commence à s’installer.';humanText='Les répétitions portent leurs fruits. Garde un tempo où ton jeu reste confortable et musical.';}
  if(currentRows.length>=2&&currentBest>=suggested){humanLevel=3;humanState='ACQUIS';humanTitle='Ce passage devient solide.';humanText='Tu peux maintenant chercher davantage de fluidité, de son et de plaisir plutôt que simplement plus de BPM.';}
- if(currentLiberty<100&&currentRows.length){humanLevel=Math.max(humanLevel,3);humanState=currentLiberty===0?'JOUÉ SANS TAB':'AUTONOMIE EN COURS';humanTitle=currentLiberty===0?'Tu as déjà joué ce passage sans TAB.':'Tu prends progressivement le relais sur la TAB.';humanText=currentLiberty===0?'Garde maintenant cette liberté musicale sans chercher à la prouver : retrouve-la avec confort, écoute et plaisir.':'Tu as déjà réduit l’aide visuelle jusqu’à '+currentLiberty+' %. Ce repère est là pour t’accompagner, pas pour t’obliger à retirer davantage de TAB.';}
+ if(currentLiberty<100&&currentRows.length){
+  const humanNoTabSessions=currentRows.filter(x=>Number.isFinite(+x.libertyLevel)&&+x.libertyLevel===0).length;
+  humanLevel=Math.max(humanLevel,3);
+  if(currentLiberty===0&&humanNoTabSessions>=2){humanLevel=Math.max(humanLevel,4);humanState='AUTONOMIE CONSOLIDÉE';humanTitle='Cette liberté devient un repère stable.';humanText='Tu as retrouvé ce passage sans TAB sur plusieurs séances. Continue à le jouer pour la musique, le son et le plaisir plutôt que pour valider un niveau.';}
+  else if(currentLiberty===0){humanState='JOUÉ SANS TAB';humanTitle='Tu as déjà joué ce passage sans TAB.';humanText='Garde maintenant cette liberté musicale sans chercher à la prouver : retrouve-la avec confort, écoute et plaisir.';}
+  else{humanState='AUTONOMIE EN COURS';humanTitle='Tu prends progressivement le relais sur la TAB.';humanText='Tu as déjà réduit l’aide visuelle jusqu’à '+currentLiberty+' %. Ce repère est là pour t’accompagner, pas pour t’obliger à retirer davantage de TAB.';}
+ }
  if(pct===100&&buttons.length){humanLevel=4;humanState='PARCOURS CONSOLIDÉ';humanTitle='Tu as construit une vraie autonomie.';humanText='La maîtrise n’est pas une fin : utilise maintenant ces acquis pour jouer, créer et te libérer de la TAB.';}
  const hs=q('#humanCoachState'),ht=q('#humanCoachTitle'),hx=q('#humanCoachText');
  if(hs)hs.textContent=humanState;if(ht)ht.textContent=humanTitle;if(hx)hx.textContent=humanText;
