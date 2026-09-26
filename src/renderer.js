@@ -678,7 +678,8 @@ let lastSessionInsight=readLastSessionInsight();
 function sessionInsightData(){
  const sec=sessionStarted?Math.max(0,Math.floor((Date.now()-sessionStarted)/1000)):0;
  const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),best=sessionBest||start,gain=Math.max(0,best-start);
- return {sec,reps,start,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date().toLocaleString('fr-FR')};
+ const capturedAt=Date.now();
+ return {sec,reps,start,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
 }
 function paintSessionInsight(data=null,finished=false){
  const q=s=>document.querySelector(s);if(!q('#sessionInsightState'))return;
