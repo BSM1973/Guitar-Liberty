@@ -521,6 +521,11 @@ function historySeconds(x){
  const p=String(x?.duration||'0:0').split(':').map(Number);
  return (p[0]||0)*60+(p[1]||0);
 }
+function formatSessionDuration(sec){
+ sec=Math.max(0,Math.floor(+sec||0));
+ const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+ return h?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'):String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
 function currentLessonStats(){
  const rows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle);
  return {sessions:rows.length,reps:rows.reduce((n,x)=>n+(+x.reps||0),0),seconds:rows.reduce((n,x)=>n+historySeconds(x),0),best:rows.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0)};
@@ -664,13 +669,13 @@ function renderHistory(){
 function saveCurrentSession(savedAt=Date.now()){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
  const sec=Math.floor((savedAt-sessionStarted)/1000),items=readHistory();
- items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
+ items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:formatSessionDuration(sec),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
  writeHistory(items);renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
 renderHistory();
-function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');paintSessionInsight()}}
+function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=formatSessionDuration(sec);paintSessionInsight()}}
 function readLastSessionInsight(){try{return JSON.parse(localStorage.getItem(LAST_SESSION_INSIGHT_KEY)||'null')}catch{return null}}
 function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INSIGHT_KEY,JSON.stringify(data))}catch{}}
 let lastSessionInsight=readLastSessionInsight();
@@ -682,7 +687,7 @@ function sessionInsightData(capturedAt=Date.now()){
 function paintSessionInsight(data=null,finished=false){
  const q=s=>document.querySelector(s);if(!q('#sessionInsightState'))return;
  const x=data||(sessionStarted?sessionInsightData():lastSessionInsight)||{sec:0,reps:0,start:+tempo.value||0,best:0,gain:0};
- q('#insightTime').textContent=String(Math.floor(x.sec/60)).padStart(2,'0')+':'+String(x.sec%60).padStart(2,'0');
+ q('#insightTime').textContent=formatSessionDuration(x.sec);
  q('#insightReps').textContent=x.reps;q('#insightTempo').textContent=x.best?x.best+' BPM':'—';q('#insightGain').textContent=x.gain?'+'+x.gain+' BPM':'STABLE';
  let state='PRÊT POUR UNE SÉANCE',msg='Commence ta séance à ton rythme.',next='À la fin, Guitare Liberty te proposera une seule prochaine étape.';
  if(lastSessionInsight&&!sessionStarted){state='DERNIÈRE SÉANCE';const exercise=x.exercise?' sur « '+x.exercise+' »':'',when=x.date?' • '+x.date:'';state+=''+when;msg=x.reps?'Tu as construit '+x.reps+' répétition'+(x.reps>1?'s':'')+' attentive'+(x.reps>1?'s':'')+exercise+'.':'Tu as pris du temps avec ton instrument'+exercise+'.';next=x.gain?'Ton nouveau repère est '+x.best+' BPM. Repars de là seulement si le jeu reste confortable.':'Reprends au même tempo : consolider est aussi progresser.';}
