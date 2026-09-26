@@ -88,7 +88,7 @@ async function loadGuitarSample(string){
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory'),historyRecord=document.querySelector('#historyRecord'),historySessions=document.querySelector('#historySessions'),historyTime=document.querySelector('#historyTime'),historyStreak=document.querySelector('#historyStreak'),bpmChart=document.querySelector('#bpmChart'),exerciseProgressTitle=document.querySelector('#exerciseProgressTitle'),exerciseProgressStats=document.querySelector('#exerciseProgressStats'),personalBest=document.querySelector('#personalBest'),recordDelta=document.querySelector('#recordDelta'),masteryLevel=document.querySelector('#masteryLevel'),masteryBar=document.querySelector('#masteryBar'),masteryInfo=document.querySelector('#masteryInfo'),pathList=document.querySelector('#pathList'),pathSummary=document.querySelector('#pathSummary');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
-let sessionStarted=null,sessionFirstPracticeAt=null,sessionPausedAt=null,sessionPausedMs=0,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,sessionLowestLibertyLevel=100,currentPracticeTitle='Exercice';
+let sessionStarted=null,sessionFirstPracticeAt=null,sessionPausedAt=null,sessionPausedMs=0,sessionStartHint='',sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,sessionLowestLibertyLevel=100,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
 const PLAY_WITH_ME_HISTORY_KEY='guitarLibertyPlayWithMeHistoryV1';
 const LESSON_KEY='guitarLibertyLessonProgress';
@@ -720,7 +720,7 @@ function paintSessionInsight(data=null,finished=false){
    else if(bestFreedom<100){state='AUTONOMIE À RETROUVER';msg='Sur « '+currentPracticeTitle+' », tu as déjà réduit la TAB jusqu’à '+bestFreedom+' %.';next='Tu peux repartir avec la TAB complète, puis retrouver progressivement ce niveau.'+tempoHint;}
   }
  }
- if(sessionStarted&&!sessionFirstPracticeAt){state='SÉANCE PRÊTE';msg='Tout est prêt. Le temps de pratique commencera à ta première répétition.';next='Prends ton instrument, installe ton geste et démarre quand tu le souhaites.';}
+ if(sessionStarted&&!sessionFirstPracticeAt){state='SÉANCE PRÊTE';msg='Tout est prêt. Le temps de pratique commencera à ta première répétition.';next=sessionStartHint||'Prends ton instrument, installe ton geste et démarre quand tu le souhaites.';}
  if(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
  if(sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt){state='SÉANCE EN PAUSE';msg=x.reps?'Tu as déjà construit '+x.reps+' répétition'+(x.reps>1?'s':'')+'. Le temps de pratique est suspendu.':'Le temps de pratique est suspendu.';next='Reprends quand tu es prêt : rien n’est perdu pendant cette pause.';}
  if(sessionStarted&&!sessionPausedAt&&x.reps>=3){state='TRAVAIL INSTALLÉ';msg='Tes répétitions commencent à installer le passage.';next='Refais-le encore proprement avant de décider si le tempo doit évoluer.';}
@@ -754,12 +754,12 @@ function startSession(){
  if(sessionStarted)return;
  const previousFreedom=previousLibertyLevel(),previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),previousTempo=previousSession&&+previousSession.best?+previousSession.best:null,previousRecord=previousRows.reduce((n,x)=>Math.max(n,+x.best||0),0);
  if(libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
- sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));
- paintSession();paintSessionInsight();
+ sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));sessionStartHint='';
  if((previousFreedom!==null&&previousFreedom<100)||previousTempo){
-  const next=document.querySelector('#insightNext'),tempoRef=previousTempo?' Repère tempo : '+previousTempo+' BPM'+(previousRecord&&previousRecord!==previousTempo?' • record '+previousRecord+' BPM':'')+'.':'';
-  if(next)next.textContent=(previousFreedom===0?'Repère précédent : tu as déjà joué cet exercice sans TAB. Retrouve cette liberté seulement quand tu te sens prêt.':previousFreedom!==null&&previousFreedom<100?'Repère précédent : tu avais réduit la TAB jusqu’à '+previousFreedom+' %. Tu peux viser ce niveau à nouveau, sans obligation de commencer directement avec moins de TAB.':'Reprends d’abord tes sensations sur cet exercice.')+tempoRef;
+  const tempoRef=previousTempo?' Repère tempo : '+previousTempo+' BPM'+(previousRecord&&previousRecord!==previousTempo?' • record '+previousRecord+' BPM':'')+'.':'';
+  sessionStartHint=(previousFreedom===0?'Repère précédent : tu as déjà joué cet exercice sans TAB. Retrouve cette liberté seulement quand tu te sens prêt.':previousFreedom!==null&&previousFreedom<100?'Repère précédent : tu avais réduit la TAB jusqu’à '+previousFreedom+' %. Tu peux viser ce niveau à nouveau, sans obligation de commencer directement avec moins de TAB.':'Reprends d’abord tes sensations sur cet exercice.')+tempoRef;
  }
+ paintSession();paintSessionInsight();
  sessionClock=setInterval(paintSession,1000)
 }
 function resetTrainingSession(){
@@ -767,7 +767,7 @@ function resetTrainingSession(){
  const previousFreedom=finished&&hasPractice?previousLibertyLevel():null;
  saveCurrentSession(finishedAt);
  if(finished&&hasPractice){lastSessionInsight=finished;writeLastSessionInsight(finished);}
- sessionStarted=null;sessionFirstPracticeAt=null;sessionPausedAt=null;sessionPausedMs=0;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
+ sessionStarted=null;sessionFirstPracticeAt=null;sessionPausedAt=null;sessionPausedMs=0;sessionStartHint='';sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
  if(finished&&libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
  if(finished&&hasPractice){
   paintSessionInsight(finished,true);
@@ -1203,7 +1203,7 @@ document.querySelector('#play').onclick=async()=>{
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
-     if(practiceLoop){startSession();if(!sessionFirstPracticeAt)sessionFirstPracticeAt=Date.now();paintSession();}
+     if(practiceLoop){startSession();if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}paintSession();}
      if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
        syncVideoTempo();
        if(practiceVideo.paused){
@@ -1457,7 +1457,7 @@ async function loadWithAlphaTab(file){
   if(!practiceLoop)return;
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
-   practiceIteration++;if(!sessionFirstPracticeAt)sessionFirstPracticeAt=Date.now();sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
+   practiceIteration++;if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
    const max=Math.max(1,+loopRepeats.value||1);
    if(practiceIteration>=max){
     updatePracticeProgress(max);
