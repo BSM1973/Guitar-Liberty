@@ -1620,8 +1620,10 @@ async function loadWithAlphaTab(file){
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
+  const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
+  if(sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)}
-  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');
+  currentPracticeTitle=loadedTitle;
   const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),lastWorkedTempo=previousSession?(+previousSession.end||+previousSession.best||0):0,completedTempos=previousRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0,resumeTempo=confirmedTempo||lastWorkedTempo,previousGoal=previousRows.reduce((goal,x)=>Math.max(goal,+x.goal||0),0);
   tempo.value=resumeTempo||score.tempo||tempo.value;
   targetBpm.value=Math.max(+targetBpm.value||0,previousGoal,+tempo.value||0);
