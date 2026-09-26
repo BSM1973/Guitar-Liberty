@@ -1089,6 +1089,11 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
 }
 loopToggle.onclick=()=>{
  const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount;
+ if(!practiceLoop&&!resumingPausedSession&&(+autoBpm.value||0)>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
+  practiceStatus.textContent='Objectif déjà atteint • '+(+tempo.value||0)+' BPM';
+  loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');updatePracticeProgress(0);
+  return;
+ }
  practiceLoop=!practiceLoop;
  if(!resumingPausedSession)practiceIteration=0;
  lastLoopTick=-1;updatePracticeProgress(resumingPausedSession?practiceIteration:0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
