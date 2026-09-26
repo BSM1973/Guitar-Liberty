@@ -1626,7 +1626,7 @@ async function loadWithAlphaTab(file){
   currentPracticeTitle=loadedTitle;
   const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),lastWorkedTempo=previousSession?(+previousSession.end||+previousSession.best||0):0,completedTempos=previousRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0,resumeTempo=confirmedTempo||lastWorkedTempo,previousGoal=previousRows.reduce((goal,x)=>Math.max(goal,+x.goal||0),0);
   tempo.value=resumeTempo||score.tempo||tempo.value;
-  targetBpm.value=Math.max(+targetBpm.value||0,previousGoal,+tempo.value||0);
+  targetBpm.value=Math.max(previousGoal,+tempo.value||0);
   syncTempo();setAlphaTempo(api);
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
