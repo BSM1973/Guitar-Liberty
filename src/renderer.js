@@ -690,7 +690,7 @@ function saveCurrentSession(savedAt=Date.now()){
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
 renderHistory();
-function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=formatSessionDuration(sec);paintSessionInsight()}}
+function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=sessionFirstPracticeAt?Math.max(0,Math.floor((Date.now()-sessionFirstPracticeAt)/1000)):0;sessionTime.textContent=formatSessionDuration(sec);paintSessionInsight()}}
 function readLastSessionInsight(){try{return JSON.parse(localStorage.getItem(LAST_SESSION_INSIGHT_KEY)||'null')}catch{return null}}
 function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INSIGHT_KEY,JSON.stringify(data))}catch{}}
 let lastSessionInsight=readLastSessionInsight();
