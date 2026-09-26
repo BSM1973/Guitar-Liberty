@@ -682,12 +682,18 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle'),libertyStartFade=document.querySelector('#libertyStartFade');
+const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle'),libertyStartFade=document.querySelector('#libertyStartFade'),libertyStage=document.querySelector('#libertyStage');
 function applyLibertyMode(){
  const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tabHost=document.querySelector('#tab');
  if(libertyState)libertyState.textContent=level?'TAB '+level+'%':'SANS TAB';
  if(libertyText)libertyText.textContent=level===100?'La tablature est complète : observe, écoute et mémorise.':level===0?'La tablature disparaît. Continue à jouer avec l’audio, le tempo et les repères déjà appris.':'L’aide visuelle diminue. Joue davantage de mémoire sans interrompre la musique.';
  if(tabHost){tabHost.style.opacity=String(level/100);tabHost.style.visibility=level===0?'hidden':'visible';}
+ if(libertyStage){
+  const stage=level>=75?0:level>=25?1:2;
+  libertyStage.dataset.stage=String(stage);
+  const fill=libertyStage.querySelector('i');if(fill)fill.style.width=(stage===0?'16.7%':stage===1?'50%':'100%');
+  libertyStage.querySelectorAll('span').forEach((el,i)=>el.classList.toggle('active',i===stage));
+ }
 }
 libertyLevel?.addEventListener('change',applyLibertyMode);
 libertyReset?.addEventListener('click',()=>{if(libertyLevel)libertyLevel.value='100';applyLibertyMode()});
