@@ -974,6 +974,7 @@ playWithMeNext?.addEventListener('click',()=>{
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
+let alphaTabLoadGeneration=0;
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
@@ -1504,6 +1505,8 @@ function drawLeftHandFingerings(api){
 
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
+ const loadGeneration=++alphaTabLoadGeneration;
+ const isCurrentGeneration=()=>loadGeneration===alphaTabLoadGeneration;
  const previousApi=window.guitarLibertyAlphaTab;
  stop();
  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
@@ -1522,11 +1525,12 @@ async function loadWithAlphaTab(file){
   notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectTempo:false,effectFingering:false,effectText:true,effectMarker:true,effectChordNames:true,effectPickStroke:true}}
  });
  window.guitarLibertyAlphaTab=api;
- api.playerReady.on(()=>{importStatus.textContent=file.name+' — tablature prête à jouer';});
+ const isActiveLoad=()=>isCurrentGeneration()&&window.guitarLibertyAlphaTab===api;
+ api.playerReady.on(()=>{if(!isActiveLoad())return;importStatus.textContent=file.name+' — tablature prête à jouer';});
  // Clicking the rendered score seeks the player and immediately moves our
  // custom orange cursor. Keep the validated playback/repeat cursor untouched.
  tab.addEventListener('click',ev=>{
-  if(!api.boundsLookup?.staffSystems)return;
+  if(!isActiveLoad()||!api.boundsLookup?.staffSystems)return;
   const rect=tab.getBoundingClientRect(),x=ev.clientX-rect.left,y=ev.clientY-rect.top;
   let hit=null,best=Infinity;
   for(const system of api.boundsLookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
@@ -1545,6 +1549,7 @@ async function loadWithAlphaTab(file){
  // playedBeatChanged comes from alphaTab's actual playback sequencer. It follows
  // GP repeats automatically and is not confused by written-score absolute ticks.
  if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{
+  if(!isActiveLoad())return;
   alphaPlayedBeat=beat||null;updatePlayCursor(api,api.tickPosition||0);
   const host=document.querySelector('#smartFretboard'),state=document.querySelector('#fretboardState');
   if(host){
@@ -1562,8 +1567,9 @@ async function loadWithAlphaTab(file){
    if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
- api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt){const stateAt=Date.now();if(e.state===1&&practiceLoop)resumePracticeClock(stateAt);else pausePracticeClock(stateAt)}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{if(!isActiveLoad())return;if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt){const stateAt=Date.now();if(e.state===1&&practiceLoop)resumePracticeClock(stateAt);else pausePracticeClock(stateAt)}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
+  if(!isActiveLoad())return;
   const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
   const lockedPaperY=!playbackFollowEnabled?document.querySelector('.paper')?.scrollTop:null;
   const tick=e.currentTick??e.tick??0;
@@ -1632,8 +1638,9 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false;
- api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
+  if(!isActiveLoad())return;
   completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
   if(sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
@@ -1648,6 +1655,7 @@ async function loadWithAlphaTab(file){
   importStatus.textContent=file.name+' — import réussi';
  });
  api.error.on(err=>{
+  if(!isActiveLoad())return;
   completed=true;
   const msg=err?.message||String(err);
   console.error('alphaTab import error',err);
@@ -1657,7 +1665,7 @@ async function loadWithAlphaTab(file){
  importStatus.textContent='Chargement de '+file.name+'…';
  const accepted=api.load(bytes);
  if(!accepted){try{api.destroy()}catch(_){try{api.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;alphaTabMode=false;practiceScore=null;playCursor=null;tab.classList.remove('alphatab-score');tab.innerHTML='';document.querySelector('#play').textContent='▶ PLAY';throw new Error('alphaTab a refusé les données du fichier.');}
- setTimeout(()=>{if(!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
+ setTimeout(()=>{if(isActiveLoad()&&!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
 }
 function setTutorial(url){
  currentTutorialUrl=url||null;
