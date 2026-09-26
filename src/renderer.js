@@ -681,8 +681,8 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null;
-const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown');
+let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null;
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown');
 function playWithMePaint(phase){
  playWithMePhase=phase;
  const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
@@ -707,7 +707,7 @@ function startPlayWithMe(){
  const api=window.guitarLibertyAlphaTab;if(!api||!practiceScore){playWithMeText.textContent='Charge d’abord une tablature Guitar Pro.';return}
  const range=playWithMeTicks();if(!range)return;
  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(api);
- playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMeStart.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
+ playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMePhraseRepeat=0;playWithMeStart.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
  try{api.tickPosition=range.start;api.play()}catch(e){stopPlayWithMe()}
 }
 playWithMeStart?.addEventListener('click',startPlayWithMe);
@@ -715,6 +715,14 @@ playWithMeNext?.addEventListener('click',()=>{
  if(!playWithMeActive||playWithMePhase!=='answer')return;
  clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';
  playWithMeRoundCount++;if(playWithMeRound)playWithMeRound.textContent=playWithMeRoundCount+' RÉPONSE'+(playWithMeRoundCount>1?'S':'');
+ const repeatMax=Math.max(1,+playWithMeRepeat?.value||1);
+ if(playWithMePhraseRepeat+1<repeatMax){
+  playWithMePhraseRepeat++;
+  playWithMeRange=playWithMeTicks();playWithMeLastTick=-1;playWithMeNext.disabled=true;playWithMePaint('listen');
+  const api=window.guitarLibertyAlphaTab;try{api.tickPosition=playWithMeRange.start;api.play()}catch(_){stopPlayWithMe()}
+  return;
+ }
+ playWithMePhraseRepeat=0;
  const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),nextStart=(+playWithMeBar.value||1)+len;
  if(nextStart>bars.length){playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Bravo. Tu as parcouru toutes les phrases disponibles.';playWithMeNext.disabled=true;return}
  playWithMeBar.value=nextStart;playWithMeRange=playWithMeTicks();playWithMeLastTick=-1;playWithMeNext.disabled=true;playWithMePaint('listen');
