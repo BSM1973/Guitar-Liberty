@@ -703,6 +703,7 @@ function renderPlayWithMeHistory(){
  if(!items.length){if(summary)summary.textContent='Aucune progression enregistrée.';list.innerHTML='<p>Aucune session terminée.</p>';return}
  const totalSeconds=items.reduce((n,x)=>n+(+x.seconds||0),0),totalResponses=items.reduce((n,x)=>n+(+x.responses||0),0),bestBpm=Math.max(...items.map(x=>+x.bpm||0));
  if(summary)summary.textContent=items.length+' SESSIONS • '+String(Math.floor(totalSeconds/60)).padStart(2,'0')+':'+String(totalSeconds%60).padStart(2,'0')+' DE JEU • '+totalResponses+' RÉPONSES • RECORD '+bestBpm+' BPM';
+ const exerciseSummary=document.querySelector('#playWithMeExerciseSummary'),own=items.filter(x=>x.exercise===currentPracticeTitle);if(exerciseSummary){if(!own.length)exerciseSummary.textContent='Aucun bilan pour « '+currentPracticeTitle+' ».';else{const secs=own.reduce((n,x)=>n+(+x.seconds||0),0),responses=own.reduce((n,x)=>n+(+x.responses||0),0),record=Math.max(...own.map(x=>+x.bpm||0));exerciseSummary.textContent=currentPracticeTitle+' • '+own.length+' SESSION'+(own.length>1?'S':'')+' • '+responses+' RÉPONSES • '+String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0')+' • RECORD '+record+' BPM';}}
  list.innerHTML=items.slice(0,8).map(x=>'<div class="history-row"><b>'+x.date+'</b><span>'+x.exercise+'</span><span>'+String(Math.floor((x.seconds||0)/60)).padStart(2,'0')+':'+String((x.seconds||0)%60).padStart(2,'0')+'</span><span>'+x.responses+' réponses</span><span>'+x.bpm+' BPM</span><strong>'+(x.mode==='timed'?'MÊME DURÉE':'LIBRE')+'</strong></div>').join('');
 }
 function savePlayWithMeSession(){
@@ -1320,7 +1321,7 @@ async function loadWithAlphaTab(file){
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)} tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
-  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();
+  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
  });
