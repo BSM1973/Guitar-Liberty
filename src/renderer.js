@@ -1528,15 +1528,15 @@ async function loadWithAlphaTab(file){
  }catch(err){
   // Ignore failures from a read that was superseded by a newer score request.
   // The active load owns the UI and is the only one allowed to surface errors.
-  if(!isCurrentGeneration())return;
+  if(!isCurrentGeneration())return false;
   throw err;
  }
  // Another score may have been requested while the file bytes were being read.
  // In that case this load is obsolete and must never create a new alphaTab API.
- if(!isCurrentGeneration())return;
+ if(!isCurrentGeneration())return false;
  const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
- if(!isCurrentGeneration())return;
+ if(!isCurrentGeneration())return false;
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2',scrollMode:'off'},
@@ -1686,6 +1686,7 @@ async function loadWithAlphaTab(file){
  const accepted=api.load(bytes);
  if(!accepted){try{api.destroy()}catch(_){try{api.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;alphaTabMode=false;practiceScore=null;playCursor=null;tab.classList.remove('alphatab-score');tab.innerHTML='';document.querySelector('#play').textContent='▶ PLAY';throw new Error('alphaTab a refusé les données du fichier.');}
  setTimeout(()=>{if(isActiveLoad()&&!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
+ return true;
 }
 function setTutorial(url){
  currentTutorialUrl=url||null;
@@ -1716,7 +1717,8 @@ async function loadBundledScore(button){
   importStatus.textContent='Chargement de '+button.textContent.trim()+'…';
   const response=await fetch(url);if(!response.ok)throw new Error('fichier intégré introuvable');
   const bytes=new Uint8Array(await response.arrayBuffer());
-  await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
+  const loaded=await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
+  if(!loaded)return;
   if(currentPracticeTitle&&savedExerciseTempo(currentPracticeTitle)){tempo.value=savedExerciseTempo(currentPracticeTitle);syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab)}
  }catch(err){console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
 }
