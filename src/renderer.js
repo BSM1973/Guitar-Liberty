@@ -1788,7 +1788,9 @@ if(importButton) importButton.onclick=async()=>{
   alphaTabLoadGeneration++;
   const previousApi=window.guitarLibertyAlphaTab;
   stop();
+  if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
   if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}}
+  alphaPlayedBeat=null;playCursor=null;
   alphaTabMode=false;practiceScore=null;if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;tab.classList.remove('alphatab-score');
   current=key; render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
