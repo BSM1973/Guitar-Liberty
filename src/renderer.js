@@ -446,13 +446,13 @@ function refreshDashboard(){
  const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
  const next=buttons.find((b,i)=>!p[b.dataset.score]&&(i===0||p[buttons[i-1].dataset.score]))||null;
  const history=readHistory();
- const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0),longest=history.reduce((n,x)=>Math.max(n,historySeconds(x)),0),practiceDays=new Set(history.map(practiceDayKey).filter(Boolean)).size,continuity=practiceContinuity(history);
+ const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,Number.isFinite(+x.best)?+x.best:Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.start)?+x.start:Number.isFinite(+x.bestBpm)?+x.bestBpm:0),0),longest=history.reduce((n,x)=>Math.max(n,historySeconds(x)),0),practiceDays=new Set(history.map(practiceDayKey).filter(Boolean)).size,continuity=practiceContinuity(history);
  const pct=buttons.length?Math.round(done.length/buttons.length*100):0;
  const q=s=>document.querySelector(s);
  q('#dashProgress').textContent=pct+' %';q('#dashProgressBar').style.width=pct+'%';
  q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
  const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
- q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique'+(continuity.count>1?' • '+(continuity.current?'continuité en cours : ':'dernière continuité : ')+continuity.count+' jours':'')+' • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
+ q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique'+(continuity.count>1?' • '+(continuity.current?'continuité en cours : ':'dernière continuité : ')+continuity.count+' jours':'')+' • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';q('#dashBpm').title=best?'Meilleur tempo réellement atteint dans les séances enregistrées':'Aucun tempo enregistré';
  const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map(),noTabCounts=new Map();
  libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level));if(level===0)noTabCounts.set(name,(noTabCounts.get(name)||0)+1)});
  const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,consolidatedExercises=[...noTabCounts.values()].filter(count=>count>=2).length,startedLiberty=libertyExercises.size;
