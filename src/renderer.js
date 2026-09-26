@@ -682,7 +682,7 @@ function setAlphaTempo(api){
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null;
-const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown');
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeReplay=document.querySelector('#playWithMeReplay'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown');
 function playWithMePaint(phase){
  playWithMePhase=phase;
  const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
@@ -700,14 +700,14 @@ function playWithMeTicks(){
 }
 function stopPlayWithMe(){
  clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';
- playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=true;
+ playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=true;
  const api=window.guitarLibertyAlphaTab;if(api){try{api.pause()}catch(_){}}
 }
 function startPlayWithMe(){
  const api=window.guitarLibertyAlphaTab;if(!api||!practiceScore){playWithMeText.textContent='Charge d’abord une tablature Guitar Pro.';return}
  const range=playWithMeTicks();if(!range)return;
  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(api);
- playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMePhraseRepeat=0;playWithMeStart.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
+ playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMePhraseRepeat=0;playWithMeStart.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
  try{api.tickPosition=range.start;api.play()}catch(e){stopPlayWithMe()}
 }
 function startPlayWithMeTimedAnswer(){
@@ -719,9 +719,16 @@ function startPlayWithMeTimedAnswer(){
  clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=setTimeout(()=>{clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';if(playWithMeActive&&playWithMePhase==='answer')playWithMeNext?.click()},ms);
 }
 playWithMeStart?.addEventListener('click',startPlayWithMe);
+playWithMeReplay?.addEventListener('click',()=>{
+ if(!playWithMeActive||playWithMePhase!=='answer'||!playWithMeRange)return;
+ clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';
+ playWithMeReplay.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeLastTick=-1;playWithMePaint('listen');
+ const api=window.guitarLibertyAlphaTab;try{api.tickPosition=playWithMeRange.start;api.play()}catch(_){stopPlayWithMe()}
+});
+
 playWithMeNext?.addEventListener('click',()=>{
  if(!playWithMeActive||playWithMePhase!=='answer')return;
- clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';
+ clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';if(playWithMeReplay)playWithMeReplay.disabled=true;
  playWithMeRoundCount++;if(playWithMeRound)playWithMeRound.textContent=playWithMeRoundCount+' RÉPONSE'+(playWithMeRoundCount>1?'S':'');
  const repeatMax=Math.max(1,+playWithMeRepeat?.value||1);
  if(playWithMePhraseRepeat+1<repeatMax){
@@ -1221,7 +1228,7 @@ async function loadWithAlphaTab(file){
   if(playWithMeActive&&playWithMePhase==='listen'&&playWithMeRange){
    if(playWithMeLastTick>=0&&tick>=playWithMeRange.end-1){
     try{api.pause();api.tickPosition=playWithMeRange.start}catch(_){}
-    playWithMePaint('answer');if(playWithMeNext)playWithMeNext.disabled=false;
+    playWithMePaint('answer');if(playWithMeReplay)playWithMeReplay.disabled=false;if(playWithMeNext)playWithMeNext.disabled=false;
     const leadBeats=Math.max(0,+playWithMeLead?.value||0);
     if(leadBeats){
      const currentTempo=Math.max(1,+tempo.value||practiceScore?.tempo||120),leadMs=Math.round(leadBeats*(60000/currentTempo));
