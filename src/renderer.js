@@ -697,10 +697,12 @@ function playWithMePaint(phase){
  if(playWithMeSessionProgress){const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),total=Math.max(1,Math.ceil(bars.length/len)),current=Math.max(1,Math.floor(((+playWithMeBar.value||1)-1)/len)+1);playWithMeSessionProgress.textContent=Math.max(0,Math.min(100,Math.round(((current-1)/total)*100)))+'%';}
 }
 function renderPlayWithMeHistory(){
- const list=document.querySelector('#playWithMeHistoryList'),count=document.querySelector('#playWithMeHistoryCount');if(!list||!count)return;
+ const list=document.querySelector('#playWithMeHistoryList'),count=document.querySelector('#playWithMeHistoryCount'),summary=document.querySelector('#playWithMeHistorySummary');if(!list||!count)return;
  let items=[];try{items=JSON.parse(localStorage.getItem(PLAY_WITH_ME_HISTORY_KEY)||'[]')}catch(_){}
  count.textContent=items.length+' session'+(items.length>1?'s':'');
- if(!items.length){list.innerHTML='<p>Aucune session terminée.</p>';return}
+ if(!items.length){if(summary)summary.textContent='Aucune progression enregistrée.';list.innerHTML='<p>Aucune session terminée.</p>';return}
+ const totalSeconds=items.reduce((n,x)=>n+(+x.seconds||0),0),totalResponses=items.reduce((n,x)=>n+(+x.responses||0),0),bestBpm=Math.max(...items.map(x=>+x.bpm||0));
+ if(summary)summary.textContent=items.length+' SESSIONS • '+String(Math.floor(totalSeconds/60)).padStart(2,'0')+':'+String(totalSeconds%60).padStart(2,'0')+' DE JEU • '+totalResponses+' RÉPONSES • RECORD '+bestBpm+' BPM';
  list.innerHTML=items.slice(0,8).map(x=>'<div class="history-row"><b>'+x.date+'</b><span>'+x.exercise+'</span><span>'+String(Math.floor((x.seconds||0)/60)).padStart(2,'0')+':'+String((x.seconds||0)%60).padStart(2,'0')+'</span><span>'+x.responses+' réponses</span><span>'+x.bpm+' BPM</span><strong>'+(x.mode==='timed'?'MÊME DURÉE':'LIBRE')+'</strong></div>').join('');
 }
 function savePlayWithMeSession(){
