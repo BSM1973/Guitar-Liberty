@@ -1207,8 +1207,8 @@ async function loadWithAlphaTab(file){
     try{api.pause();api.tickPosition=playWithMeRange.start}catch(_){}
     playWithMePaint('answer');if(playWithMeNext)playWithMeNext.disabled=false;
     if(playWithMeAnswerMode?.value==='timed'){
-     const ticks=Math.max(1,playWithMeRange.end-playWithMeRange.start),quarter=practiceScore?.tempo||120;
-     const ms=Math.max(400,Math.round((ticks/960)*(60000/quarter)));
+     const ticks=Math.max(1,playWithMeRange.end-playWithMeRange.start),scoreTempo=practiceScore?.tempo||120,currentTempo=Math.max(1,+tempo.value||scoreTempo);
+     const ms=Math.max(400,Math.round((ticks/960)*(60000/currentTempo)));
      playWithMeText.textContent='À toi : rejoue la phrase. La phrase suivante partira automatiquement.';
      clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=setTimeout(()=>{if(playWithMeActive&&playWithMePhase==='answer')playWithMeNext?.click()},ms);
     }
