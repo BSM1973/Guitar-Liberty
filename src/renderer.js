@@ -436,10 +436,11 @@ function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.flo
 function historyTimestamp(row){if(Number.isFinite(+row?.timestamp))return +row.timestamp;const value=String(row?.date||'').trim(),m=value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);if(m){const t=new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime();if(Number.isFinite(t))return t}const parsed=Date.parse(value);return Number.isFinite(parsed)?parsed:NaN}
 function practiceDayKey(x){const t=historyTimestamp(x);if(!Number.isFinite(t))return null;const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function practiceContinuity(history){
- const days=[...new Set(history.map(practiceDayKey).filter(Boolean))].sort().reverse();if(!days.length)return 0;
+ const days=[...new Set(history.map(practiceDayKey).filter(Boolean))].sort().reverse();if(!days.length)return {count:0,current:false};
  let count=1,previous=new Date(days[0]+'T12:00:00');
  for(let i=1;i<days.length;i++){const current=new Date(days[i]+'T12:00:00'),gap=Math.round((previous-current)/86400000);if(gap!==1)break;count++;previous=current}
- return count;
+ const today=new Date(),todayKey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0'),yesterday=new Date(today);yesterday.setDate(today.getDate()-1);const yesterdayKey=yesterday.getFullYear()+'-'+String(yesterday.getMonth()+1).padStart(2,'0')+'-'+String(yesterday.getDate()).padStart(2,'0');
+ return {count,current:days[0]===todayKey||days[0]===yesterdayKey};
 }
 function refreshDashboard(){
  const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
@@ -451,7 +452,7 @@ function refreshDashboard(){
  q('#dashProgress').textContent=pct+' %';q('#dashProgressBar').style.width=pct+'%';
  q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
  const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
- q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique'+(continuity>1?' • continuité : '+continuity+' jours':'')+' • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
+ q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique'+(continuity.count>1?' • '+(continuity.current?'continuité en cours : ':'dernière continuité : ')+continuity.count+' jours':'')+' • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
  const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map(),noTabCounts=new Map();
  libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level));if(level===0)noTabCounts.set(name,(noTabCounts.get(name)||0)+1)});
  const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,consolidatedExercises=[...noTabCounts.values()].filter(count=>count>=2).length,startedLiberty=libertyExercises.size;
