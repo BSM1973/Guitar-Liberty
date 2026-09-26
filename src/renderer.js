@@ -88,7 +88,7 @@ async function loadGuitarSample(string){
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory'),historyRecord=document.querySelector('#historyRecord'),historySessions=document.querySelector('#historySessions'),historyTime=document.querySelector('#historyTime'),historyStreak=document.querySelector('#historyStreak'),bpmChart=document.querySelector('#bpmChart'),exerciseProgressTitle=document.querySelector('#exerciseProgressTitle'),exerciseProgressStats=document.querySelector('#exerciseProgressStats'),personalBest=document.querySelector('#personalBest'),recordDelta=document.querySelector('#recordDelta'),masteryLevel=document.querySelector('#masteryLevel'),masteryBar=document.querySelector('#masteryBar'),masteryInfo=document.querySelector('#masteryInfo'),pathList=document.querySelector('#pathList'),pathSummary=document.querySelector('#pathSummary');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
-let sessionStarted=null,sessionFirstPracticeAt=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,sessionLowestLibertyLevel=100,currentPracticeTitle='Exercice';
+let sessionStarted=null,sessionFirstPracticeAt=null,sessionPausedAt=null,sessionPausedMs=0,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,sessionLowestLibertyLevel=100,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
 const PLAY_WITH_ME_HISTORY_KEY='guitarLibertyPlayWithMeHistoryV1';
 const LESSON_KEY='guitarLibertyLessonProgress';
@@ -683,19 +683,20 @@ function renderHistory(){
 }
 function saveCurrentSession(savedAt=Date.now()){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
- const sec=Math.floor((savedAt-(sessionFirstPracticeAt||sessionStarted))/1000),items=readHistory();
+ const sec=sessionFirstPracticeAt?activePracticeSeconds(savedAt):Math.floor((savedAt-sessionStarted)/1000),items=readHistory();
  items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:formatSessionDuration(sec),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
  writeHistory(items);renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
 renderHistory();
-function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=sessionFirstPracticeAt?Math.max(0,Math.floor((Date.now()-sessionFirstPracticeAt)/1000)):0;sessionTime.textContent=formatSessionDuration(sec);paintSessionInsight()}}
+function activePracticeSeconds(at=Date.now()){if(!sessionFirstPracticeAt)return 0;const paused=sessionPausedMs+(sessionPausedAt?Math.max(0,at-sessionPausedAt):0);return Math.max(0,Math.floor((at-sessionFirstPracticeAt-paused)/1000))}
+function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){sessionTime.textContent=formatSessionDuration(activePracticeSeconds());paintSessionInsight()}}
 function readLastSessionInsight(){try{return JSON.parse(localStorage.getItem(LAST_SESSION_INSIGHT_KEY)||'null')}catch{return null}}
 function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INSIGHT_KEY,JSON.stringify(data))}catch{}}
 let lastSessionInsight=readLastSessionInsight();
 function sessionInsightData(capturedAt=Date.now()){
- const sec=sessionStarted?Math.max(0,Math.floor((capturedAt-(sessionFirstPracticeAt||sessionStarted))/1000)):0;
+ const sec=sessionStarted?(sessionFirstPracticeAt?activePracticeSeconds(capturedAt):0):0;
  const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),best=sessionBest||start,gain=Math.max(0,best-start);
  return {sec,reps,start,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
 }
@@ -761,7 +762,7 @@ function resetTrainingSession(){
  const previousFreedom=finished&&hasPractice?previousLibertyLevel():null;
  saveCurrentSession(finishedAt);
  if(finished&&hasPractice){lastSessionInsight=finished;writeLastSessionInsight(finished);}
- sessionStarted=null;sessionFirstPracticeAt=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
+ sessionStarted=null;sessionFirstPracticeAt=null;sessionPausedAt=null;sessionPausedMs=0;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
  if(finished&&libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
  if(finished&&hasPractice){
   paintSessionInsight(finished,true);
@@ -1418,7 +1419,7 @@ async function loadWithAlphaTab(file){
    if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
- api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){if(e.state===1&&sessionPausedAt){sessionPausedMs+=Math.max(0,Date.now()-sessionPausedAt);sessionPausedAt=null}else if(e.state!==1&&!sessionPausedAt)sessionPausedAt=Date.now()}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
   const lockedPaperY=!playbackFollowEnabled?document.querySelector('.paper')?.scrollTop:null;
