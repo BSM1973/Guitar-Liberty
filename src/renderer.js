@@ -1107,7 +1107,8 @@ loopToggle.onclick=()=>{
  }
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  if(practiceLoop&&completedSeries){
-  practiceStatus.textContent='Nouvelle série • répétition 1/'+Math.max(1,+loopRepeats.value||1);
+  pausePracticeClock();
+  practiceStatus.textContent='Nouvelle série prête • répétition 1/'+Math.max(1,+loopRepeats.value||1);
  }else if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount){
   practiceStatus.textContent='Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1);
  }else practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
