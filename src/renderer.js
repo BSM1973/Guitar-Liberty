@@ -1084,7 +1084,10 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  },beatMs);
 }
 loopToggle.onclick=()=>{
- const wasLooping=practiceLoop;practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
+ const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount;
+ practiceLoop=!practiceLoop;
+ if(!resumingPausedSession)practiceIteration=0;
+ lastLoopTick=-1;updatePracticeProgress(resumingPausedSession?practiceIteration:0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
  if(!practiceLoop&&practiceTimer){clearInterval(practiceTimer);practiceTimer=null;cancelDelayedPlayback();const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}}
  if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
   pausePracticeClock();
