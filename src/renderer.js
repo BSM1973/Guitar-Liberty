@@ -682,7 +682,7 @@ function setAlphaTempo(api){
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null;
-const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeReplay=document.querySelector('#playWithMeReplay'),playWithMeRestart=document.querySelector('#playWithMeRestart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown');
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeReplay=document.querySelector('#playWithMeReplay'),playWithMeRestart=document.querySelector('#playWithMeRestart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown'),playWithMeRepeatState=document.querySelector('#playWithMeRepeatState');
 function playWithMePaint(phase){
  playWithMePhase=phase;
  const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
@@ -692,6 +692,7 @@ function playWithMePaint(phase){
  else{playWithMeState.textContent='PRÊT';playWithMeText.textContent='Guitare Liberty joue une mesure. À toi de la rejouer juste après.'}
  if(playWithMeProgress)playWithMeProgress.textContent='PHRASE '+Math.max(1,Math.floor(((+playWithMeBar.value||1)-1)/Math.max(1,+playWithMeLength.value||1))+1);
  if(playWithMeRound)playWithMeRound.textContent=playWithMeRoundCount+' RÉPONSE'+(playWithMeRoundCount>1?'S':'');
+ if(playWithMeRepeatState){const repeatMax=Math.max(1,+playWithMeRepeat?.value||1);playWithMeRepeatState.textContent='PASSAGE '+Math.min(repeatMax,playWithMePhraseRepeat+1)+'/'+repeatMax;}
 }
 function playWithMeTicks(){
  const bars=practiceBars(),start=Math.max(0,(+playWithMeBar.value||1)-1),len=Math.max(1,+playWithMeLength.value||1),a=bars[start],next=bars[start+len];
@@ -718,6 +719,7 @@ function startPlayWithMeTimedAnswer(){
  clearInterval(playWithMeCountdownTimer);paintCountdown();playWithMeCountdownTimer=setInterval(paintCountdown,100);
  clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=setTimeout(()=>{clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';if(playWithMeActive&&playWithMePhase==='answer')playWithMeNext?.click()},ms);
 }
+playWithMeRepeat?.addEventListener('change',()=>{if(playWithMeRepeatState){const max=Math.max(1,+playWithMeRepeat.value||1);playWithMeRepeatState.textContent='PASSAGE '+Math.min(max,playWithMePhraseRepeat+1)+'/'+max;}});
 playWithMeStart?.addEventListener('click',startPlayWithMe);
 playWithMeRestart?.addEventListener('click',()=>{
  if(!playWithMeActive)return;
