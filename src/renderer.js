@@ -1145,7 +1145,7 @@ autoBpm.onchange=()=>{
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
  const currentTempo=+tempo.value||0,target=+targetBpm.value||0,autoStep=+autoBpm.value||0;
- if(practiceLoop&&autoStep>0&&target<=currentTempo){
+ if(sessionStarted&&sessionFirstPracticeAt&&autoStep>0&&target<=currentTempo){
   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
   pausePracticeClock();cancelDelayedPlayback();
   const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}
