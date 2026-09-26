@@ -682,7 +682,7 @@ function setAlphaTempo(api){
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1;
-const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText');
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText');
 function playWithMePaint(phase){
  playWithMePhase=phase;
  const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
@@ -697,17 +697,24 @@ function playWithMeTicks(){
  return {start:a.start||0,end:endTick};
 }
 function stopPlayWithMe(){
- playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;playWithMeStop.disabled=true;
+ playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=true;
  const api=window.guitarLibertyAlphaTab;if(api){try{api.pause()}catch(_){}}
 }
 function startPlayWithMe(){
  const api=window.guitarLibertyAlphaTab;if(!api||!practiceScore){playWithMeText.textContent='Charge d’abord une tablature Guitar Pro.';return}
  const range=playWithMeTicks();if(!range)return;
  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(api);
- playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeStart.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
+ playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeStart.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
  try{api.tickPosition=range.start;api.play()}catch(e){stopPlayWithMe()}
 }
 playWithMeStart?.addEventListener('click',startPlayWithMe);
+playWithMeNext?.addEventListener('click',()=>{
+ if(!playWithMeActive||playWithMePhase!=='answer')return;
+ const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),nextStart=(+playWithMeBar.value||1)+len;
+ if(nextStart>bars.length){playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Bravo. Tu as parcouru toutes les phrases disponibles.';playWithMeNext.disabled=true;return}
+ playWithMeBar.value=nextStart;playWithMeRange=playWithMeTicks();playWithMeLastTick=-1;playWithMeNext.disabled=true;playWithMePaint('listen');
+ const api=window.guitarLibertyAlphaTab;try{api.tickPosition=playWithMeRange.start;api.play()}catch(_){stopPlayWithMe()}
+});
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
@@ -1193,7 +1200,7 @@ async function loadWithAlphaTab(file){
   if(playWithMeActive&&playWithMePhase==='listen'&&playWithMeRange){
    if(playWithMeLastTick>=0&&tick>=playWithMeRange.end-1){
     try{api.pause();api.tickPosition=playWithMeRange.start}catch(_){}
-    playWithMePaint('answer');
+    playWithMePaint('answer');if(playWithMeNext)playWithMeNext.disabled=false;
    }
    playWithMeLastTick=tick;
   }
