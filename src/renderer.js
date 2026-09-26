@@ -575,7 +575,8 @@ lessonComplete.onclick=()=>{
  renderLearningPath();
 };
 function readHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return []}}
-function writeHistory(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,50)))}
+const HISTORY_LIMIT=200;
+function writeHistory(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,HISTORY_LIMIT)))}
 function masteryFor(items){
  if(!items.length)return {pct:0,label:'Nouveau',record:0};
  const chronological=items.slice().reverse(),record=Math.max(...items.map(x=>+x.best||0)),start=Math.max(1,+chronological[0].start||40);
