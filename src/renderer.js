@@ -437,13 +437,13 @@ function refreshDashboard(){
  const buttons=courseButtons(),p=lessonProgress(),done=buttons.filter(b=>p[b.dataset.score]);
  const next=buttons.find((b,i)=>!p[b.dataset.score]&&(i===0||p[buttons[i-1].dataset.score]))||null;
  const history=readHistory();
- const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0),longest=history.reduce((n,x)=>Math.max(n,historySeconds(x)),0);
+ const total=history.reduce((n,x)=>n+historySeconds(x),0),best=history.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0),longest=history.reduce((n,x)=>Math.max(n,historySeconds(x)),0),practiceDays=new Set(history.map(x=>{const t=Number.isFinite(+x.timestamp)?+x.timestamp:Date.parse(x.date||'');if(!Number.isFinite(t))return null;const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}).filter(Boolean)).size;
  const pct=buttons.length?Math.round(done.length/buttons.length*100):0;
  const q=s=>document.querySelector(s);
  q('#dashProgress').textContent=pct+' %';q('#dashProgressBar').style.width=pct+'%';
  q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
  const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
- q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
+ q('#dashTime').textContent=formatDashTime(total);q('#dashTime').title=history.length?'Temps cumulé • '+practiceDays+' jour'+(practiceDays>1?'s':'')+' de pratique • plus longue séance : '+formatDashTime(longest):'Temps de pratique cumulé';q('#dashBpm').textContent=best?best+' BPM':'—';
  const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map(),noTabCounts=new Map();
  libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level));if(level===0)noTabCounts.set(name,(noTabCounts.get(name)||0)+1)});
  const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,consolidatedExercises=[...noTabCounts.values()].filter(count=>count>=2).length,startedLiberty=libertyExercises.size;
