@@ -1755,12 +1755,13 @@ if(importButton) importButton.onclick=async()=>{
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
   const key='imported';
-  const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),rememberedTempo=savedExerciseTempo(importedTitle);
+  const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),rememberedTempo=savedExerciseTempo(importedTitle),rememberedGoal=savedExerciseGoal(importedTitle);
   if(sessionStarted&&currentPracticeTitle!==importedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   exercises[key]={title:importedTitle,subtitle:'Tablature importée • MusicXML',tempo:rememberedTempo||importedTempo,repeat:1,notes:imported,measures:importedMeasures};
   currentPracticeTitle=importedTitle;
   current=key; stop(); render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
+  targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
   document.querySelectorAll('.exercise').forEach(b=>b.classList.remove('active'));
   importStatus.textContent=file.name+' — '+imported.length+' notes affichées';
   window.pendingImportedScore=file;
