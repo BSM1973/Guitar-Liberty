@@ -1587,8 +1587,9 @@ async function loadWithAlphaTab(file){
      }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
     }else{
      api.isLooping=false;practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
-     pausePracticeClock();try{api.pause()}catch(_){}
-     practiceStatus.textContent='Série terminée';
+     pausePracticeClock();cancelDelayedPlayback();try{api.pause()}catch(_){}
+     practiceStatus.textContent='Série terminée • prêt à reprendre';
+     paintSession();
     }
    }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
   }
