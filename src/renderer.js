@@ -1101,7 +1101,16 @@ loopToggle.onclick=()=>{
 };
 targetBpm.onchange=()=>{targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));renderExerciseProgress()};
 loopRepeats.onchange=()=>updatePracticeProgress(0);
-[loopStart,loopEnd].forEach(el=>el.onchange=()=>{if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)});
+[loopStart,loopEnd].forEach(el=>el.onchange=()=>{
+ if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;
+ if(sessionStarted&&sessionFirstPracticeAt&&sessionRepCount){
+  pausePracticeClock();
+  resetTrainingSession();
+  practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);
+  practiceStatus.textContent='Nouvelle boucle • prêt';
+ }
+ const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)
+});
 
 function render(){
  const e=exercises[current];document.querySelector('#title').textContent=e.title;document.querySelector('#subtitle').textContent=e.subtitle;
