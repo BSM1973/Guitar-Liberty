@@ -1078,7 +1078,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
 }
 loopToggle.onclick=()=>{
  const wasLooping=practiceLoop;practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
- if(!practiceLoop&&practiceTimer){clearInterval(practiceTimer);practiceTimer=null;const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}}
+ if(!practiceLoop&&practiceTimer){clearInterval(practiceTimer);practiceTimer=null;cancelDelayedPlayback();const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}}
  if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
   pausePracticeClock();
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
@@ -1207,7 +1207,7 @@ document.querySelector('#play').onclick=async()=>{
   const api=window.guitarLibertyAlphaTab;
   try{
    if(practiceTimer){
-    clearInterval(practiceTimer);practiceTimer=null;
+    clearInterval(practiceTimer);practiceTimer=null;cancelDelayedPlayback();
     const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}
     practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
     document.querySelector('#play').textContent='▶ PLAY';
@@ -1249,7 +1249,7 @@ document.querySelector('#play').onclick=async()=>{
        backingAudio.currentTime=0;
        const backingPromise=backingAudio.play();
        if(backingPromise?.catch)backingPromise.catch(console.error);
-       clearTimeout(backingStartTimer);
+       cancelDelayedPlayback();
        const tabDelayMs=currentBackingLeadBeats*(60000/bpm);
        backingStartTimer=setTimeout(()=>{
          backingStartTimer=null;
@@ -1324,8 +1324,11 @@ function closeVideo(){
  if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
-function stopBacking(reset=true){
+function cancelDelayedPlayback(){
  clearTimeout(backingStartTimer);backingStartTimer=null;
+}
+function stopBacking(reset=true){
+ cancelDelayedPlayback();
  if(!backingAudio)return;
  backingAudio.pause();if(reset)backingAudio.currentTime=0;
 }
