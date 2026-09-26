@@ -1474,9 +1474,14 @@ async function loadWithAlphaTab(file){
       api.isLooping=false;
       practiceLoop=false;
       loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+      pausePracticeClock();try{api.pause()}catch(_){}
       practiceStatus.textContent='Objectif atteint • '+next+' BPM';saveCurrentSession();
      }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
-    }else practiceStatus.textContent='Série terminée';
+    }else{
+     api.isLooping=false;practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+     pausePracticeClock();try{api.pause()}catch(_){}
+     practiceStatus.textContent='Série terminée';
+    }
    }else practiceStatus.textContent='En cours • Répétition '+(practiceIteration+1)+'/'+max;
   }
   lastLoopTick=tick;
