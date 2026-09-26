@@ -1564,8 +1564,11 @@ async function loadWithAlphaTab(file){
  api.renderFinished.on(()=>{ tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   completed=true;
-  practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)} tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
-  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
+  practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)}
+  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');
+  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),resumeTempo=previousSession?(+previousSession.end||+previousSession.best||0):0;
+  tempo.value=resumeTempo||score.tempo||tempo.value;syncTempo();setAlphaTempo(api);
+  document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
  });
