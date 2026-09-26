@@ -639,7 +639,7 @@ function renderHistory(){
  let streak=0;if(days.length){let d=new Date(days[0]+'T12:00:00');const today=new Date();today.setHours(12,0,0,0);const gap=Math.round((today-d)/86400000);if(gap<=1){streak=1;for(let i=1;i<days.length;i++){const prev=new Date(days[i-1]+'T12:00:00'),cur=new Date(days[i]+'T12:00:00');if(Math.round((prev-cur)/86400000)===1)streak++;else break}}}
  historyStreak.textContent=streak+' jour'+(streak>1?'s':'');
  renderExerciseProgress(items);renderLearningPath(items);if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
- historyList.innerHTML=items.map(x=>'<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+x.series+' séries</span><span>'+x.reps+' répétitions</span><span>'+x.start+' → '+x.best+' BPM</span><strong>+'+x.gain+' BPM</strong></div>').join('');
+ historyList.innerHTML=items.map(x=>{const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null,libertyText=freedom===0?'SANS TAB':freedom!==null&&freedom<100?'TAB '+freedom+' %':freedom===100?'TAB COMPLÈTE':'LIBERTÉ —';return '<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+x.series+' séries</span><span>'+x.reps+' répétitions</span><span>'+x.start+' → '+x.best+' BPM</span><span>'+libertyText+'</span><strong>+'+x.gain+' BPM</strong></div>'}).join('');
 }
 function saveCurrentSession(){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
