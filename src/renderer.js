@@ -1771,7 +1771,13 @@ if(importButton) importButton.onclick=async()=>{
   if(sessionStarted&&currentPracticeTitle!==importedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   exercises[key]={title:importedTitle,subtitle:'Tablature importée • MusicXML',tempo:rememberedTempo||importedTempo,repeat:1,notes:imported,measures:importedMeasures};
   currentPracticeTitle=importedTitle;
-  stop();alphaTabMode=false;practiceScore=null;window.guitarLibertyAlphaTab=null;tab.classList.remove('alphatab-score');
+  // Invalidate every alphaTab load still in flight before switching renderers.
+  // This prevents a late Guitar Pro callback from taking the UI back after MusicXML is active.
+  alphaTabLoadGeneration++;
+  const previousApi=window.guitarLibertyAlphaTab;
+  stop();
+  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}}
+  alphaTabMode=false;practiceScore=null;if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;tab.classList.remove('alphatab-score');
   current=key; render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
