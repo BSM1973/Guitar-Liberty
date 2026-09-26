@@ -692,6 +692,13 @@ function saveCurrentSession(savedAt=Date.now()){
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
 renderHistory();
+function beginPracticePassage(at=Date.now()){
+ if(!practiceLoop)return;
+ startSession();
+ if(!sessionFirstPracticeAt){sessionFirstPracticeAt=at;sessionStartHint=''}
+ resumePracticeClock(at);
+ paintSession();
+}
 function activePracticeSeconds(at=Date.now()){if(!sessionFirstPracticeAt)return 0;const paused=sessionPausedMs+(sessionPausedAt?Math.max(0,at-sessionPausedAt):0);return Math.max(0,Math.floor((at-sessionFirstPracticeAt-paused)/1000))}
 function pausePracticeClock(at=Date.now()){if(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt)sessionPausedAt=at}
 function resumePracticeClock(at=Date.now()){if(!sessionPausedAt)return;sessionPausedMs+=Math.max(0,at-sessionPausedAt);sessionPausedAt=null}
@@ -1225,7 +1232,6 @@ document.querySelector('#play').onclick=async()=>{
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
-     if(practiceLoop){startSession();if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}paintSession();}
      if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
        syncVideoTempo();
        if(practiceVideo.paused){
@@ -1261,9 +1267,13 @@ document.querySelector('#play').onclick=async()=>{
        const tabDelayMs=currentBackingLeadBeats*(60000/bpm);
        backingStartTimer=setTimeout(()=>{
          backingStartTimer=null;
+         beginPracticePassage();
          api.play();
        },tabDelayMs);
-     }else api.play();
+     }else{
+       beginPracticePassage();
+       api.play();
+     }
    });
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
