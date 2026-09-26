@@ -1108,7 +1108,13 @@ loopToggle.onclick=()=>{
  }else practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  paintSession();
 };
-targetBpm.onchange=()=>{targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));renderExerciseProgress()};
+targetBpm.onchange=()=>{
+ targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
+ if(!practiceLoop&&practiceStatus.textContent.indexOf('Objectif déjà atteint')===0){
+  practiceStatus.textContent=(+targetBpm.value>(+tempo.value||0))?'Prêt • nouvel objectif '+targetBpm.value+' BPM':'Objectif déjà atteint • '+(+tempo.value||0)+' BPM';
+ }
+ renderExerciseProgress();
+};
 loopRepeats.onchange=()=>{
  loopRepeats.value=Math.max(1,+loopRepeats.value||1);
  const target=+loopRepeats.value;
