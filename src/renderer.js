@@ -1213,6 +1213,14 @@ document.querySelector('#play').onclick=async()=>{
     document.querySelector('#play').textContent='▶ PLAY';
     return;
    }
+   if(backingStartTimer){
+    cancelDelayedPlayback();stopBacking(false);
+    if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
+    practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+    document.querySelector('#play').textContent='▶ PLAY';
+    paintSession();
+    return;
+   }
    if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
