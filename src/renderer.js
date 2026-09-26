@@ -1759,7 +1759,8 @@ if(importButton) importButton.onclick=async()=>{
   if(sessionStarted&&currentPracticeTitle!==importedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   exercises[key]={title:importedTitle,subtitle:'Tablature importée • MusicXML',tempo:rememberedTempo||importedTempo,repeat:1,notes:imported,measures:importedMeasures};
   currentPracticeTitle=importedTitle;
-  current=key; stop(); render();
+  stop();alphaTabMode=false;practiceScore=null;window.guitarLibertyAlphaTab=null;tab.classList.remove('alphatab-score');
+  current=key; render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
   renderHistory();refreshDashboard();paintMeasureMemory();if(!sessionStarted)paintSessionInsight();
