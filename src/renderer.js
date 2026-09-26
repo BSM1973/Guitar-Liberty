@@ -1522,8 +1522,12 @@ async function loadWithAlphaTab(file){
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
  const rawBytes=file.bytes||await window.guitarAudio.readScore(file.filePath);
+ // Another score may have been requested while the file bytes were being read.
+ // In that case this load is obsolete and must never create a new alphaTab API.
+ if(!isCurrentGeneration())return;
  const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
+ if(!isCurrentGeneration())return;
  const api=new window.alphaTab.AlphaTabApi(tab,{
   core:{useWorkers:false,engine:'svg',enableLazyLoading:false,includeNoteBounds:true,fontDirectory:'../assets/vendor/font/'},
   player:{enablePlayer:true,soundFont:'../assets/vendor/soundfont/sonivox.sf2',scrollMode:'off'},
