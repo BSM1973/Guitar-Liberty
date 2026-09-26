@@ -674,7 +674,21 @@ function paintSessionInsight(data=null,finished=false){
  q('#sessionInsightState').textContent=state;q('#insightMessage').textContent=msg;q('#insightNext').textContent=next;
 }
 
-function startSession(){if(sessionStarted)return;sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));paintSession();sessionClock=setInterval(paintSession,1000)}
+function previousLibertyLevel(){
+ const rows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle&&Number.isFinite(+x.libertyLevel));
+ return rows.length?rows.reduce((n,x)=>Math.min(n,+x.libertyLevel),100):null;
+}
+function startSession(){
+ if(sessionStarted)return;
+ const previousFreedom=previousLibertyLevel();
+ sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));
+ paintSession();paintSessionInsight();
+ if(previousFreedom!==null&&previousFreedom<100){
+  const next=document.querySelector('#insightNext');
+  if(next)next.textContent=previousFreedom===0?'Repère précédent : tu as déjà joué cet exercice sans TAB. Retrouve cette liberté seulement quand tu te sens prêt.':'Repère précédent : tu avais réduit la TAB jusqu’à '+previousFreedom+' %. Tu peux viser ce niveau à nouveau, sans obligation de commencer directement avec moins de TAB.';
+ }
+ sessionClock=setInterval(paintSession,1000)
+}
 function resetTrainingSession(){
  const finished=sessionStarted?sessionInsightData():null;
  saveCurrentSession();
