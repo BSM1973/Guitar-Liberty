@@ -689,10 +689,10 @@ function paintSessionInsight(data=null,finished=false){
  if(!sessionStarted&&currentPracticeTitle&&currentPracticeTitle!=='Exercice'){
   const exerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle&&Number.isFinite(+h.libertyLevel));
   if(exerciseRows.length){
-   const bestFreedom=exerciseRows.reduce((n,h)=>Math.min(n,+h.libertyLevel),100),noTabSessions=exerciseRows.filter(h=>+h.libertyLevel===0).length;
-   if(bestFreedom===0&&noTabSessions>=2){state='AUTONOMIE CONSOLIDÉE';msg='Tu as déjà retrouvé « '+currentPracticeTitle+' » sans TAB sur plusieurs séances.';next='Repars librement : la TAB reste disponible, mais elle n’est plus ton point de départ.';}
-   else if(bestFreedom===0){state='DÉJÀ JOUÉ SANS TAB';msg='Tu as déjà joué « '+currentPracticeTitle+' » sans TAB.';next='Essaie de retrouver cette liberté avec le même confort, sans forcer le résultat.';}
-   else if(bestFreedom<100){state='AUTONOMIE À RETROUVER';msg='Sur « '+currentPracticeTitle+' », tu as déjà réduit la TAB jusqu’à '+bestFreedom+' %.';next='Tu peux repartir avec la TAB complète, puis retrouver progressivement ce niveau.';}
+   const bestFreedom=exerciseRows.reduce((n,h)=>Math.min(n,+h.libertyLevel),100),noTabSessions=exerciseRows.filter(h=>+h.libertyLevel===0).length,allExerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle),lastExercise=allExerciseRows[0]||null,recordBpm=allExerciseRows.reduce((n,h)=>Math.max(n,+h.best||0),0),tempoHint=lastExercise&&+lastExercise.best?' Dernier repère : '+lastExercise.best+' BPM'+(recordBpm&&recordBpm!==+lastExercise.best?' • record '+recordBpm+' BPM':'')+'.':'';
+   if(bestFreedom===0&&noTabSessions>=2){state='AUTONOMIE CONSOLIDÉE';msg='Tu as déjà retrouvé « '+currentPracticeTitle+' » sans TAB sur plusieurs séances.';next='Repars librement : la TAB reste disponible, mais elle n’est plus ton point de départ.'+tempoHint;}
+   else if(bestFreedom===0){state='DÉJÀ JOUÉ SANS TAB';msg='Tu as déjà joué « '+currentPracticeTitle+' » sans TAB.';next='Essaie de retrouver cette liberté avec le même confort, sans forcer le résultat.'+tempoHint;}
+   else if(bestFreedom<100){state='AUTONOMIE À RETROUVER';msg='Sur « '+currentPracticeTitle+' », tu as déjà réduit la TAB jusqu’à '+bestFreedom+' %.';next='Tu peux repartir avec la TAB complète, puis retrouver progressivement ce niveau.'+tempoHint;}
   }
  }
  if(sessionStarted){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
