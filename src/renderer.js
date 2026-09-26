@@ -433,7 +433,8 @@ document.querySelector('#guidedNext').onclick=()=>{if(guidedStep<4){guidedStep++
 document.querySelector('#guidedPrev').onclick=()=>{if(guidedStep>0){guidedStep--;paintGuided()}};
 document.querySelector('#guidedClose').onclick=()=>{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true};
 function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?h+' h '+String(m).padStart(2,'0')+' min':m?m+' min '+String(s).padStart(2,'0')+' s':s+' s'}
-function practiceDayKey(x){const t=Number.isFinite(+x?.timestamp)?+x.timestamp:Date.parse(x?.date||'');if(!Number.isFinite(t))return null;const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function historyTimestamp(row){if(Number.isFinite(+row?.timestamp))return +row.timestamp;const value=String(row?.date||'').trim(),m=value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);if(m){const t=new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)).getTime();if(Number.isFinite(t))return t}const parsed=Date.parse(value);return Number.isFinite(parsed)?parsed:NaN}
+function practiceDayKey(x){const t=historyTimestamp(x);if(!Number.isFinite(t))return null;const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function practiceContinuity(history){
  const days=[...new Set(history.map(practiceDayKey).filter(Boolean))].sort().reverse();if(!days.length)return 0;
  let count=1,previous=new Date(days[0]+'T12:00:00');
@@ -645,7 +646,7 @@ renderGuitarJournal();
 function renderGuitarMemory(items){
  const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
  if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
- const chronological=items.slice().map((row,index)=>({row,index,time:Number.isFinite(+row.timestamp)?+row.timestamp:Date.parse(row.date||'')})).sort((a,b)=>{const at=Number.isFinite(a.time)?a.time:null,bt=Number.isFinite(b.time)?b.time:null;if(at!==null&&bt!==null)return at-bt;if(at!==null)return -1;if(bt!==null)return 1;return b.index-a.index}).map(x=>x.row),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
+ const chronological=items.slice().map((row,index)=>({row,index,time:historyTimestamp(row)})).sort((a,b)=>{const at=Number.isFinite(a.time)?a.time:null,bt=Number.isFinite(b.time)?b.time:null;if(at!==null&&bt!==null)return at-bt;if(at!==null)return -1;if(bt!==null)return 1;return b.index-a.index}).map(x=>x.row),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
  chronological.forEach((x,i)=>{
   const name=x.exercise||'Exercice';
   const day=practiceDayKey(x);
@@ -738,7 +739,7 @@ function previousLibertyLevel(){
 }
 function latestExerciseSession(rows){
  if(!rows.length)return null;
- const dated=rows.map((row,index)=>({row,index,time:Number.isFinite(+row.timestamp)?+row.timestamp:Date.parse(row.date||'')})).filter(x=>Number.isFinite(x.time));
+ const dated=rows.map((row,index)=>({row,index,time:historyTimestamp(row)})).filter(x=>Number.isFinite(x.time));
  if(dated.length)return dated.reduce((latest,x)=>x.time>latest.time?x:latest).row;
  return rows[0]||null;
 }
