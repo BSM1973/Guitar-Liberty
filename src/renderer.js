@@ -444,10 +444,10 @@ function refreshDashboard(){
  q('#dashCurrent').textContent=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours terminé':'—');
  const nextIndex=next?buttons.indexOf(next)+1:-1;q('#dashNext').textContent=next&&buttons[nextIndex]?'Prochain : '+buttons[nextIndex].childNodes[0].textContent.trim():'Prochain : —';
  q('#dashTime').textContent=formatDashTime(total);q('#dashBpm').textContent=best?best+' BPM':'—';
- const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map();
- libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level))});
- const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,startedLiberty=libertyExercises.size;
- const libertySummary=freeExercises?freeExercises+' exercice'+(freeExercises>1?'s':'')+' sans TAB':startedLiberty?'autonomie en cours':'liberté —';
+ const libertyHistory=history.filter(x=>Number.isFinite(+x.libertyLevel)),libertyExercises=new Map(),noTabCounts=new Map();
+ libertyHistory.forEach(x=>{const name=x.exercise||x.title||'Exercice',level=+x.libertyLevel;libertyExercises.set(name,Math.min(libertyExercises.has(name)?libertyExercises.get(name):100,level));if(level===0)noTabCounts.set(name,(noTabCounts.get(name)||0)+1)});
+ const freeExercises=[...libertyExercises.values()].filter(level=>level===0).length,consolidatedExercises=[...noTabCounts.values()].filter(count=>count>=2).length,startedLiberty=libertyExercises.size;
+ const libertySummary=consolidatedExercises?consolidatedExercises+' autonomie'+(consolidatedExercises>1?'s':'')+' consolidée'+(consolidatedExercises>1?'s':''):freeExercises?freeExercises+' exercice'+(freeExercises>1?'s':'')+' sans TAB':startedLiberty?'autonomie en cours':'liberté —';
  q('#dashValidated').textContent=done.length+' cours validé'+(done.length>1?'s':'')+' • '+libertySummary;
  q('#todayCourse').textContent=next?'Travaille : '+next.childNodes[0].textContent.trim():'Tous les cours disponibles sont validés.';
  q('#todayGoal').textContent=next?'Objectif : '+(next.dataset.bpm||targetBpm.value)+' BPM • '+(next.dataset.difficulty||'progression régulière'):'Continue à consolider tes acquis.';
