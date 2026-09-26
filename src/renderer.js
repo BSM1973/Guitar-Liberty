@@ -465,7 +465,13 @@ function refreshDashboard(){
  let stage='learn',state='EN APPRENTISSAGE',recommendation='Découvre '+currentName+'.',reason='Prends le temps de comprendre le geste avant de chercher la vitesse.';
  if(currentRows.length>=1||currentReps>=3){stage='play';state='EN PROGRÈS';recommendation='Consolide '+currentName+' avec quelques répétitions propres.';reason='Tu as déjà commencé ce travail : la régularité compte maintenant davantage que la vitesse.';}
  if(currentRows.length>=2&&currentReps>=6&&currentBest>=suggested){stage='free';state='PRÊT À SE LIBÉRER';recommendation='Joue '+currentName+' avec moins de dépendance à la TAB.';reason='Le passage est suffisamment travaillé pour commencer à transformer l’exercice en musique.';}
- if(currentLiberty<100&&currentRows.length){stage='free';state=currentLiberty===0?'AUTONOMIE ATTEINTE':'LIBERTÉ EN COURS';recommendation=currentLiberty===0?'Rejoue '+currentName+' sans TAB, avec le même confort.':'Retrouve '+currentName+' avec une TAB réduite à '+currentLiberty+' %.';reason=currentLiberty===0?'Tu as déjà joué ce passage sans TAB. Le prochain objectif est de rendre cette autonomie naturelle et reproductible.':'Tu as déjà diminué l’aide visuelle jusqu’à '+currentLiberty+' %. Consolide ce niveau avant de retirer davantage de TAB.';}
+ if(currentLiberty<100&&currentRows.length){
+  const noTabSessions=currentRows.filter(x=>Number.isFinite(+x.libertyLevel)&&+x.libertyLevel===0).length;
+  stage='free';
+  if(currentLiberty===0&&noTabSessions>=2){state='AUTONOMIE CONSOLIDÉE';recommendation='Joue '+currentName+' librement, sans chercher à prouver quoi que ce soit.';reason='Tu as retrouvé ce passage sans TAB sur plusieurs séances. L’autonomie devient un repère stable de ton jeu.';}
+  else if(currentLiberty===0){state='JOUÉ SANS TAB';recommendation='Retrouve '+currentName+' sans TAB une nouvelle fois, avec le même confort.';reason='Tu as déjà joué ce passage sans TAB. Une nouvelle séance permettra de transformer cette réussite en autonomie reproductible.';}
+  else{state='LIBERTÉ EN COURS';recommendation='Retrouve '+currentName+' avec une TAB réduite à '+currentLiberty+' %.';reason='Tu as déjà diminué l’aide visuelle jusqu’à '+currentLiberty+' %. Consolide ce niveau avant de retirer davantage de TAB.';}
+ }
  if(!next&&buttons.length){stage='free';state='PARCOURS ACQUIS';recommendation='Rejoue librement un cours que tu aimes.';reason='Tes cours disponibles sont validés : entretiens maintenant le plaisir et la liberté de jeu.';}
  const stages=['learn','play','free'],stageIndex=stages.indexOf(stage);
  document.querySelectorAll('[data-liberty-step]').forEach((el,i)=>{el.classList.toggle('done',i<stageIndex);el.classList.toggle('active',i===stageIndex)});
