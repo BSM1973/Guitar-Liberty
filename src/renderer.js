@@ -1089,7 +1089,9 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
 }
 loopToggle.onclick=()=>{
  if(!practiceLoop&&sessionHistorySaved&&sessionStarted)resetTrainingSession();
- const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount;
+ const completedSeries=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionSeriesCount&&practiceStatus.textContent.indexOf('Série terminée')===0;
+ const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
+ if(completedSeries){practiceIteration=0;updatePracticeProgress(0)}
  if(!practiceLoop&&!resumingPausedSession&&(+autoBpm.value||0)>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
   practiceStatus.textContent='Objectif déjà atteint • '+(+tempo.value||0)+' BPM • augmente la cible pour continuer';
   loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');updatePracticeProgress(0);
@@ -1104,7 +1106,9 @@ loopToggle.onclick=()=>{
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
  }
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
- if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount){
+ if(practiceLoop&&completedSeries){
+  practiceStatus.textContent='Nouvelle série • répétition 1/'+Math.max(1,+loopRepeats.value||1);
+ }else if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount){
   practiceStatus.textContent='Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1);
  }else practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  paintSession();
