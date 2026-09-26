@@ -650,7 +650,7 @@ renderGuitarJournal();
 function renderGuitarMemory(items){
  const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
  if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
- const chronological=items.slice().map((row,index)=>({row,index,time:historyTimestamp(row)})).sort((a,b)=>{const at=Number.isFinite(a.time)?a.time:null,bt=Number.isFinite(b.time)?b.time:null;if(at!==null&&bt!==null)return at-bt;if(at!==null)return -1;if(bt!==null)return 1;return b.index-a.index}).map(x=>x.row),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
+ const chronological=items.slice().map((row,index)=>({row,index,time:historyTimestamp(row)})).sort((a,b)=>{const at=Number.isFinite(a.time)?a.time:null,bt=Number.isFinite(b.time)?b.time:null;if(at!==null&&bt!==null)return at-bt;if(at!==null)return -1;if(bt!==null)return 1;return b.index-a.index}).map(x=>x.row),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),tempoByExercise=new Map(),consolidatedTempoByExercise=new Map(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
  chronological.forEach((x,i)=>{
   const name=x.exercise||'Exercice';
   const day=practiceDayKey(x);
@@ -661,6 +661,7 @@ function renderGuitarMemory(items){
   }
   if(!seen.has(name)){seen.add(name);events.push({date:x.date,title:i===0?'Le voyage commence':'Un nouveau chapitre',text:'Première séance sur « '+name+' ».'})}
   const best=+x.best||0;if(best>record){const previous=record;record=best;events.push({date:x.date,title:previous?'Nouveau repère personnel':'Premier tempo de référence',text:'Tu as installé un nouveau repère à '+best+' BPM. Ce nombre raconte une étape, pas ta valeur de musicien.'})}
+  const completed=Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0;if(completed>0){const tempos=tempoByExercise.get(name)||[];tempos.push(completed);tempoByExercise.set(name,tempos);const confirmed=tempos.length>=2?tempos.slice().sort((a,b)=>b-a)[1]:0,previousConfirmed=consolidatedTempoByExercise.get(name)||0;if(confirmed>previousConfirmed){consolidatedTempoByExercise.set(name,confirmed);events.push({date:x.date,title:'Tempo confirmé',text:'Tu as retrouvé « '+name+' » à '+confirmed+' BPM sur plusieurs séances. Ce tempo devient un repère reproductible, pas seulement un pic.'})}}
   const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null;
   if(freedom!==null&&freedom<100&&!firstReducedTab){firstReducedTab=true;events.push({date:x.date,title:'La TAB commence à s’effacer',text:'Pour la première fois, tu as laissé davantage de place à ta mémoire et à ton écoute sur « '+name+' ».'})}
   if(freedom===0&&!firstNoTab){firstNoTab=true;events.push({date:x.date,title:'Premier passage sans TAB',text:'Tu as joué « '+name+' » sans dépendre de la tablature. Une étape de liberté, à retrouver naturellement plutôt qu’à prouver.'})}
