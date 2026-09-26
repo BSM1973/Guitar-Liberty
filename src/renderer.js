@@ -517,8 +517,9 @@ function refreshCourseProgress(){
 }
 const lessonLearningState=document.querySelector('#lessonLearningState'),lessonMasteryBar=document.querySelector('#lessonMasteryBar'),lessonMasteryText=document.querySelector('#lessonMasteryText');
 function historySeconds(x){
- if(Number.isFinite(+x?.seconds)&&+x.seconds>0)return +x.seconds;
+ if(Number.isFinite(+x?.seconds)&&+x.seconds>=0)return +x.seconds;
  const p=String(x?.duration||'0:0').split(':').map(Number);
+ if(p.length>=3)return (p[p.length-3]||0)*3600+(p[p.length-2]||0)*60+(p[p.length-1]||0);
  return (p[0]||0)*60+(p[1]||0);
 }
 function formatSessionDuration(sec){
