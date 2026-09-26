@@ -1078,6 +1078,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
 }
 loopToggle.onclick=()=>{
  const wasLooping=practiceLoop;practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
+ if(!practiceLoop&&practiceTimer){clearInterval(practiceTimer);practiceTimer=null;const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}}
  if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
   pausePracticeClock();
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
