@@ -719,13 +719,13 @@ function previousLibertyLevel(){
 }
 function startSession(){
  if(sessionStarted)return;
- const previousFreedom=previousLibertyLevel();
+ const previousFreedom=previousLibertyLevel(),previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=previousRows[0]||null,previousTempo=previousSession&&+previousSession.best?+previousSession.best:null,previousRecord=previousRows.reduce((n,x)=>Math.max(n,+x.best||0),0);
  if(libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
  sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;sessionLowestLibertyLevel=Math.max(0,Math.min(100,+libertyLevel?.value||100));
  paintSession();paintSessionInsight();
- if(previousFreedom!==null&&previousFreedom<100){
-  const next=document.querySelector('#insightNext');
-  if(next)next.textContent=previousFreedom===0?'Repère précédent : tu as déjà joué cet exercice sans TAB. Retrouve cette liberté seulement quand tu te sens prêt.':'Repère précédent : tu avais réduit la TAB jusqu’à '+previousFreedom+' %. Tu peux viser ce niveau à nouveau, sans obligation de commencer directement avec moins de TAB.';
+ if((previousFreedom!==null&&previousFreedom<100)||previousTempo){
+  const next=document.querySelector('#insightNext'),tempoRef=previousTempo?' Repère tempo : '+previousTempo+' BPM'+(previousRecord&&previousRecord!==previousTempo?' • record '+previousRecord+' BPM':'')+'.':'';
+  if(next)next.textContent=(previousFreedom===0?'Repère précédent : tu as déjà joué cet exercice sans TAB. Retrouve cette liberté seulement quand tu te sens prêt.':previousFreedom!==null&&previousFreedom<100?'Repère précédent : tu avais réduit la TAB jusqu’à '+previousFreedom+' %. Tu peux viser ce niveau à nouveau, sans obligation de commencer directement avec moins de TAB.':'Reprends d’abord tes sensations sur cet exercice.')+tempoRef;
  }
  sessionClock=setInterval(paintSession,1000)
 }
