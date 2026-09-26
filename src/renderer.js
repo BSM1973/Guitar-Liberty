@@ -1215,7 +1215,16 @@ function tick(){
  index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
-tempo.oninput=()=>{syncTempo();if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}if(videoEnabled)syncVideoTempo();if(metronomeEnabled){stopMetronome();startMetronome()}};
+tempo.oninput=()=>{
+ syncTempo();
+ if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}
+ if(videoEnabled)syncVideoTempo();
+ if(metronomeEnabled){stopMetronome();startMetronome()}
+ if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){
+  sessionBest=Math.max(sessionBest,+tempo.value||0);
+  paintSession();
+ }
+};
 function isEditableShortcutTarget(target){
  if(!target)return false;
  const tag=(target.tagName||'').toLowerCase();
