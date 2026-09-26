@@ -974,7 +974,7 @@ playWithMeNext?.addEventListener('click',()=>{
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
-let alphaTabLoadGeneration=0;
+let alphaTabLoadGeneration=0,alphaTabClickHandler=null;
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
@@ -1518,6 +1518,7 @@ async function loadWithAlphaTab(file){
  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
  index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
  practiceScore=null;playCursor=null;alphaPlayedBeat=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
+ if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
  tab.classList.remove('alphatab-score');tab.innerHTML='';
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
@@ -1539,7 +1540,7 @@ async function loadWithAlphaTab(file){
  api.playerReady.on(()=>{if(!isActiveLoad())return;importStatus.textContent=file.name+' — tablature prête à jouer';});
  // Clicking the rendered score seeks the player and immediately moves our
  // custom orange cursor. Keep the validated playback/repeat cursor untouched.
- tab.addEventListener('click',ev=>{
+ alphaTabClickHandler=ev=>{
   if(!isActiveLoad()||!api.boundsLookup?.staffSystems)return;
   const rect=tab.getBoundingClientRect(),x=ev.clientX-rect.left,y=ev.clientY-rect.top;
   let hit=null,best=Infinity;
@@ -1555,7 +1556,8 @@ async function loadWithAlphaTab(file){
   try{api.tickPosition=bt;}catch(_){}
   alphaPlayedBeat=hit.beat;
   updatePlayCursor(api,bt);
- });
+ };
+ tab.addEventListener('click',alphaTabClickHandler);
  // playedBeatChanged comes from alphaTab's actual playback sequencer. It follows
  // GP repeats automatically and is not confused by written-score absolute ticks.
  if(api.playedBeatChanged?.on)api.playedBeatChanged.on(beat=>{
