@@ -1109,6 +1109,18 @@ loopToggle.onclick=()=>{
  }else practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  paintSession();
 };
+autoBpm.onchange=()=>{
+ autoBpm.value=Math.max(0,+autoBpm.value||0);
+ if(sessionStarted&&sessionFirstPracticeAt){
+  if(+autoBpm.value>0){
+   practiceStatus.textContent=sessionPausedAt?'Prêt à reprendre • Auto BPM +'+autoBpm.value:'En cours • Auto BPM +'+autoBpm.value;
+  }else{
+   practiceStatus.textContent=sessionPausedAt?'Prêt à reprendre • Auto BPM désactivé':'En cours • Auto BPM désactivé';
+  }
+  updatePracticeProgress(practiceIteration);
+  paintSession();
+ }
+};
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
  const currentTempo=+tempo.value||0,target=+targetBpm.value||0,autoStep=+autoBpm.value||0;
