@@ -686,6 +686,15 @@ function paintSessionInsight(data=null,finished=false){
  q('#insightReps').textContent=x.reps;q('#insightTempo').textContent=x.best?x.best+' BPM':'—';q('#insightGain').textContent=x.gain?'+'+x.gain+' BPM':'STABLE';
  let state='PRÊT POUR UNE SÉANCE',msg='Commence ta séance à ton rythme.',next='À la fin, Guitare Liberty te proposera une seule prochaine étape.';
  if(lastSessionInsight&&!sessionStarted){state='DERNIÈRE SÉANCE';const exercise=x.exercise?' sur « '+x.exercise+' »':'',when=x.date?' • '+x.date:'';state+=''+when;msg=x.reps?'Tu as construit '+x.reps+' répétition'+(x.reps>1?'s':'')+' attentive'+(x.reps>1?'s':'')+exercise+'.':'Tu as pris du temps avec ton instrument'+exercise+'.';next=x.gain?'Ton nouveau repère est '+x.best+' BPM. Repars de là seulement si le jeu reste confortable.':'Reprends au même tempo : consolider est aussi progresser.';}
+ if(!sessionStarted&&currentPracticeTitle&&currentPracticeTitle!=='Exercice'){
+  const exerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle&&Number.isFinite(+h.libertyLevel));
+  if(exerciseRows.length){
+   const bestFreedom=exerciseRows.reduce((n,h)=>Math.min(n,+h.libertyLevel),100),noTabSessions=exerciseRows.filter(h=>+h.libertyLevel===0).length;
+   if(bestFreedom===0&&noTabSessions>=2){state='AUTONOMIE CONSOLIDÉE';msg='Tu as déjà retrouvé « '+currentPracticeTitle+' » sans TAB sur plusieurs séances.';next='Repars librement : la TAB reste disponible, mais elle n’est plus ton point de départ.';}
+   else if(bestFreedom===0){state='DÉJÀ JOUÉ SANS TAB';msg='Tu as déjà joué « '+currentPracticeTitle+' » sans TAB.';next='Essaie de retrouver cette liberté avec le même confort, sans forcer le résultat.';}
+   else if(bestFreedom<100){state='AUTONOMIE À RETROUVER';msg='Sur « '+currentPracticeTitle+' », tu as déjà réduit la TAB jusqu’à '+bestFreedom+' %.';next='Tu peux repartir avec la TAB complète, puis retrouver progressivement ce niveau.';}
+  }
+ }
  if(sessionStarted){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
  if(sessionStarted&&x.reps>=3){state='TRAVAIL INSTALLÉ';msg='Tes répétitions commencent à installer le passage.';next='Refais-le encore proprement avant de décider si le tempo doit évoluer.';}
  if(sessionStarted&&x.reps>=6){state='PROGRÈS CONSOLIDÉ';msg='Tu as donné du temps au passage : c’est ce qui construit une progression durable.';next=x.gain?'Garde ce nouveau tempo seulement s’il reste musical et détendu.':'Tu n’as pas besoin d’accélérer : consolide d’abord cette sensation de contrôle.';}
