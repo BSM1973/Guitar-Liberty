@@ -974,7 +974,7 @@ playWithMeNext?.addEventListener('click',()=>{
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
-let alphaTabLoadGeneration=0,alphaTabClickHandler=null;
+let alphaTabLoadGeneration=0,libraryLoadGeneration=0,alphaTabClickHandler=null;
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
@@ -1704,6 +1704,8 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ const libraryGeneration=++libraryLoadGeneration;
+ const isCurrentLibraryLoad=()=>libraryGeneration===libraryLoadGeneration;
  setLessonInfo(button);
  setBackingTrack(button.dataset.backing||null);
  setVideoTrack(button.dataset.wistiaId||null,button.dataset.practiceVideo||null);
@@ -1715,12 +1717,13 @@ async function loadBundledScore(button){
  try{
   stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
   importStatus.textContent='Chargement de '+button.textContent.trim()+'…';
-  const response=await fetch(url);if(!response.ok)throw new Error('fichier intégré introuvable');
+  const response=await fetch(url);if(!isCurrentLibraryLoad())return;if(!response.ok)throw new Error('fichier intégré introuvable');
   const bytes=new Uint8Array(await response.arrayBuffer());
+  if(!isCurrentLibraryLoad())return;
   const loaded=await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
   if(!loaded)return;
   if(currentPracticeTitle&&savedExerciseTempo(currentPracticeTitle)){tempo.value=savedExerciseTempo(currentPracticeTitle);syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab)}
- }catch(err){console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
+ }catch(err){if(!isCurrentLibraryLoad())return;console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
 }
 document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked'))loadBundledScore(b)});
 refreshCourseProgress();
