@@ -96,9 +96,13 @@ const MEASURE_MASTERY_KEY='guitarLibertyMeasureMasteryV1';
 const MUSIC_GOAL_KEY='guitarLibertyMusicGoalV1';
 const GUITAR_JOURNAL_KEY='guitarLibertyJournalV1';
 const LAST_SESSION_INSIGHT_KEY='guitarLibertyLastSessionInsightV1';
+const EXERCISE_GOAL_KEY='guitarLibertyExerciseGoalsV1';
 const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
+function exerciseGoals(){try{return JSON.parse(localStorage.getItem(EXERCISE_GOAL_KEY)||'{}')}catch{return {}}}
+function savedExerciseGoal(name){const goals=exerciseGoals(),value=+goals[name];return Number.isFinite(value)&&value>0?value:0}
+function saveExerciseGoal(name,value){if(!name||name==='Exercice'||!Number.isFinite(+value)||+value<=0)return;const goals=exerciseGoals();goals[name]=+value;localStorage.setItem(EXERCISE_GOAL_KEY,JSON.stringify(goals))}
 function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
 let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false,expectedMidi=null,expectedSince=0,expectedMeasure=1,expectedToken=0,expectedResolved=false,lastDetectedMidi=null,lastAttackAt=0,lastSoundingAt=0,analysisHits=0,analysisTotal=0,timingHits=0,currentAnalysisMeasure=1,measurePerformance={},weakMeasure=null,adaptiveMode=false,adaptiveMeasureNo=null,adaptiveBaseline=null,adaptivePasses=0,adaptiveLastTotals={};
 const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),audioOutput=document.querySelector('#audioOutput'),guitarMonitor=document.querySelector('#guitarMonitor'),monitorToggle=document.querySelector('#monitorToggle'),monitorVolume=document.querySelector('#monitorVolume'),listenStart=document.querySelector('#listenStart');
@@ -1145,6 +1149,7 @@ autoBpm.onchange=()=>{
 };
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
+ saveExerciseGoal(currentPracticeTitle,+targetBpm.value);
  const currentTempo=+tempo.value||0,target=+targetBpm.value||0,autoStep=+autoBpm.value||0;
  if(sessionStarted&&sessionFirstPracticeAt&&autoStep>0&&target<=currentTempo){
   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
@@ -1624,7 +1629,7 @@ async function loadWithAlphaTab(file){
   if(sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)}
   currentPracticeTitle=loadedTitle;
-  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),lastWorkedTempo=previousSession?(+previousSession.end||+previousSession.best||0):0,completedTempos=previousRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0,resumeTempo=confirmedTempo||lastWorkedTempo,previousGoal=previousSession&&Number.isFinite(+previousSession.goal)?+previousSession.goal:0;
+  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),lastWorkedTempo=previousSession?(+previousSession.end||+previousSession.best||0):0,completedTempos=previousRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0,resumeTempo=confirmedTempo||lastWorkedTempo,previousGoal=savedExerciseGoal(currentPracticeTitle)||(previousSession&&Number.isFinite(+previousSession.goal)?+previousSession.goal:0);
   tempo.value=resumeTempo||score.tempo||tempo.value;
   targetBpm.value=Math.max(previousGoal,+tempo.value||0);
   syncTempo();setAlphaTempo(api);
