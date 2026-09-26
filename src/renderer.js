@@ -429,7 +429,7 @@ function startGuided(minutes=guidedMinutes){
  },1000);
  guidedSession.scrollIntoView({behavior:'smooth',block:'start'});
 }
-document.querySelector('#guidedNext').onclick=()=>{if(guidedStep<4){guidedStep++;paintGuided()}else{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true;saveCurrentSession();refreshDashboard()}};
+document.querySelector('#guidedNext').onclick=()=>{if(guidedStep<4){guidedStep++;paintGuided()}else{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true;resetTrainingSession();refreshDashboard();document.querySelector('.session-insight')?.scrollIntoView({behavior:'smooth',block:'center'})}};
 document.querySelector('#guidedPrev').onclick=()=>{if(guidedStep>0){guidedStep--;paintGuided()}};
 document.querySelector('#guidedClose').onclick=()=>{clearInterval(guidedTimer);guidedTimer=null;guidedSession.hidden=true};
 function formatDashTime(sec){sec=Math.max(0,Math.round(sec||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')}
