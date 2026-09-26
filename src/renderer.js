@@ -1448,7 +1448,7 @@ async function loadWithAlphaTab(file){
  api.scoreLoaded.on(score=>{
   completed=true;
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)} tempo.value=score.tempo||tempo.value; syncTempo(); setAlphaTempo(api);
-  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();
+  currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
  });
