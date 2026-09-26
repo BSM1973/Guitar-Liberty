@@ -1112,7 +1112,13 @@ loopToggle.onclick=()=>{
 autoBpm.onchange=()=>{
  autoBpm.value=Math.max(0,+autoBpm.value||0);
  if(sessionStarted&&sessionFirstPracticeAt){
-  if(+autoBpm.value>0){
+  if(+autoBpm.value>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
+   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+   pausePracticeClock();cancelDelayedPlayback();
+   const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}
+   practiceStatus.textContent='Objectif atteint • '+(+tempo.value||0)+' BPM';
+   if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
+  }else if(+autoBpm.value>0){
    practiceStatus.textContent=sessionPausedAt?'Prêt à reprendre • Auto BPM +'+autoBpm.value:'En cours • Auto BPM +'+autoBpm.value;
   }else{
    practiceStatus.textContent=sessionPausedAt?'Prêt à reprendre • Auto BPM désactivé':'En cours • Auto BPM désactivé';
