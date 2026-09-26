@@ -695,10 +695,15 @@ function startSession(){
 }
 function resetTrainingSession(){
  const finished=sessionStarted?sessionInsightData():null;
+ const previousFreedom=finished?previousLibertyLevel():null;
  saveCurrentSession();
  if(finished){lastSessionInsight=finished;writeLastSessionInsight(finished);}
  sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
- if(finished)paintSessionInsight(finished,true);
+ if(finished){
+  paintSessionInsight(finished,true);
+  const freedom=Number.isFinite(+finished.libertyLevel)?+finished.libertyLevel:100,next=document.querySelector('#insightNext');
+  if(next&&freedom<100&&(previousFreedom===null||freedom<previousFreedom))next.textContent=freedom===0?'Nouveau repère d’autonomie : tu as joué ce passage sans TAB pour la première fois. Laisse maintenant cette liberté devenir naturelle.':'Nouveau repère d’autonomie : tu as réduit la TAB jusqu’à '+freedom+' %. Consolide ce niveau avant de chercher à retirer davantage d’aide.';
+ }
 }
 resetSession.onclick=resetTrainingSession;
 if(lastSessionInsight)paintSessionInsight(lastSessionInsight,true);
