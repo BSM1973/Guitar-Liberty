@@ -674,8 +674,8 @@ function renderGuitarMemory(items){
 }
 function renderHistory(){
  const items=readHistory();renderGuitarMemory(items);historyCount.textContent=items.length+' session'+(items.length>1?'s':'');historySessions.textContent=items.length;
- const totalSec=items.reduce((sum,x)=>{const p=String(x.duration||'0:0').split(':').map(Number);return sum+(p[0]||0)*60+(p[1]||0)},0);
- historyTime.textContent=String(Math.floor(totalSec/60)).padStart(2,'0')+':'+String(totalSec%60).padStart(2,'0');
+ const totalSec=items.reduce((sum,x)=>sum+historySeconds(x),0);
+ historyTime.textContent=formatSessionDuration(totalSec);
  historyRecord.textContent=items.length?Math.max(...items.map(x=>+x.best||0))+' BPM':'—';
  const days=[...new Set(items.map(x=>{const m=String(x.date||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?m[3]+'-'+m[2]+'-'+m[1]:null}).filter(Boolean))].sort().reverse();
  let streak=0;if(days.length){let d=new Date(days[0]+'T12:00:00');const today=new Date();today.setHours(12,0,0,0);const gap=Math.round((today-d)/86400000);if(gap<=1){streak=1;for(let i=1;i<days.length;i++){const prev=new Date(days[i-1]+'T12:00:00'),cur=new Date(days[i]+'T12:00:00');if(Math.round((prev-cur)/86400000)===1)streak++;else break}}}
