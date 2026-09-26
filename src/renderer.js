@@ -708,14 +708,18 @@ function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INS
 let lastSessionInsight=readLastSessionInsight();
 function sessionInsightData(capturedAt=Date.now()){
  const sec=sessionStarted?(sessionFirstPracticeAt?activePracticeSeconds(capturedAt):0):0;
- const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),best=sessionBest||start,gain=Math.max(0,best-start);
- return {sec,reps,start,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
+ const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),current=+tempo.value||start,best=sessionBest||start,gain=Math.max(0,best-start);
+ return {sec,reps,start,current,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
 }
 function paintSessionInsight(data=null,finished=false){
  const q=s=>document.querySelector(s);if(!q('#sessionInsightState'))return;
  const x=data||(sessionStarted?sessionInsightData():lastSessionInsight)||{sec:0,reps:0,start:+tempo.value||0,best:0,gain:0};
  q('#insightTime').textContent=formatSessionDuration(x.sec);
- q('#insightReps').textContent=x.reps;q('#insightTempo').textContent=x.best?x.best+' BPM':'—';q('#insightGain').textContent=x.gain?'+'+x.gain+' BPM':'STABLE';
+ q('#insightReps').textContent=x.reps;
+ const displayedTempo=sessionStarted?(x.current||x.best):x.best;
+ q('#insightTempo').textContent=displayedTempo?displayedTempo+' BPM':'—';
+ q('#insightTempo').title=sessionStarted&&x.best&&x.best!==displayedTempo?'Meilleur tempo de la séance : '+x.best+' BPM':'Tempo de la séance';
+ q('#insightGain').textContent=x.gain?'+'+x.gain+' BPM':'STABLE';
  let state='PRÊT POUR UNE SÉANCE',msg='Commence ta séance à ton rythme.',next='À la fin, Guitare Liberty te proposera une seule prochaine étape.';
  if(lastSessionInsight&&!sessionStarted){state='DERNIÈRE SÉANCE';const exercise=x.exercise?' sur « '+x.exercise+' »':'',when=x.date?' • '+x.date:'';state+=''+when;msg=x.reps?'Tu as construit '+x.reps+' répétition'+(x.reps>1?'s':'')+' attentive'+(x.reps>1?'s':'')+exercise+'.':'Tu as pris du temps avec ton instrument'+exercise+'.';next=x.gain?'Ton nouveau repère est '+x.best+' BPM. Repars de là seulement si le jeu reste confortable.':'Reprends au même tempo : consolider est aussi progresser.';}
  if(!sessionStarted&&currentPracticeTitle&&currentPracticeTitle!=='Exercice'){
