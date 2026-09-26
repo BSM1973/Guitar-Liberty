@@ -681,8 +681,8 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
-let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0;
-const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound');
+let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMeAnswerTimer=null;
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound');
 function playWithMePaint(phase){
  playWithMePhase=phase;
  const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
@@ -699,6 +699,7 @@ function playWithMeTicks(){
  return {start:a.start||0,end:endTick};
 }
 function stopPlayWithMe(){
+ clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;
  playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=true;
  const api=window.guitarLibertyAlphaTab;if(api){try{api.pause()}catch(_){}}
 }
@@ -712,6 +713,7 @@ function startPlayWithMe(){
 playWithMeStart?.addEventListener('click',startPlayWithMe);
 playWithMeNext?.addEventListener('click',()=>{
  if(!playWithMeActive||playWithMePhase!=='answer')return;
+ clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;
  playWithMeRoundCount++;if(playWithMeRound)playWithMeRound.textContent=playWithMeRoundCount+' RÉPONSE'+(playWithMeRoundCount>1?'S':'');
  const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),nextStart=(+playWithMeBar.value||1)+len;
  if(nextStart>bars.length){playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Bravo. Tu as parcouru toutes les phrases disponibles.';playWithMeNext.disabled=true;return}
@@ -1204,6 +1206,12 @@ async function loadWithAlphaTab(file){
    if(playWithMeLastTick>=0&&tick>=playWithMeRange.end-1){
     try{api.pause();api.tickPosition=playWithMeRange.start}catch(_){}
     playWithMePaint('answer');if(playWithMeNext)playWithMeNext.disabled=false;
+    if(playWithMeAnswerMode?.value==='timed'){
+     const ticks=Math.max(1,playWithMeRange.end-playWithMeRange.start),quarter=practiceScore?.tempo||120;
+     const ms=Math.max(400,Math.round((ticks/960)*(60000/quarter)));
+     playWithMeText.textContent='À toi : rejoue la phrase. La phrase suivante partira automatiquement.';
+     clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=setTimeout(()=>{if(playWithMeActive&&playWithMePhase==='answer')playWithMeNext?.click()},ms);
+    }
    }
    playWithMeLastTick=tick;
   }
