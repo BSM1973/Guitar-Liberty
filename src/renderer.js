@@ -682,7 +682,7 @@ function setAlphaTempo(api){
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null;
-const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeReplay=document.querySelector('#playWithMeReplay'),playWithMeRestart=document.querySelector('#playWithMeRestart'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown'),playWithMeRepeatState=document.querySelector('#playWithMeRepeatState');
+const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeReplay=document.querySelector('#playWithMeReplay'),playWithMeRestart=document.querySelector('#playWithMeRestart'),playWithMeResume=document.querySelector('#playWithMeResume'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown'),playWithMeRepeatState=document.querySelector('#playWithMeRepeatState');
 function playWithMePaint(phase){
  playWithMePhase=phase;
  const listen=document.querySelector('#playWithMeListen'),answer=document.querySelector('#playWithMeAnswer');
@@ -701,14 +701,14 @@ function playWithMeTicks(){
 }
 function stopPlayWithMe(){
  clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';
- playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=true;
+ playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;playWithMePaint('idle');playWithMeStart.disabled=false;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=true;if(playWithMeResume)playWithMeResume.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=true;
  const api=window.guitarLibertyAlphaTab;if(api){try{api.pause()}catch(_){}}
 }
 function startPlayWithMe(){
  const api=window.guitarLibertyAlphaTab;if(!api||!practiceScore){playWithMeText.textContent='Charge d’abord une tablature Guitar Pro.';return}
  const range=playWithMeTicks();if(!range)return;
  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(api);
- playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMePhraseRepeat=0;playWithMeStart.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=false;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
+ playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMePhraseRepeat=0;playWithMeStart.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=false;if(playWithMeResume)playWithMeResume.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
  try{api.tickPosition=range.start;api.play()}catch(e){stopPlayWithMe()}
 }
 function startPlayWithMeTimedAnswer(){
@@ -721,6 +721,10 @@ function startPlayWithMeTimedAnswer(){
 }
 playWithMeRepeat?.addEventListener('change',()=>{if(playWithMeRepeatState){const max=Math.max(1,+playWithMeRepeat.value||1);playWithMeRepeatState.textContent='PASSAGE '+Math.min(max,playWithMePhraseRepeat+1)+'/'+max;}});
 playWithMeStart?.addEventListener('click',startPlayWithMe);
+playWithMeResume?.addEventListener('click',()=>{
+ if(playWithMeActive)return;
+ startPlayWithMe();
+});
 playWithMeRestart?.addEventListener('click',()=>{
  if(!playWithMeActive)return;
  clearTimeout(playWithMeAnswerTimer);playWithMeAnswerTimer=null;clearInterval(playWithMeCountdownTimer);playWithMeCountdownTimer=null;if(playWithMeCountdown)playWithMeCountdown.textContent='—';
@@ -749,7 +753,7 @@ playWithMeNext?.addEventListener('click',()=>{
  }
  playWithMePhraseRepeat=0;
  const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),nextStart=(+playWithMeBar.value||1)+len;
- if(nextStart>bars.length){playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Bravo. Tu as parcouru toutes les phrases disponibles.';playWithMeNext.disabled=true;return}
+ if(nextStart>bars.length){playWithMeActive=false;playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Session terminée • '+playWithMeRoundCount+' réponse'+(playWithMeRoundCount>1?'s':'')+'. Tu peux refaire la session avec les mêmes réglages.';playWithMeNext.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=true;if(playWithMeResume)playWithMeResume.disabled=false;playWithMeStart.disabled=false;playWithMeStop.disabled=true;return}
  playWithMeBar.value=nextStart;playWithMeRange=playWithMeTicks();playWithMeLastTick=-1;playWithMeNext.disabled=true;playWithMePaint('listen');
  const api=window.guitarLibertyAlphaTab;try{api.tickPosition=playWithMeRange.start;api.play()}catch(_){stopPlayWithMe()}
 });
