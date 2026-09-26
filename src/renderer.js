@@ -1505,9 +1505,11 @@ function drawLeftHandFingerings(api){
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  stop();
+ index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+ practiceScore=null;playCursor=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
+ tab.classList.remove('alphatab-score');tab.innerHTML='';
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
- tab.innerHTML='';
  const rawBytes=file.bytes||await window.guitarAudio.readScore(file.filePath);
  const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
  if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
