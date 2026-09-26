@@ -1522,7 +1522,15 @@ async function loadWithAlphaTab(file){
  tab.classList.remove('alphatab-score');tab.innerHTML='';
  alphaTabMode=true;
  tab.classList.add('alphatab-score');
- const rawBytes=file.bytes||await window.guitarAudio.readScore(file.filePath);
+ let rawBytes;
+ try{
+  rawBytes=file.bytes||await window.guitarAudio.readScore(file.filePath);
+ }catch(err){
+  // Ignore failures from a read that was superseded by a newer score request.
+  // The active load owns the UI and is the only one allowed to surface errors.
+  if(!isCurrentGeneration())return;
+  throw err;
+ }
  // Another score may have been requested while the file bytes were being read.
  // In that case this load is obsolete and must never create a new alphaTab API.
  if(!isCurrentGeneration())return;
