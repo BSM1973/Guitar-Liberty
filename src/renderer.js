@@ -1197,6 +1197,7 @@ document.querySelector('#play').onclick=async()=>{
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
    countInThenPlay(api,()=>{
+     if(practiceLoop){startSession();if(!sessionFirstPracticeAt)sessionFirstPracticeAt=Date.now();paintSession();}
      if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
        syncVideoTempo();
        if(practiceVideo.paused){
