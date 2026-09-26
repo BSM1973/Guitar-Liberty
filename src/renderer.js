@@ -696,12 +696,22 @@ function playWithMePaint(phase){
  if(playWithMeRepeatState){const repeatMax=Math.max(1,+playWithMeRepeat?.value||1);playWithMeRepeatState.textContent='PASSAGE '+Math.min(repeatMax,playWithMePhraseRepeat+1)+'/'+repeatMax;}
  if(playWithMeSessionProgress){const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),total=Math.max(1,Math.ceil(bars.length/len)),current=Math.max(1,Math.floor(((+playWithMeBar.value||1)-1)/len)+1);playWithMeSessionProgress.textContent=Math.max(0,Math.min(100,Math.round(((current-1)/total)*100)))+'%';}
 }
+function renderPlayWithMeHistory(){
+ const list=document.querySelector('#playWithMeHistoryList'),count=document.querySelector('#playWithMeHistoryCount');if(!list||!count)return;
+ let items=[];try{items=JSON.parse(localStorage.getItem(PLAY_WITH_ME_HISTORY_KEY)||'[]')}catch(_){}
+ count.textContent=items.length+' session'+(items.length>1?'s':'');
+ if(!items.length){list.innerHTML='<p>Aucune session terminée.</p>';return}
+ list.innerHTML=items.slice(0,8).map(x=>'<div class="history-row"><b>'+x.date+'</b><span>'+x.exercise+'</span><span>'+String(Math.floor((x.seconds||0)/60)).padStart(2,'0')+':'+String((x.seconds||0)%60).padStart(2,'0')+'</span><span>'+x.responses+' réponses</span><span>'+x.bpm+' BPM</span><strong>'+(x.mode==='timed'?'MÊME DURÉE':'LIBRE')+'</strong></div>').join('');
+}
 function savePlayWithMeSession(){
  const sec=Math.max(0,Math.floor((Date.now()-playWithMeStartedAt)/1000));
  let items=[];try{items=JSON.parse(localStorage.getItem(PLAY_WITH_ME_HISTORY_KEY)||'[]')}catch(_){}
  items.unshift({exercise:currentPracticeTitle,date:new Date().toLocaleString('fr-FR'),seconds:sec,responses:playWithMeRoundCount,format:+playWithMeLength.value||1,mode:playWithMeAnswerMode?.value||'manual',repeat:+playWithMeRepeat?.value||1,bpm:+tempo.value||0});
- localStorage.setItem(PLAY_WITH_ME_HISTORY_KEY,JSON.stringify(items.slice(0,50)));
+ localStorage.setItem(PLAY_WITH_ME_HISTORY_KEY,JSON.stringify(items.slice(0,50)));renderPlayWithMeHistory();
 }
+const playWithMeHistoryClear=document.querySelector('#playWithMeHistoryClear');
+playWithMeHistoryClear?.addEventListener('click',()=>{localStorage.removeItem(PLAY_WITH_ME_HISTORY_KEY);renderPlayWithMeHistory()});
+renderPlayWithMeHistory();
 function playWithMeTicks(){
  const bars=practiceBars(),start=Math.max(0,(+playWithMeBar.value||1)-1),len=Math.max(1,+playWithMeLength.value||1),a=bars[start],next=bars[start+len];
  if(!a)return null;const last=bars[Math.min(bars.length-1,start+len-1)],endTick=next?.start??(last.start+(last.calculateDuration?.()||0));
