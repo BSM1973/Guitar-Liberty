@@ -1656,7 +1656,7 @@ async function loadWithAlphaTab(file){
  });
  importStatus.textContent='Chargement de '+file.name+'…';
  const accepted=api.load(bytes);
- if(!accepted)throw new Error('alphaTab a refusé les données du fichier.');
+ if(!accepted){try{api.destroy()}catch(_){try{api.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;alphaTabMode=false;practiceScore=null;playCursor=null;tab.classList.remove('alphatab-score');tab.innerHTML='';document.querySelector('#play').textContent='▶ PLAY';throw new Error('alphaTab a refusé les données du fichier.');}
  setTimeout(()=>{if(!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
 }
 function setTutorial(url){
