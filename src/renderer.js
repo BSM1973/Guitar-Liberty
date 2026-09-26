@@ -664,7 +664,8 @@ function renderHistory(){
 function saveCurrentSession(){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
  const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
- items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date().toLocaleString('fr-FR'),duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
+ const savedAt=Date.now();
+ items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
  writeHistory(items);renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
 }
@@ -719,7 +720,7 @@ function previousLibertyLevel(){
 }
 function latestExerciseSession(rows){
  if(!rows.length)return null;
- const dated=rows.map((row,index)=>({row,index,time:Date.parse(row.date||'')})).filter(x=>Number.isFinite(x.time));
+ const dated=rows.map((row,index)=>({row,index,time:Number.isFinite(+row.timestamp)?+row.timestamp:Date.parse(row.date||'')})).filter(x=>Number.isFinite(x.time));
  if(dated.length)return dated.reduce((latest,x)=>x.time>latest.time?x:latest).row;
  return rows[0]||null;
 }
