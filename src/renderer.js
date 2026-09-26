@@ -1504,7 +1504,9 @@ function drawLeftHandFingerings(api){
 
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
+ const previousApi=window.guitarLibertyAlphaTab;
  stop();
+ if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
  index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
  practiceScore=null;playCursor=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
  tab.classList.remove('alphatab-score');tab.innerHTML='';
