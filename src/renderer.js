@@ -661,10 +661,9 @@ function renderHistory(){
  renderExerciseProgress(items);renderLearningPath(items);if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
  historyList.innerHTML=items.map(x=>{const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null,libertyText=freedom===0?'SANS TAB':freedom!==null&&freedom<100?'TAB '+freedom+' %':freedom===100?'TAB COMPLÈTE':'LIBERTÉ —';return '<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+x.series+' séries</span><span>'+x.reps+' répétitions</span><span>'+x.start+' → '+x.best+' BPM</span><span>'+libertyText+'</span><strong>+'+x.gain+' BPM</strong></div>'}).join('');
 }
-function saveCurrentSession(){
+function saveCurrentSession(savedAt=Date.now()){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
- const sec=Math.floor((Date.now()-sessionStarted)/1000),items=readHistory();
- const savedAt=Date.now();
+ const sec=Math.floor((savedAt-sessionStarted)/1000),items=readHistory();
  items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
  writeHistory(items);renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
@@ -675,10 +674,9 @@ function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps
 function readLastSessionInsight(){try{return JSON.parse(localStorage.getItem(LAST_SESSION_INSIGHT_KEY)||'null')}catch{return null}}
 function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INSIGHT_KEY,JSON.stringify(data))}catch{}}
 let lastSessionInsight=readLastSessionInsight();
-function sessionInsightData(){
- const sec=sessionStarted?Math.max(0,Math.floor((Date.now()-sessionStarted)/1000)):0;
+function sessionInsightData(capturedAt=Date.now()){
+ const sec=sessionStarted?Math.max(0,Math.floor((capturedAt-sessionStarted)/1000)):0;
  const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),best=sessionBest||start,gain=Math.max(0,best-start);
- const capturedAt=Date.now();
  return {sec,reps,start,best,gain,libertyLevel:sessionLowestLibertyLevel,exercise:currentPracticeTitle,date:new Date(capturedAt).toLocaleString('fr-FR'),timestamp:capturedAt};
 }
 function paintSessionInsight(data=null,finished=false){
@@ -738,9 +736,9 @@ function startSession(){
  sessionClock=setInterval(paintSession,1000)
 }
 function resetTrainingSession(){
- const finished=sessionStarted?sessionInsightData():null;
+ const finishedAt=Date.now(),finished=sessionStarted?sessionInsightData(finishedAt):null;
  const previousFreedom=finished?previousLibertyLevel():null;
- saveCurrentSession();
+ saveCurrentSession(finishedAt);
  if(finished){lastSessionInsight=finished;writeLastSessionInsight(finished);}
  sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
  if(finished&&libertyAuto?.value==='auto'&&libertyLevel&&+libertyLevel.value!==100){libertyLevel.value='100';applyLibertyMode();}
