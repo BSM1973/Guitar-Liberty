@@ -1110,8 +1110,15 @@ loopToggle.onclick=()=>{
 };
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
- if(!practiceLoop&&practiceStatus.textContent.indexOf('Objectif déjà atteint')===0){
-  practiceStatus.textContent=(+targetBpm.value>(+tempo.value||0))?'Prêt • nouvel objectif '+targetBpm.value+' BPM':'Objectif déjà atteint • '+(+tempo.value||0)+' BPM';
+ const currentTempo=+tempo.value||0,target=+targetBpm.value||0,autoStep=+autoBpm.value||0;
+ if(practiceLoop&&autoStep>0&&target<=currentTempo){
+  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+  pausePracticeClock();cancelDelayedPlayback();
+  const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}
+  practiceStatus.textContent='Objectif atteint • '+currentTempo+' BPM';
+  paintSession();
+ }else if(!practiceLoop&&practiceStatus.textContent.indexOf('Objectif déjà atteint')===0){
+  practiceStatus.textContent=target>currentTempo?'Prêt • nouvel objectif '+target+' BPM':'Objectif déjà atteint • '+currentTempo+' BPM';
  }
  renderExerciseProgress();
 };
