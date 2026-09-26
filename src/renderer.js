@@ -677,9 +677,9 @@ function renderHistory(){
  const totalSec=items.reduce((sum,x)=>sum+historySeconds(x),0);
  historyTime.textContent=formatSessionDuration(totalSec);
  historyRecord.textContent=items.length?Math.max(...items.map(x=>+x.best||0))+' BPM':'—';
- const days=[...new Set(items.map(x=>{const m=String(x.date||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?m[3]+'-'+m[2]+'-'+m[1]:null}).filter(Boolean))].sort().reverse();
- let streak=0;if(days.length){let d=new Date(days[0]+'T12:00:00');const today=new Date();today.setHours(12,0,0,0);const gap=Math.round((today-d)/86400000);if(gap<=1){streak=1;for(let i=1;i<days.length;i++){const prev=new Date(days[i-1]+'T12:00:00'),cur=new Date(days[i]+'T12:00:00');if(Math.round((prev-cur)/86400000)===1)streak++;else break}}}
+ const continuity=practiceContinuity(items),streak=continuity.current?continuity.count:0;
  historyStreak.textContent=streak+' jour'+(streak>1?'s':'');
+ historyStreak.title=continuity.count>1?(continuity.current?'Continuité de pratique en cours':'Dernière continuité : '+continuity.count+' jours'):'Continuité de pratique';
  renderExerciseProgress(items);renderLearningPath(items);if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
  historyList.innerHTML=items.map(x=>{const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null,libertyText=freedom===0?'SANS TAB':freedom!==null&&freedom<100?'TAB '+freedom+' %':freedom===100?'TAB COMPLÈTE':'LIBERTÉ —',series=Math.max(0,+x.series||0),reps=Math.max(0,+x.reps||0),end=+x.end||+x.best||+x.start||0,best=+x.best||end,start=+x.start||end;return '<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+series+' série'+(series>1?'s':'')+'</span><span>'+reps+' répétition'+(reps>1?'s':'')+'</span><span>'+start+' → '+end+' BPM'+(best!==end?' • record '+best:'')+'</span><span>'+libertyText+'</span><strong>+'+(+x.gain||0)+' BPM</strong></div>'}).join('');
 }
