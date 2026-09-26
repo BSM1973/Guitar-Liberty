@@ -682,6 +682,16 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
+const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset');
+function applyLibertyMode(){
+ const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tab=document.querySelector('#alphaTab');
+ if(libertyState)libertyState.textContent=level?'TAB '+level+'%':'SANS TAB';
+ if(libertyText)libertyText.textContent=level===100?'La tablature est complète : observe, écoute et mémorise.':level===0?'La tablature disparaît. Continue à jouer avec l’audio, le tempo et les repères déjà appris.':'L’aide visuelle diminue. Joue davantage de mémoire sans interrompre la musique.';
+ if(tab){tab.style.opacity=String(level/100);tab.style.visibility=level===0?'hidden':'visible';}
+}
+libertyLevel?.addEventListener('change',applyLibertyMode);
+libertyReset?.addEventListener('click',()=>{if(libertyLevel)libertyLevel.value='100';applyLibertyMode()});
+applyLibertyMode();
 let playWithMeActive=false,playWithMePhase='idle',playWithMeRange=null,playWithMeLastTick=-1,playWithMeRoundCount=0,playWithMePhraseRepeat=0,playWithMeAnswerTimer=null,playWithMeCountdownTimer=null,playWithMeStartedAt=0,playWithMeElapsedTimer=null;
 const playWithMeBar=document.querySelector('#playWithMeBar'),playWithMeLength=document.querySelector('#playWithMeLength'),playWithMeStart=document.querySelector('#playWithMeStart'),playWithMeReplay=document.querySelector('#playWithMeReplay'),playWithMeRestart=document.querySelector('#playWithMeRestart'),playWithMeResume=document.querySelector('#playWithMeResume'),playWithMeNext=document.querySelector('#playWithMeNext'),playWithMeStop=document.querySelector('#playWithMeStop'),playWithMeState=document.querySelector('#playWithMeState'),playWithMeText=document.querySelector('#playWithMeText'),playWithMeAnswerMode=document.querySelector('#playWithMeAnswerMode'),playWithMeRepeat=document.querySelector('#playWithMeRepeat'),playWithMeLead=document.querySelector('#playWithMeLead'),playWithMeSessionLength=document.querySelector('#playWithMeSessionLength'),playWithMeProgress=document.querySelector('#playWithMeProgress'),playWithMeRound=document.querySelector('#playWithMeRound'),playWithMeCountdown=document.querySelector('#playWithMeCountdown'),playWithMeRepeatState=document.querySelector('#playWithMeRepeatState'),playWithMeSessionProgress=document.querySelector('#playWithMeSessionProgress'),playWithMeElapsed=document.querySelector('#playWithMeElapsed');
 function playWithMePaint(phase){
