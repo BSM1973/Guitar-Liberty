@@ -686,7 +686,7 @@ function renderHistory(){
 function saveCurrentSession(savedAt=Date.now()){
  if(!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
  const sec=sessionFirstPracticeAt?activePracticeSeconds(savedAt):Math.floor((savedAt-sessionStarted)/1000),items=readHistory();
- items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:formatSessionDuration(sec),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
+ items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:formatSessionDuration(sec),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,end:+tempo.value||sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
  writeHistory(items);renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
  setTimeout(paintLessonMastery,0);
 }
