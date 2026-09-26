@@ -616,11 +616,14 @@ renderGuitarJournal();
 function renderGuitarMemory(items){
  const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
  if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
- const chronological=items.slice().reverse(),events=[],seen=new Set();let record=0,totalReps=0;
+ const chronological=items.slice().reverse(),events=[],seen=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false;
  chronological.forEach((x,i)=>{
   const name=x.exercise||'Exercice';
   if(!seen.has(name)){seen.add(name);events.push({date:x.date,title:i===0?'Le voyage commence':'Un nouveau chapitre',text:'Première séance sur « '+name+' ».'})}
   const best=+x.best||0;if(best>record){const previous=record;record=best;events.push({date:x.date,title:previous?'Nouveau repère personnel':'Premier tempo de référence',text:'Tu as installé un nouveau repère à '+best+' BPM. Ce nombre raconte une étape, pas ta valeur de musicien.'})}
+  const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null;
+  if(freedom!==null&&freedom<100&&!firstReducedTab){firstReducedTab=true;events.push({date:x.date,title:'La TAB commence à s’effacer',text:'Pour la première fois, tu as laissé davantage de place à ta mémoire et à ton écoute sur « '+name+' ».'})}
+  if(freedom===0&&!firstNoTab){firstNoTab=true;events.push({date:x.date,title:'Premier passage sans TAB',text:'Tu as joué « '+name+' » sans dépendre de la tablature. Une étape de liberté, à retrouver naturellement plutôt qu’à prouver.'})}
   const before=totalReps;totalReps+=+x.reps||0;
   [10,25,50,100,250].forEach(m=>{if(before<m&&totalReps>=m)events.push({date:x.date,title:m+' répétitions vécues',text:'Du temps passé avec l’instrument : c’est cette continuité qui construit ton jeu.'})});
  });
