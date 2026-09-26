@@ -1755,8 +1755,11 @@ if(importButton) importButton.onclick=async()=>{
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
   const key='imported';
-  exercises[key]={title:file.name.replace(/\.(musicxml|xml)$/i,''),subtitle:'Tablature importée • MusicXML',tempo:importedTempo,repeat:1,notes:imported,measures:importedMeasures};
+  const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),rememberedTempo=savedExerciseTempo(importedTitle);
+  exercises[key]={title:importedTitle,subtitle:'Tablature importée • MusicXML',tempo:rememberedTempo||importedTempo,repeat:1,notes:imported,measures:importedMeasures};
+  currentPracticeTitle=importedTitle;
   current=key; stop(); render();
+  if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   document.querySelectorAll('.exercise').forEach(b=>b.classList.remove('active'));
   importStatus.textContent=file.name+' — '+imported.length+' notes affichées';
   window.pendingImportedScore=file;
