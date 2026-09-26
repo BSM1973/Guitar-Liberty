@@ -1728,8 +1728,12 @@ async function loadBundledScore(button){
 document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked'))loadBundledScore(b)});
 refreshCourseProgress();
 if(importButton) importButton.onclick=async()=>{
+ // A manual import becomes the newest score request immediately. Invalidate
+ // any library fetch still in flight so it cannot take over afterwards.
+ const importLibraryGeneration=++libraryLoadGeneration;
  const file=await window.guitarAudio.importScore();
  if(!file)return;
+ if(importLibraryGeneration!==libraryLoadGeneration)return;
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
   try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
