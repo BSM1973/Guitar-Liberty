@@ -722,7 +722,7 @@ function paintSessionInsight(data=null,finished=false){
  q('#insightTempo').title=sessionStarted&&x.best&&x.best!==displayedTempo?'Meilleur tempo de la séance : '+x.best+' BPM':'Tempo de la séance';
  q('#insightGain').textContent=x.gain?'+'+x.gain+' BPM':'STABLE';
  let state='PRÊT POUR UNE SÉANCE',msg='Commence ta séance à ton rythme.',next='À la fin, Guitare Liberty te proposera une seule prochaine étape.';
- if(lastSessionInsight&&!sessionStarted){state='DERNIÈRE SÉANCE';const exercise=x.exercise?' sur « '+x.exercise+' »':'',when=x.date?' • '+x.date:'';state+=''+when;msg=x.reps?'Tu as construit '+x.reps+' répétition'+(x.reps>1?'s':'')+' attentive'+(x.reps>1?'s':'')+exercise+'.':'Tu as pris du temps avec ton instrument'+exercise+'.';next=x.gain?'Ton nouveau repère est '+x.best+' BPM. Repars de là seulement si le jeu reste confortable.':'Reprends au même tempo : consolider est aussi progresser.';}
+ if(lastSessionInsight&&!sessionStarted){state='DERNIÈRE SÉANCE';const exercise=x.exercise?' sur « '+x.exercise+' »':'',when=x.date?' • '+x.date:'',series=+x.series||0,seriesText=series?' en '+series+' série'+(series>1?'s':''):'';state+=''+when;msg=x.reps?'Tu as construit '+x.reps+' répétition'+(x.reps>1?'s':'')+' attentive'+(x.reps>1?'s':'')+seriesText+exercise+'.':'Tu as pris du temps avec ton instrument'+exercise+'.';next=x.gain?'Ton nouveau repère est '+x.best+' BPM. Repars de là seulement si le jeu reste confortable.':'Reprends au même tempo : consolider est aussi progresser.';}
  if(!sessionStarted&&currentPracticeTitle&&currentPracticeTitle!=='Exercice'){
   const exerciseRows=readHistory().filter(h=>(h.exercise||h.title)===currentPracticeTitle&&Number.isFinite(+h.libertyLevel));
   if(exerciseRows.length){
