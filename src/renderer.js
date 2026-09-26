@@ -1091,7 +1091,7 @@ loopToggle.onclick=()=>{
  if(!practiceLoop&&sessionHistorySaved&&sessionStarted)resetTrainingSession();
  const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount;
  if(!practiceLoop&&!resumingPausedSession&&(+autoBpm.value||0)>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
-  practiceStatus.textContent='Objectif déjà atteint • '+(+tempo.value||0)+' BPM';
+  practiceStatus.textContent='Objectif déjà atteint • '+(+tempo.value||0)+' BPM • augmente la cible pour continuer';
   loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');updatePracticeProgress(0);
   return;
  }
@@ -1120,7 +1120,7 @@ targetBpm.onchange=()=>{
   paintSession();
   if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
  }else if(!practiceLoop&&practiceStatus.textContent.indexOf('Objectif déjà atteint')===0){
-  practiceStatus.textContent=target>currentTempo?'Prêt • nouvel objectif '+target+' BPM':'Objectif déjà atteint • '+currentTempo+' BPM';
+  practiceStatus.textContent=target>currentTempo?'Prêt • nouvel objectif '+target+' BPM':'Objectif déjà atteint • '+currentTempo+' BPM • augmente la cible pour continuer';
  }
  renderExerciseProgress();
 };
