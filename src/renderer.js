@@ -643,21 +643,34 @@ function saveCurrentSession(){
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
 renderHistory();
 function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');paintSessionInsight()}}
-function paintSessionInsight(){
- const q=s=>document.querySelector(s);if(!q('#sessionInsightState'))return;
+let lastSessionInsight=null;
+function sessionInsightData(){
  const sec=sessionStarted?Math.max(0,Math.floor((Date.now()-sessionStarted)/1000)):0;
  const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),best=sessionBest||start,gain=Math.max(0,best-start);
- q('#insightTime').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
- q('#insightReps').textContent=reps;q('#insightTempo').textContent=best?best+' BPM':'—';q('#insightGain').textContent=gain?'+'+gain+' BPM':'STABLE';
+ return {sec,reps,start,best,gain};
+}
+function paintSessionInsight(data=null,finished=false){
+ const q=s=>document.querySelector(s);if(!q('#sessionInsightState'))return;
+ const x=data||(sessionStarted?sessionInsightData():lastSessionInsight)||{sec:0,reps:0,start:+tempo.value||0,best:0,gain:0};
+ q('#insightTime').textContent=String(Math.floor(x.sec/60)).padStart(2,'0')+':'+String(x.sec%60).padStart(2,'0');
+ q('#insightReps').textContent=x.reps;q('#insightTempo').textContent=x.best?x.best+' BPM':'—';q('#insightGain').textContent=x.gain?'+'+x.gain+' BPM':'STABLE';
  let state='PRÊT POUR UNE SÉANCE',msg='Commence ta séance à ton rythme.',next='À la fin, Guitare Liberty te proposera une seule prochaine étape.';
- if(sessionStarted){state='SÉANCE EN COURS';msg=reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
- if(reps>=3){state='TRAVAIL INSTALLÉ';msg='Tes répétitions commencent à installer le passage.';next='Refais-le encore proprement avant de décider si le tempo doit évoluer.';}
- if(reps>=6){state='PROGRÈS CONSOLIDÉ';msg='Tu as donné du temps au passage : c’est ce qui construit une progression durable.';next=gain?'Garde ce nouveau tempo seulement s’il reste musical et détendu.':'Tu n’as pas besoin d’accélérer : consolide d’abord cette sensation de contrôle.';}
+ if(lastSessionInsight&&!sessionStarted){state='DERNIÈRE SÉANCE';msg=x.reps?'Tu as construit '+x.reps+' répétition'+(x.reps>1?'s':'')+' attentive'+(x.reps>1?'s':'')+'.':'Tu as pris du temps avec ton instrument.';next=x.gain?'Ton nouveau repère est '+x.best+' BPM. Repars de là seulement si le jeu reste confortable.':'Reprends au même tempo : consolider est aussi progresser.';}
+ if(sessionStarted){state='SÉANCE EN COURS';msg=x.reps?'Tu es en train de construire de la régularité.':'Installe d’abord le geste et le son, sans chercher à aller vite.';next='Continue tant que ton jeu reste confortable et attentif.';}
+ if(sessionStarted&&x.reps>=3){state='TRAVAIL INSTALLÉ';msg='Tes répétitions commencent à installer le passage.';next='Refais-le encore proprement avant de décider si le tempo doit évoluer.';}
+ if(sessionStarted&&x.reps>=6){state='PROGRÈS CONSOLIDÉ';msg='Tu as donné du temps au passage : c’est ce qui construit une progression durable.';next=x.gain?'Garde ce nouveau tempo seulement s’il reste musical et détendu.':'Tu n’as pas besoin d’accélérer : consolide d’abord cette sensation de contrôle.';}
+ if(finished){state='SÉANCE TERMINÉE';msg=x.reps?'Tu viens de construire '+x.reps+' répétition'+(x.reps>1?'s':'')+' sur ce passage.':'Cette séance compte dans ton parcours.';next=x.gain?'Tu es passé de '+x.start+' à '+x.best+' BPM. Consolide ce repère à la prochaine séance.':'À la prochaine séance, repars de ce tempo avant de décider d’accélérer.';}
  q('#sessionInsightState').textContent=state;q('#insightMessage').textContent=msg;q('#insightNext').textContent=next;
 }
 
 function startSession(){if(sessionStarted)return;sessionStarted=Date.now();sessionStartBpm=+tempo.value||0;sessionBest=sessionStartBpm;paintSession();sessionClock=setInterval(paintSession,1000)}
-function resetTrainingSession(){saveCurrentSession();sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession()}
+function resetTrainingSession(){
+ const finished=sessionStarted?sessionInsightData():null;
+ saveCurrentSession();
+ if(finished)lastSessionInsight=finished;
+ sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
+ if(finished)paintSessionInsight(finished,true);
+}
 resetSession.onclick=resetTrainingSession;
 function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
 function practiceBars(){return practiceScore?.masterBars||[]}
