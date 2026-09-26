@@ -1621,7 +1621,7 @@ async function loadWithAlphaTab(file){
   completed=true;
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)}
   currentPracticeTitle=score.title||file.name.replace(/\.[^.]+$/,'');
-  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),resumeTempo=previousSession?(+previousSession.end||+previousSession.best||0):0;
+  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),lastWorkedTempo=previousSession?(+previousSession.end||+previousSession.best||0):0,completedTempos=previousRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0,resumeTempo=confirmedTempo||lastWorkedTempo;
   tempo.value=resumeTempo||score.tempo||tempo.value;
   if(+targetBpm.value<+tempo.value)targetBpm.value=tempo.value;
   syncTempo();setAlphaTempo(api);
