@@ -681,9 +681,11 @@ function renderHistory(){
  const items=readHistory();renderGuitarMemory(items);historyCount.textContent=items.length+' session'+(items.length>1?'s':'');historySessions.textContent=items.length;
  const totalSec=items.reduce((sum,x)=>sum+historySeconds(x),0);
  historyTime.textContent=formatSessionDuration(totalSec);
- const historyBest=items.reduce((best,x)=>Math.max(best,Number.isFinite(+x.best)?+x.best:Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.start)?+x.start:0),0);
+ const historyBest=items.reduce((best,x)=>Math.max(best,Number.isFinite(+x.best)?+x.best:Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.start)?+x.start:0),0),historyCompletedByExercise=new Map();
+ items.forEach(x=>{const name=x.exercise||x.title||'Exercice',v=Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0;if(v>0){const a=historyCompletedByExercise.get(name)||[];a.push(v);historyCompletedByExercise.set(name,a)}});
+ let historyConfirmedBest=0;historyCompletedByExercise.forEach(a=>{if(a.length>=2){a.sort((x,y)=>y-x);historyConfirmedBest=Math.max(historyConfirmedBest,a[1])}});
  historyRecord.textContent=historyBest?historyBest+' BPM':'—';
- historyRecord.title=historyBest?'Meilleur tempo réellement atteint dans l’historique':'Aucun tempo enregistré';
+ historyRecord.title=historyBest?'Record '+historyBest+' BPM'+(historyConfirmedBest?' • meilleur tempo confirmé sur plusieurs séances : '+historyConfirmedBest+' BPM':' • pas encore de tempo confirmé sur plusieurs séances'):'Aucun tempo enregistré';
  const continuity=practiceContinuity(items),streak=continuity.current?continuity.count:0;
  historyStreak.textContent=streak+' jour'+(streak>1?'s':'');
  historyStreak.title=continuity.count>1?(continuity.current?'Continuité de pratique en cours':'Dernière continuité : '+continuity.count+' jours'):'Continuité de pratique';
