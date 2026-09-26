@@ -95,6 +95,7 @@ const LESSON_KEY='guitarLibertyLessonProgress';
 const MEASURE_MASTERY_KEY='guitarLibertyMeasureMasteryV1';
 const MUSIC_GOAL_KEY='guitarLibertyMusicGoalV1';
 const GUITAR_JOURNAL_KEY='guitarLibertyJournalV1';
+const LAST_SESSION_INSIGHT_KEY='guitarLibertyLastSessionInsightV1';
 const lessonComplete=document.querySelector('#lessonComplete'),lessonObjective=document.querySelector('#lessonObjective'),lessonPrereq=document.querySelector('#lessonPrereq'),lessonDifficulty=document.querySelector('#lessonDifficulty'),lessonKey=document.querySelector('#lessonKey'),lessonTempo=document.querySelector('#lessonTempo');
 let currentLessonId='';
 function lessonProgress(){try{return JSON.parse(localStorage.getItem(LESSON_KEY)||'{}')}catch{return {}}}
@@ -646,7 +647,9 @@ function saveCurrentSession(){
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory()};
 renderHistory();
 function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){const sec=Math.floor((Date.now()-sessionStarted)/1000);sessionTime.textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');paintSessionInsight()}}
-let lastSessionInsight=null;
+function readLastSessionInsight(){try{return JSON.parse(localStorage.getItem(LAST_SESSION_INSIGHT_KEY)||'null')}catch{return null}}
+function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INSIGHT_KEY,JSON.stringify(data))}catch{}}
+let lastSessionInsight=readLastSessionInsight();
 function sessionInsightData(){
  const sec=sessionStarted?Math.max(0,Math.floor((Date.now()-sessionStarted)/1000)):0;
  const reps=sessionRepCount||0,start=sessionStartBpm||(+tempo.value||0),best=sessionBest||start,gain=Math.max(0,best-start);
@@ -675,11 +678,12 @@ function startSession(){if(sessionStarted)return;sessionStarted=Date.now();sessi
 function resetTrainingSession(){
  const finished=sessionStarted?sessionInsightData():null;
  saveCurrentSession();
- if(finished)lastSessionInsight=finished;
+ if(finished){lastSessionInsight=finished;writeLastSessionInsight(finished);}
  sessionStarted=null;sessionSeriesCount=0;sessionRepCount=0;sessionBest=0;sessionStartBpm=0;clearInterval(sessionClock);sessionClock=null;sessionTime.textContent='00:00';paintSession();
  if(finished)paintSessionInsight(finished,true);
 }
 resetSession.onclick=resetTrainingSession;
+if(lastSessionInsight)paintSessionInsight(lastSessionInsight,true);
 function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
 function practiceBars(){return practiceScore?.masterBars||[]}
 function syncPracticeRange(){
