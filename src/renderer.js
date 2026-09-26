@@ -1078,7 +1078,10 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
 }
 loopToggle.onclick=()=>{
  const wasLooping=practiceLoop;practiceLoop=!practiceLoop;practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
- if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
+ if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
+  pausePracticeClock();
+  if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
+ }
  if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount){resetTrainingSession();}
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
