@@ -454,10 +454,13 @@ function refreshDashboard(){
  const currentRows=history.filter(x=>!next||(x.exercise||x.title)===currentName);
  const currentReps=currentRows.reduce((n,x)=>n+(+x.reps||0),0);
  const currentBest=currentRows.reduce((n,x)=>Math.max(n,+x.best||+x.bestBpm||0),0);
+ const libertyRows=currentRows.filter(x=>Number.isFinite(+x.libertyLevel));
+ const currentLiberty=libertyRows.length?libertyRows.reduce((n,x)=>Math.min(n,+x.libertyLevel),100):100;
  const suggested=+(next?.dataset.bpm||targetBpm.value||50);
  let stage='learn',state='EN APPRENTISSAGE',recommendation='Découvre '+currentName+'.',reason='Prends le temps de comprendre le geste avant de chercher la vitesse.';
  if(currentRows.length>=1||currentReps>=3){stage='play';state='EN PROGRÈS';recommendation='Consolide '+currentName+' avec quelques répétitions propres.';reason='Tu as déjà commencé ce travail : la régularité compte maintenant davantage que la vitesse.';}
  if(currentRows.length>=2&&currentReps>=6&&currentBest>=suggested){stage='free';state='PRÊT À SE LIBÉRER';recommendation='Joue '+currentName+' avec moins de dépendance à la TAB.';reason='Le passage est suffisamment travaillé pour commencer à transformer l’exercice en musique.';}
+ if(currentLiberty<100&&currentRows.length){stage='free';state=currentLiberty===0?'AUTONOMIE ATTEINTE':'LIBERTÉ EN COURS';recommendation=currentLiberty===0?'Rejoue '+currentName+' sans TAB, avec le même confort.':'Retrouve '+currentName+' avec une TAB réduite à '+currentLiberty+' %.';reason=currentLiberty===0?'Tu as déjà joué ce passage sans TAB. Le prochain objectif est de rendre cette autonomie naturelle et reproductible.':'Tu as déjà diminué l’aide visuelle jusqu’à '+currentLiberty+' %. Consolide ce niveau avant de retirer davantage de TAB.';}
  if(!next&&buttons.length){stage='free';state='PARCOURS ACQUIS';recommendation='Rejoue librement un cours que tu aimes.';reason='Tes cours disponibles sont validés : entretiens maintenant le plaisir et la liberté de jeu.';}
  const stages=['learn','play','free'],stageIndex=stages.indexOf(stage);
  document.querySelectorAll('[data-liberty-step]').forEach((el,i)=>{el.classList.toggle('done',i<stageIndex);el.classList.toggle('active',i===stageIndex)});
