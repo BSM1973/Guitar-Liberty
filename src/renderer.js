@@ -691,6 +691,8 @@ function saveCurrentSession(savedAt=Date.now()){
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
 renderHistory();
 function activePracticeSeconds(at=Date.now()){if(!sessionFirstPracticeAt)return 0;const paused=sessionPausedMs+(sessionPausedAt?Math.max(0,at-sessionPausedAt):0);return Math.max(0,Math.floor((at-sessionFirstPracticeAt-paused)/1000))}
+function pausePracticeClock(at=Date.now()){if(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt)sessionPausedAt=at}
+function resumePracticeClock(at=Date.now()){if(!sessionPausedAt)return;sessionPausedMs+=Math.max(0,at-sessionPausedAt);sessionPausedAt=null}
 function paintSession(){sessionSeries.textContent=sessionSeriesCount;sessionReps.textContent=sessionRepCount;sessionBestBpm.textContent=sessionBest||0;sessionGain.textContent='+'+Math.max(0,(sessionBest||0)-(sessionStartBpm||0))+' BPM';if(sessionStarted){sessionTime.textContent=formatSessionDuration(activePracticeSeconds());paintSessionInsight()}}
 function readLastSessionInsight(){try{return JSON.parse(localStorage.getItem(LAST_SESSION_INSIGHT_KEY)||'null')}catch{return null}}
 function writeLastSessionInsight(data){try{localStorage.setItem(LAST_SESSION_INSIGHT_KEY,JSON.stringify(data))}catch{}}
@@ -1420,7 +1422,7 @@ async function loadWithAlphaTab(file){
    if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
- api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){if(e.state===1&&sessionPausedAt){sessionPausedMs+=Math.max(0,Date.now()-sessionPausedAt);sessionPausedAt=null}else if(e.state!==1&&!sessionPausedAt)sessionPausedAt=Date.now()}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
+ api.playerStateChanged.on(e=>{if(e.state===1){playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){const stateAt=Date.now();if(e.state===1)resumePracticeClock(stateAt);else pausePracticeClock(stateAt)}document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';});
  api.playerPositionChanged.on(e=>{
   const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
   const lockedPaperY=!playbackFollowEnabled?document.querySelector('.paper')?.scrollTop:null;
