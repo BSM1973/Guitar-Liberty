@@ -645,7 +645,7 @@ renderGuitarJournal();
 function renderGuitarMemory(items){
  const box=document.querySelector('#memoryTimeline'),count=document.querySelector('#memoryCount');if(!box||!count)return;
  if(!items.length){count.textContent='AUCUN SOUVENIR';box.innerHTML='<p>Ta première séance écrira ici le début de ton histoire.</p>';return}
- const chronological=items.slice().reverse(),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
+ const chronological=items.slice().map((row,index)=>({row,index,time:Number.isFinite(+row.timestamp)?+row.timestamp:Date.parse(row.date||'')})).sort((a,b)=>{const at=Number.isFinite(a.time)?a.time:null,bt=Number.isFinite(b.time)?b.time:null;if(at!==null&&bt!==null)return at-bt;if(at!==null)return -1;if(bt!==null)return 1;return b.index-a.index}).map(x=>x.row),events=[],seen=new Set(),noTabByExercise=new Map(),consolidatedFreedom=new Set(),continuityMilestones=new Set();let record=0,totalReps=0,firstReducedTab=false,firstNoTab=false,lastPracticeDay=null,continuityDays=0;
  chronological.forEach((x,i)=>{
   const name=x.exercise||'Exercice';
   const day=practiceDayKey(x);
