@@ -90,6 +90,7 @@ const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelec
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,countInAudio=null,playCursor=null;
 let sessionStarted=null,sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
+const PLAY_WITH_ME_HISTORY_KEY='guitarLibertyPlayWithMeHistoryV1';
 const LESSON_KEY='guitarLibertyLessonProgress';
 const MEASURE_MASTERY_KEY='guitarLibertyMeasureMasteryV1';
 const MUSIC_GOAL_KEY='guitarLibertyMusicGoalV1';
@@ -695,6 +696,12 @@ function playWithMePaint(phase){
  if(playWithMeRepeatState){const repeatMax=Math.max(1,+playWithMeRepeat?.value||1);playWithMeRepeatState.textContent='PASSAGE '+Math.min(repeatMax,playWithMePhraseRepeat+1)+'/'+repeatMax;}
  if(playWithMeSessionProgress){const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),total=Math.max(1,Math.ceil(bars.length/len)),current=Math.max(1,Math.floor(((+playWithMeBar.value||1)-1)/len)+1);playWithMeSessionProgress.textContent=Math.max(0,Math.min(100,Math.round(((current-1)/total)*100)))+'%';}
 }
+function savePlayWithMeSession(){
+ const sec=Math.max(0,Math.floor((Date.now()-playWithMeStartedAt)/1000));
+ let items=[];try{items=JSON.parse(localStorage.getItem(PLAY_WITH_ME_HISTORY_KEY)||'[]')}catch(_){}
+ items.unshift({exercise:currentPracticeTitle,date:new Date().toLocaleString('fr-FR'),seconds:sec,responses:playWithMeRoundCount,format:+playWithMeLength.value||1,mode:playWithMeAnswerMode?.value||'manual',repeat:+playWithMeRepeat?.value||1,bpm:+tempo.value||0});
+ localStorage.setItem(PLAY_WITH_ME_HISTORY_KEY,JSON.stringify(items.slice(0,50)));
+}
 function playWithMeTicks(){
  const bars=practiceBars(),start=Math.max(0,(+playWithMeBar.value||1)-1),len=Math.max(1,+playWithMeLength.value||1),a=bars[start],next=bars[start+len];
  if(!a)return null;const last=bars[Math.min(bars.length-1,start+len-1)],endTick=next?.start??(last.start+(last.calculateDuration?.()||0));
@@ -754,7 +761,7 @@ playWithMeNext?.addEventListener('click',()=>{
  }
  playWithMePhraseRepeat=0;
  const bars=practiceBars(),len=Math.max(1,+playWithMeLength.value||1),nextStart=(+playWithMeBar.value||1)+len;
- if(nextStart>bars.length){playWithMeActive=false;clearInterval(playWithMeElapsedTimer);playWithMeElapsedTimer=null;if(playWithMeSessionProgress)playWithMeSessionProgress.textContent='100%';playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Session terminée • '+playWithMeRoundCount+' réponse'+(playWithMeRoundCount>1?'s':'')+'. Tu peux refaire la session avec les mêmes réglages.';playWithMeNext.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=true;if(playWithMeResume)playWithMeResume.disabled=false;playWithMeStart.disabled=false;playWithMeStop.disabled=true;return}
+ if(nextStart>bars.length){playWithMeActive=false;clearInterval(playWithMeElapsedTimer);playWithMeElapsedTimer=null;savePlayWithMeSession();if(playWithMeSessionProgress)playWithMeSessionProgress.textContent='100%';playWithMeState.textContent='TERMINÉ';playWithMeText.textContent='Session terminée • '+playWithMeRoundCount+' réponse'+(playWithMeRoundCount>1?'s':'')+'. Tu peux refaire la session avec les mêmes réglages.';playWithMeNext.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=true;if(playWithMeResume)playWithMeResume.disabled=false;playWithMeStart.disabled=false;playWithMeStop.disabled=true;return}
  playWithMeBar.value=nextStart;playWithMeRange=playWithMeTicks();playWithMeLastTick=-1;playWithMeNext.disabled=true;playWithMePaint('listen');
  const api=window.guitarLibertyAlphaTab;try{api.tickPosition=playWithMeRange.start;api.play()}catch(_){stopPlayWithMe()}
 });
