@@ -1760,6 +1760,20 @@ if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
  if(importLibraryGeneration!==libraryLoadGeneration)return;
+ const previousLessonContext={
+  id:currentLessonId,
+  objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
+  difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,tempo:lessonTempo.textContent
+ };
+ const restorePreviousLessonContext=()=>{
+  currentLessonId=previousLessonContext.id;
+  lessonObjective.textContent=previousLessonContext.objective;
+  lessonPrereq.textContent=previousLessonContext.prereq;
+  lessonDifficulty.textContent=previousLessonContext.difficulty;
+  lessonKey.textContent=previousLessonContext.key;
+  lessonTempo.textContent=previousLessonContext.tempo;
+  paintLessonComplete();paintLessonMastery();
+ };
  const prepareManualImportContext=()=>{
   setBackingTrack(null);
   setVideoTrack(null,null);
@@ -1794,8 +1808,12 @@ if(importButton) importButton.onclick=async()=>{
    const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
    if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
    prepareManualImportContext();
-   await loadWithAlphaTab({...file,bytes});
-  }catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
+   const loaded=await loadWithAlphaTab({...file,bytes});
+   if(!loaded)restorePreviousLessonContext();
+  }catch(err){
+   restorePreviousLessonContext();
+   console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);
+  }
   return;
  }
  const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
