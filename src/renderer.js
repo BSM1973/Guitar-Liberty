@@ -1756,7 +1756,11 @@ async function loadBundledScore(button){
  };
  const libraryGeneration=++libraryLoadGeneration;
  const isCurrentLibraryLoad=()=>libraryGeneration===libraryLoadGeneration;
+ // From this point on, only this generation may stage the next lesson UI.
+ // This keeps rapid A → B library clicks from letting A repaint context after B owns the request.
+ if(!isCurrentLibraryLoad())return;
  setLessonInfo(button);
+ if(!isCurrentLibraryLoad())return;
  setBackingTrack(button.dataset.backing||null);
  setVideoTrack(button.dataset.wistiaId||null,button.dataset.practiceVideo||null);
  setTutorial(button.dataset.tutorial||null);
@@ -1764,8 +1768,9 @@ async function loadBundledScore(button){
  currentVideoLeadBeats=Math.max(0,+button.dataset.videoLeadBeats||0);
  const libraryDefaultBpm=+button.dataset.bpm||0;
  if(libraryDefaultBpm){tempo.value=libraryDefaultBpm;syncTempo();}
+ if(!isCurrentLibraryLoad())return;
  try{
-  stop();document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
+  stop();if(!isCurrentLibraryLoad())return;document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===button));
   importStatus.textContent='Chargement de '+button.textContent.trim()+'…';
   const response=await fetch(url);if(!isCurrentLibraryLoad())return;if(!response.ok)throw new Error('fichier intégré introuvable');
   const bytes=new Uint8Array(await response.arrayBuffer());
