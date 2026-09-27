@@ -1750,6 +1750,9 @@ async function loadBundledScore(button){
   practiceLoop,practiceIteration,lastLoopTick,
   loopStartValue:+loopStart.value||1,loopEndValue:+loopEnd.value||1,loopRepeatsValue:+loopRepeats.value||1,
   practiceStatusText:practiceStatus.textContent,
+  libertyLevelValue:libertyLevel?.value??'100',libertyAutoValue:libertyAuto?.value??'manual',
+  libertyCycleValue:libertyCycle?.value??'',libertyStartFadeValue:libertyStartFade?.value??'1',
+  sessionLowestLibertyLevel,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
@@ -1818,6 +1821,13 @@ async function loadBundledScore(button){
   sessionSeriesCount=previousLibraryState.sessionSeriesCount;
   sessionRepCount=previousLibraryState.sessionRepCount;
   sessionBest=previousLibraryState.sessionBest;
+  sessionLowestLibertyLevel=previousLibraryState.sessionLowestLibertyLevel;
+  if(libertyAuto)libertyAuto.value=previousLibraryState.libertyAutoValue;
+  if(libertyCycle)libertyCycle.value=previousLibraryState.libertyCycleValue;
+  if(libertyStartFade)libertyStartFade.value=previousLibraryState.libertyStartFadeValue;
+  if(libertyLevel)libertyLevel.value=previousLibraryState.libertyLevelValue;
+  applyLibertyMode();
+  sessionLowestLibertyLevel=previousLibraryState.sessionLowestLibertyLevel;
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
   updatePracticeProgress(practiceIteration);
@@ -1862,6 +1872,9 @@ if(importButton) importButton.onclick=async()=>{
   practiceLoop,practiceIteration,lastLoopTick,
   loopStartValue:+loopStart.value||1,loopEndValue:+loopEnd.value||1,loopRepeatsValue:+loopRepeats.value||1,
   practiceStatusText:practiceStatus.textContent,
+  libertyLevelValue:libertyLevel?.value??'100',libertyAutoValue:libertyAuto?.value??'manual',
+  libertyCycleValue:libertyCycle?.value??'',libertyStartFadeValue:libertyStartFade?.value??'1',
+  sessionLowestLibertyLevel,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
@@ -1894,6 +1907,13 @@ if(importButton) importButton.onclick=async()=>{
   sessionSeriesCount=previousLessonContext.sessionSeriesCount;
   sessionRepCount=previousLessonContext.sessionRepCount;
   sessionBest=previousLessonContext.sessionBest;
+  sessionLowestLibertyLevel=previousLessonContext.sessionLowestLibertyLevel;
+  if(libertyAuto)libertyAuto.value=previousLessonContext.libertyAutoValue;
+  if(libertyCycle)libertyCycle.value=previousLessonContext.libertyCycleValue;
+  if(libertyStartFade)libertyStartFade.value=previousLessonContext.libertyStartFadeValue;
+  if(libertyLevel)libertyLevel.value=previousLessonContext.libertyLevelValue;
+  applyLibertyMode();
+  sessionLowestLibertyLevel=previousLessonContext.sessionLowestLibertyLevel;
   window.pendingImportedScore=previousLessonContext.pendingImportedScore;
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
