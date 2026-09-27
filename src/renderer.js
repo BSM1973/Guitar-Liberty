@@ -1748,6 +1748,7 @@ async function loadBundledScore(button){
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
+  practiceStatusText:practiceStatus.textContent,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
@@ -1808,6 +1809,7 @@ async function loadBundledScore(button){
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
   updatePracticeProgress(practiceIteration);
+  practiceStatus.textContent=/^(En cours|Compte\s*:)/.test(previousLibraryState.practiceStatusText||'')?'Prêt à reprendre':previousLibraryState.practiceStatusText;
   paintSession();
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===previousLibraryButton));
   paintLessonComplete();paintLessonMastery();
@@ -1838,6 +1840,7 @@ if(importButton) importButton.onclick=async()=>{
   practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
+  practiceStatusText:practiceStatus.textContent,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
@@ -1868,6 +1871,7 @@ if(importButton) importButton.onclick=async()=>{
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
   updatePracticeProgress(practiceIteration);
+  practiceStatus.textContent=/^(En cours|Compte\s*:)/.test(previousLessonContext.practiceStatusText||'')?'Prêt à reprendre':previousLessonContext.practiceStatusText;
   document.querySelector('#title').textContent=currentPracticeTitle;
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
