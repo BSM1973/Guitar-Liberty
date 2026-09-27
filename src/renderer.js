@@ -1317,8 +1317,8 @@ function internalLoopBounds(e){
  if(!practiceLoop||!e?.measures?.length)return null;
  syncPracticeRange();
  const startMeasure=+loopStart.value||1,endMeasure=+loopEnd.value||startMeasure;
- let start=e.notes.findIndex(n=>(+n[4]||1)>=startMeasure);
- if(start<0)start=0;
+ const start=e.notes.findIndex(n=>(+n[4]||1)>=startMeasure&&(+n[4]||1)<=endMeasure);
+ if(start<0)return null;
  let end=e.notes.findIndex((n,i)=>i>=start&&(+n[4]||1)>endMeasure);
  if(end<0)end=e.notes.length;
  return {start,end};
@@ -1465,7 +1465,11 @@ document.querySelector('#play').onclick=async()=>{
  if(playing){stop();return}
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
- if(practiceLoop){const range=internalLoopBounds(exercises[current]);if(range)index=range.start;beginPracticePassage();}
+ if(practiceLoop){
+  const range=internalLoopBounds(exercises[current]);
+  if(!range){practiceStatus.textContent='Boucle vide • aucune note dans les mesures '+loopStart.value+'–'+loopEnd.value;document.querySelector('#play').textContent='▶ PLAY';return;}
+  index=range.start;beginPracticePassage();
+ }
  playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()
 };
 // L'application démarre désormais sur l'accueil, sans charger l'ancien exercice de démonstration.
