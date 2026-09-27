@@ -2194,6 +2194,10 @@ if(importButton) importButton.onclick=async()=>{
   // This score is fully active, so there is no longer an unresolved import.
   window.pendingImportedScore=null;
  }catch(err){
+  // Parsing can still fail after the validated XML has started replacing the
+  // current lesson. Recover the last authoritative score just like a failed GP
+  // import, rather than leaving a half-switched MusicXML context on screen.
+  await restorePreviousScore();
   console.error('MusicXML import failed',err);
   importStatus.textContent='Erreur import : '+err.message;
   alert('Impossible d’afficher cette tablature : '+err.message);
