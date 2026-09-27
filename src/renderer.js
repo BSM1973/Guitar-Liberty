@@ -1828,13 +1828,15 @@ if(importButton) importButton.onclick=async()=>{
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  pausePracticeClock();
  const file=await window.guitarAudio.importScore();
+ // A newer library/import request owns the practice clock now. A stale picker
+ // must not resume or otherwise mutate the session it no longer belongs to.
+ if(importLibraryGeneration!==libraryLoadGeneration)return;
  if(!file){
-  // Cancelling the picker changes no exercise. Resume only if practice was
-  // actually running before the dialog opened.
+  // Cancelling the still-current picker changes no exercise. Resume only if
+  // practice was actually running before the dialog opened.
   if(wasPracticeClockRunning)resumePracticeClock();
   return;
  }
- if(importLibraryGeneration!==libraryLoadGeneration)return;
  const previousAlphaTabSource=currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null;
  const previousLessonContext={
   id:currentLessonId,
