@@ -1807,6 +1807,7 @@ async function loadBundledScore(button){
   sessionBest=previousLibraryState.sessionBest;
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
+  updatePracticeProgress(practiceIteration);
   paintSession();
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===previousLibraryButton));
   paintLessonComplete();paintLessonMastery();
@@ -1866,6 +1867,7 @@ if(importButton) importButton.onclick=async()=>{
   window.pendingImportedScore=previousLessonContext.pendingImportedScore;
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
+  updatePracticeProgress(practiceIteration);
   document.querySelector('#title').textContent=currentPracticeTitle;
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
