@@ -1206,11 +1206,21 @@ loopRepeats.onchange=()=>{
 };
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{
  if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;
+ if(practiceLoop&&!alphaTabMode&&playing){
+  playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+  document.querySelector('#play').textContent='▶ PLAY';
+  document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
+  const range=internalLoopBounds(exercises[current]);if(range)index=range.start;
+ }
  if(sessionStarted&&sessionFirstPracticeAt&&sessionRepCount){
   pausePracticeClock();
   resetTrainingSession();
   practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);
   practiceStatus.textContent='Nouvelle boucle • prêt';
+ }else if(practiceLoop&&!alphaTabMode){
+  pausePracticeClock();
+  practiceStatus.textContent='Nouvelle boucle • prêt';
+  paintSession();
  }
  const api=window.guitarLibertyAlphaTab;if(api&&practiceLoop)setPracticeRange(api)
 });
