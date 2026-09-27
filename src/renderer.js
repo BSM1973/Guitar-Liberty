@@ -242,6 +242,12 @@ function adaptivePanel(){
  document.querySelector('#adaptiveProgress').textContent=adaptivePasses+' / 3 répétitions maîtrisées';
  document.querySelector('#adaptiveBar').style.width=Math.min(100,adaptivePasses/3*100)+'%';
 }
+function restoreAdaptivePanelState(){
+ adaptivePanel();
+ if(!adaptiveMode)return;
+ const advice=document.querySelector('#weakPassageAdvice');
+ if(advice)advice.textContent='Mode adaptatif prêt à reprendre • mesure '+adaptiveMeasureNo+' • '+adaptivePasses+' / 3 répétitions maîtrisées. Relance la lecture quand tu es prêt.';
+}
 function nextWeakMeasure(exclude){
  const entries=Object.entries(measurePerformance).filter(([m,v])=>+m!==exclude&&v.total>=2).map(([m,v])=>({m:+m,pct:Math.round(v.hits/v.total*100),timing:Math.round(v.timing/v.total*100)}));
  return entries.sort((a,b)=>a.pct-b.pct||a.timing-b.timing)[0]||null;
@@ -1867,7 +1873,7 @@ async function loadBundledScore(button){
   adaptiveBaseline=previousLibraryState.adaptiveBaselineValue?JSON.parse(JSON.stringify(previousLibraryState.adaptiveBaselineValue)):null;
   adaptivePasses=previousLibraryState.adaptivePassesValue;
   adaptiveLastTotals=JSON.parse(JSON.stringify(previousLibraryState.adaptiveLastTotalsValue||{}));
-  refreshPerformanceScores();paintMeasureAnalysis();adaptivePanel();
+  refreshPerformanceScores();paintMeasureAnalysis();restoreAdaptivePanelState();
   if(libertyAuto)libertyAuto.value=previousLibraryState.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLibraryState.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLibraryState.libertyStartFadeValue;
@@ -1993,7 +1999,7 @@ if(importButton) importButton.onclick=async()=>{
   adaptiveBaseline=previousLessonContext.adaptiveBaselineValue?JSON.parse(JSON.stringify(previousLessonContext.adaptiveBaselineValue)):null;
   adaptivePasses=previousLessonContext.adaptivePassesValue;
   adaptiveLastTotals=JSON.parse(JSON.stringify(previousLessonContext.adaptiveLastTotalsValue||{}));
-  refreshPerformanceScores();paintMeasureAnalysis();adaptivePanel();
+  refreshPerformanceScores();paintMeasureAnalysis();restoreAdaptivePanelState();
   if(libertyAuto)libertyAuto.value=previousLessonContext.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLessonContext.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLessonContext.libertyStartFadeValue;
