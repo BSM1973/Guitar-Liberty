@@ -1823,12 +1823,18 @@ if(importButton) importButton.onclick=async()=>{
  // A manual import becomes the newest score request immediately. Invalidate
  // any library fetch still in flight so it cannot take over afterwards.
  const importLibraryGeneration=++libraryLoadGeneration;
- const file=await window.guitarAudio.importScore();
- if(!file)return;
- if(importLibraryGeneration!==libraryLoadGeneration)return;
- // Choosing a new score is not active practice time. Pause the real session
- // clock here; beginPracticePassage() will resume it only when playing starts.
+ // Opening the file picker interrupts active practice too. Pause before the
+ // native dialog opens so time spent browsing files is never counted.
+ const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  pausePracticeClock();
+ const file=await window.guitarAudio.importScore();
+ if(!file){
+  // Cancelling the picker changes no exercise. Resume only if practice was
+  // actually running before the dialog opened.
+  if(wasPracticeClockRunning)resumePracticeClock();
+  return;
+ }
+ if(importLibraryGeneration!==libraryLoadGeneration)return;
  const previousAlphaTabSource=currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null;
  const previousLessonContext={
   id:currentLessonId,
