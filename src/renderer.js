@@ -1747,6 +1747,7 @@ async function loadBundledScore(button){
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  pendingImportedScore:window.pendingImportedScore||null,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
   internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
  };
@@ -1782,6 +1783,9 @@ async function loadBundledScore(button){
    tab.classList.remove('alphatab-score');
    current=previousLibraryState.internalExerciseKey;render();
   }
+  // Restore unresolved MXL/MIDI only after the active score has been rebuilt,
+  // because alphaTab success intentionally clears pending imports.
+  window.pendingImportedScore=previousLibraryState.pendingImportedScore;
   currentLessonId=previousLibraryState.lessonId;
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
