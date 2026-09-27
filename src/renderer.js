@@ -1768,8 +1768,16 @@ if(importButton) importButton.onclick=async()=>{
  
  };
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
-  prepareManualImportContext();
-  try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
+  try{
+   // Read and validate the file before replacing the active lesson. Passing the
+   // bytes onward also prevents loadWithAlphaTab from performing a second read.
+   const rawBytes=file.bytes||await window.guitarAudio.readScore(file.filePath);
+   if(importLibraryGeneration!==libraryLoadGeneration)return;
+   const bytes=rawBytes instanceof Uint8Array?rawBytes:new Uint8Array(rawBytes);
+   if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
+   prepareManualImportContext();
+   await loadWithAlphaTab({...file,bytes});
+  }catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
  }
  const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
