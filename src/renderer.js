@@ -1778,18 +1778,21 @@ if(importButton) importButton.onclick=async()=>{
   alert('Pour importer cette tablature Guitar Pro dans Guitare Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
   return;
  }
- prepareManualImportContext();
  try{
   if(!['.musicxml','.xml'].includes(file.ext)){
+   prepareManualImportContext();
    importStatus.textContent=file.name+' chargé — lecture visuelle bientôt disponible pour ce format';
    window.pendingImportedScore=file;
    return;
   }
+  // Validate MusicXML before replacing the currently active lesson context.
+  // A malformed file must leave the existing exercise, media and lesson intact.
   const xmlText=atob(file.data);
   const doc=new DOMParser().parseFromString(xmlText,'application/xml');
   if(doc.querySelector('parsererror')) throw new Error('XML invalide');
   const part=doc.querySelector('part');
   if(!part) throw new Error('Aucune partie musicale trouvée');
+  prepareManualImportContext();
   const imported=[];
   const importedMeasures=[];
   const stepSemis={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
