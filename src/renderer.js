@@ -974,7 +974,11 @@ playWithMeNext?.addEventListener('click',()=>{
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
-let alphaTabLoadGeneration=0,libraryLoadGeneration=0,alphaTabClickHandler=null;
+let alphaTabLoadGeneration=0,libraryLoadGeneration=0,alphaTabClickHandler=null,alphaTabPendingResolve=null;
+function invalidateAlphaTabLoad(){
+ alphaTabLoadGeneration++;
+ if(alphaTabPendingResolve){alphaTabPendingResolve(false);alphaTabPendingResolve=null;}
+}
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
@@ -1505,7 +1509,8 @@ function drawLeftHandFingerings(api){
 
 async function loadWithAlphaTab(file){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
- const loadGeneration=++alphaTabLoadGeneration;
+ invalidateAlphaTabLoad();
+ const loadGeneration=alphaTabLoadGeneration;
  const isCurrentGeneration=()=>loadGeneration===alphaTabLoadGeneration;
  const previousApi=window.guitarLibertyAlphaTab;
  stop();
@@ -1658,7 +1663,7 @@ async function loadWithAlphaTab(file){
  });
 
  let completed=false,resolveLoad,rejectLoad;
- const loadResult=new Promise((resolve,reject)=>{resolveLoad=resolve;rejectLoad=reject;});
+ const loadResult=new Promise((resolve,reject)=>{resolveLoad=resolve;rejectLoad=reject;alphaTabPendingResolve=resolve;});
  api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   if(!isActiveLoad())return;
@@ -1682,6 +1687,7 @@ async function loadWithAlphaTab(file){
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
+  if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
   resolveLoad(true);
  });
  api.error.on(err=>{
@@ -1690,6 +1696,7 @@ async function loadWithAlphaTab(file){
   const msg=err?.message||String(err);
   console.error('alphaTab import error',err);
   importStatus.textContent='Erreur Guitar Pro : '+msg;
+  if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
   rejectLoad(err instanceof Error?err:new Error(msg));
  });
  importStatus.textContent='Chargement de '+file.name+'…';
