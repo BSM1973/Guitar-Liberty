@@ -1747,6 +1747,8 @@ async function loadBundledScore(button){
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  practiceLoop,practiceIteration,lastLoopTick,
+  sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
   internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
@@ -1797,6 +1799,15 @@ async function loadBundledScore(button){
   if(previousLibraryState.workingTempo)tempo.value=previousLibraryState.workingTempo;
   if(previousLibraryState.targetTempo)targetBpm.value=previousLibraryState.targetTempo;
   syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
+  practiceLoop=previousLibraryState.practiceLoop;
+  practiceIteration=previousLibraryState.practiceIteration;
+  lastLoopTick=previousLibraryState.lastLoopTick;
+  sessionSeriesCount=previousLibraryState.sessionSeriesCount;
+  sessionRepCount=previousLibraryState.sessionRepCount;
+  sessionBest=previousLibraryState.sessionBest;
+  loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
+  loopToggle.classList.toggle('active',practiceLoop);
+  paintSession();
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===previousLibraryButton));
   paintLessonComplete();paintLessonMastery();
   renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
