@@ -1823,6 +1823,7 @@ if(importButton) importButton.onclick=async()=>{
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
   sessionSeriesCount,sessionRepCount,sessionBest,
+  pendingImportedScore:window.pendingImportedScore||null,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
  const restorePreviousLessonContext=()=>{
@@ -1847,6 +1848,7 @@ if(importButton) importButton.onclick=async()=>{
   sessionSeriesCount=previousLessonContext.sessionSeriesCount;
   sessionRepCount=previousLessonContext.sessionRepCount;
   sessionBest=previousLessonContext.sessionBest;
+  window.pendingImportedScore=previousLessonContext.pendingImportedScore;
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
   document.querySelector('#title').textContent=currentPracticeTitle;
