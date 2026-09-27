@@ -1733,6 +1733,9 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ // Switching exercises is not active practice time. Stop counting as soon as
+ // the user commits to the new library exercise, before fetch/parsing begins.
+ pausePracticeClock();
  const libraryGeneration=++libraryLoadGeneration;
  const isCurrentLibraryLoad=()=>libraryGeneration===libraryLoadGeneration;
  setLessonInfo(button);
