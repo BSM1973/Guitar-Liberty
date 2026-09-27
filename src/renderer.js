@@ -1748,6 +1748,7 @@ async function loadBundledScore(button){
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
+  loopStartValue:+loopStart.value||1,loopEndValue:+loopEnd.value||1,loopRepeatsValue:+loopRepeats.value||1,
   practiceStatusText:practiceStatus.textContent,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
@@ -1808,6 +1809,11 @@ async function loadBundledScore(button){
   practiceLoop=previousLibraryState.practiceLoop;
   practiceIteration=previousLibraryState.practiceIteration;
   lastLoopTick=previousLibraryState.lastLoopTick;
+  loopStart.value=previousLibraryState.loopStartValue;
+  loopEnd.value=previousLibraryState.loopEndValue;
+  loopRepeats.value=previousLibraryState.loopRepeatsValue;
+  syncPracticeRange();
+  if(window.guitarLibertyAlphaTab){practiceLoop?setPracticeRange(window.guitarLibertyAlphaTab):clearPracticeRange(window.guitarLibertyAlphaTab)}
   sessionSeriesCount=previousLibraryState.sessionSeriesCount;
   sessionRepCount=previousLibraryState.sessionRepCount;
   sessionBest=previousLibraryState.sessionBest;
@@ -1853,6 +1859,7 @@ if(importButton) importButton.onclick=async()=>{
   practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
+  loopStartValue:+loopStart.value||1,loopEndValue:+loopEnd.value||1,loopRepeatsValue:+loopRepeats.value||1,
   practiceStatusText:practiceStatus.textContent,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
@@ -1877,6 +1884,11 @@ if(importButton) importButton.onclick=async()=>{
   practiceLoop=previousLessonContext.practiceLoop;
   practiceIteration=previousLessonContext.practiceIteration;
   lastLoopTick=previousLessonContext.lastLoopTick;
+  loopStart.value=previousLessonContext.loopStartValue;
+  loopEnd.value=previousLessonContext.loopEndValue;
+  loopRepeats.value=previousLessonContext.loopRepeatsValue;
+  syncPracticeRange();
+  if(window.guitarLibertyAlphaTab){practiceLoop?setPracticeRange(window.guitarLibertyAlphaTab):clearPracticeRange(window.guitarLibertyAlphaTab)}
   sessionSeriesCount=previousLessonContext.sessionSeriesCount;
   sessionRepCount=previousLessonContext.sessionRepCount;
   sessionBest=previousLessonContext.sessionBest;
