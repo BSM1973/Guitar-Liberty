@@ -351,6 +351,12 @@ function paintAiCoach(mode='analysis'){
 function performanceMeasures(){
  return Object.entries(measurePerformance).filter(([,v])=>v.total>=2).map(([m,v])=>({m:+m,pct:Math.round(v.hits/v.total*100),timing:Math.round(v.timing/v.total*100),samples:v.total})).sort((a,b)=>a.m-b.m);
 }
+function restoreCoachAfterScoreFailure(){
+ const rows=performanceMeasures();
+ if(rows.length)coachPerformanceReport();
+ else paintAiCoach('analysis');
+ paintSessionInsight();
+}
 function coachPerformanceReport(){
  const rows=performanceMeasures(),box=document.querySelector('#aiPerformanceSummary'),title=document.querySelector('#aiCoachTitle'),advice=document.querySelector('#aiCoachAdvice');
  if(!rows.length){title.textContent='Analyse de jeu en attente';advice.textContent='Active ÉCOUTE IA et joue la TAB pour que le Coach construise un bilan mesure par mesure.';box.hidden=true;return}
@@ -1873,7 +1879,7 @@ async function loadBundledScore(button){
   adaptiveBaseline=previousLibraryState.adaptiveBaselineValue?JSON.parse(JSON.stringify(previousLibraryState.adaptiveBaselineValue)):null;
   adaptivePasses=previousLibraryState.adaptivePassesValue;
   adaptiveLastTotals=JSON.parse(JSON.stringify(previousLibraryState.adaptiveLastTotalsValue||{}));
-  refreshPerformanceScores();paintMeasureAnalysis();restoreAdaptivePanelState();
+  refreshPerformanceScores();paintMeasureAnalysis();restoreAdaptivePanelState();restoreCoachAfterScoreFailure();
   if(libertyAuto)libertyAuto.value=previousLibraryState.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLibraryState.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLibraryState.libertyStartFadeValue;
@@ -1999,7 +2005,7 @@ if(importButton) importButton.onclick=async()=>{
   adaptiveBaseline=previousLessonContext.adaptiveBaselineValue?JSON.parse(JSON.stringify(previousLessonContext.adaptiveBaselineValue)):null;
   adaptivePasses=previousLessonContext.adaptivePassesValue;
   adaptiveLastTotals=JSON.parse(JSON.stringify(previousLessonContext.adaptiveLastTotalsValue||{}));
-  refreshPerformanceScores();paintMeasureAnalysis();restoreAdaptivePanelState();
+  refreshPerformanceScores();paintMeasureAnalysis();restoreAdaptivePanelState();restoreCoachAfterScoreFailure();
   if(libertyAuto)libertyAuto.value=previousLessonContext.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLessonContext.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLessonContext.libertyStartFadeValue;
