@@ -1314,6 +1314,17 @@ function stop(){
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
  let beats=(v&&(v[6]||v[3]))||.5;
+ if(v){
+  let eventEnd=index+1;
+  while(eventEnd<e.notes.length&&sameInternalOnset(v,e.notes[eventEnd]))eventEnd++;
+  const next=e.notes[eventEnd];
+  if(next){
+   const measureOffsets=[];let total=0;
+   e.measures?.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
+   const here=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0),there=(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0);
+   beats=Math.max(.125,there-here);
+  }
+ }
  if(practiceLoop&&e?.measures?.length&&v){
   const range=internalLoopBounds(e);
   if(range&&index===range.end-1){
@@ -1338,12 +1349,18 @@ function internalLoopBounds(e){
  if(end<0)end=e.notes.length;
  return {start,end};
 }
+function sameInternalOnset(a,b){
+ return !!(a&&b&&(+a[4]||1)===(+b[4]||1)&&Math.abs((+a[5]||0)-(+b[5]||0))<1e-9);
+}
 function tick(){
  const e=exercises[current];
  const internalRange=internalLoopBounds(e);
  if(internalRange&&(index<internalRange.start||index>=internalRange.end))index=internalRange.start;
+ const eventStart=index,eventNotes=[e.notes[eventStart]];
+ let eventEnd=eventStart+1;
+ while(eventEnd<e.notes.length&&(!internalRange||eventEnd<internalRange.end)&&sameInternalOnset(e.notes[eventStart],e.notes[eventEnd])){eventNotes.push(e.notes[eventEnd]);eventEnd++}
  const notes=document.querySelectorAll('.note');
- notes.forEach(n=>n.classList.toggle('active',+n.dataset.i===index));
+ notes.forEach(n=>n.classList.toggle('active',+n.dataset.i>=eventStart&&+n.dataset.i<eventEnd));
  const active=document.querySelector('.note.active');
  if(active){
   const paper=document.querySelector('.paper'),system=active.closest('.system');
@@ -1356,9 +1373,9 @@ function tick(){
    }
   }
  }
- const [s,f]=e.notes[index];playNote(s,f);
- progress.style.width=((index+1)/e.notes.length*100)+'%';
- index++;
+ eventNotes.forEach(v=>{const [s,f]=v;playNote(s,f)});
+ progress.style.width=(eventEnd/e.notes.length*100)+'%';
+ index=eventEnd;
  if(internalRange&&index>=internalRange.end){
   index=internalRange.start;
   practiceIteration++;
