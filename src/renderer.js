@@ -1329,6 +1329,10 @@ document.addEventListener('keydown',e=>{
 },{capture:true});
 
 document.querySelector('#play').onclick=async()=>{
+ if(document.querySelector('#play').textContent.includes('REPRENDRE')){
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+ }
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
@@ -1915,7 +1919,11 @@ if(importButton) importButton.onclick=async()=>{
  if(playing){playing=false;clearTimeout(timer);timer=null;stopAllVoices();}
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(videoEnabled&&wistiaPlayer){try{if(wistiaPlayer.state==='playing')wistiaPlayer.pause()}catch(_){}}
- if(importInterruptedPlayback){document.querySelector('#play').textContent='▶ PLAY';practiceStatus.textContent='Prêt à reprendre';paintSession();}
+ if(importInterruptedPlayback){
+  document.querySelector('#play').textContent='▶ REPRENDRE';
+  practiceStatus.textContent=practiceLoop?'Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'Prêt à reprendre';
+  paintSession();
+ }
  const resumeUnchangedPracticeClock=()=>{
   // The score is unchanged, but transport remains intentionally paused.
   // Practice time resumes only on the next real played passage.
