@@ -1753,6 +1753,10 @@ async function loadBundledScore(button){
   libertyLevelValue:libertyLevel?.value??'100',libertyAutoValue:libertyAuto?.value??'manual',
   libertyCycleValue:libertyCycle?.value??'',libertyStartFadeValue:libertyStartFade?.value??'1',
   sessionLowestLibertyLevel,
+  playWithMeBarValue:+playWithMeBar?.value||1,playWithMeLengthValue:+playWithMeLength?.value||1,
+  playWithMeRepeatValue:+playWithMeRepeat?.value||1,playWithMeAnswerModeValue:playWithMeAnswerMode?.value??'manual',
+  playWithMeSessionLengthValue:playWithMeSessionLength?.value??'all',playWithMeLeadValue:playWithMeLead?.value??'0',
+  playWithMeRoundCountValue:playWithMeRoundCount,playWithMePhraseRepeatValue:playWithMePhraseRepeat,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
@@ -1822,6 +1826,22 @@ async function loadBundledScore(button){
   sessionRepCount=previousLibraryState.sessionRepCount;
   sessionBest=previousLibraryState.sessionBest;
   sessionLowestLibertyLevel=previousLibraryState.sessionLowestLibertyLevel;
+  if(playWithMeBar)playWithMeBar.value=previousLibraryState.playWithMeBarValue;
+  if(playWithMeLength)playWithMeLength.value=previousLibraryState.playWithMeLengthValue;
+  if(playWithMeRepeat)playWithMeRepeat.value=previousLibraryState.playWithMeRepeatValue;
+  if(playWithMeAnswerMode)playWithMeAnswerMode.value=previousLibraryState.playWithMeAnswerModeValue;
+  if(playWithMeSessionLength)playWithMeSessionLength.value=previousLibraryState.playWithMeSessionLengthValue;
+  if(playWithMeLead)playWithMeLead.value=previousLibraryState.playWithMeLeadValue;
+  playWithMeRoundCount=previousLibraryState.playWithMeRoundCountValue;
+  playWithMePhraseRepeat=previousLibraryState.playWithMePhraseRepeatValue;
+  playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;
+  playWithMePaint('idle');
+  if(playWithMeStart)playWithMeStart.disabled=false;
+  if(playWithMeReplay)playWithMeReplay.disabled=true;
+  if(playWithMeRestart)playWithMeRestart.disabled=true;
+  if(playWithMeResume)playWithMeResume.disabled=false;
+  if(playWithMeNext)playWithMeNext.disabled=true;
+  if(playWithMeStop)playWithMeStop.disabled=true;
   if(libertyAuto)libertyAuto.value=previousLibraryState.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLibraryState.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLibraryState.libertyStartFadeValue;
@@ -1875,6 +1895,10 @@ if(importButton) importButton.onclick=async()=>{
   libertyLevelValue:libertyLevel?.value??'100',libertyAutoValue:libertyAuto?.value??'manual',
   libertyCycleValue:libertyCycle?.value??'',libertyStartFadeValue:libertyStartFade?.value??'1',
   sessionLowestLibertyLevel,
+  playWithMeBarValue:+playWithMeBar?.value||1,playWithMeLengthValue:+playWithMeLength?.value||1,
+  playWithMeRepeatValue:+playWithMeRepeat?.value||1,playWithMeAnswerModeValue:playWithMeAnswerMode?.value??'manual',
+  playWithMeSessionLengthValue:playWithMeSessionLength?.value??'all',playWithMeLeadValue:playWithMeLead?.value??'0',
+  playWithMeRoundCountValue:playWithMeRoundCount,playWithMePhraseRepeatValue:playWithMePhraseRepeat,
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
@@ -1908,6 +1932,22 @@ if(importButton) importButton.onclick=async()=>{
   sessionRepCount=previousLessonContext.sessionRepCount;
   sessionBest=previousLessonContext.sessionBest;
   sessionLowestLibertyLevel=previousLessonContext.sessionLowestLibertyLevel;
+  if(playWithMeBar)playWithMeBar.value=previousLessonContext.playWithMeBarValue;
+  if(playWithMeLength)playWithMeLength.value=previousLessonContext.playWithMeLengthValue;
+  if(playWithMeRepeat)playWithMeRepeat.value=previousLessonContext.playWithMeRepeatValue;
+  if(playWithMeAnswerMode)playWithMeAnswerMode.value=previousLessonContext.playWithMeAnswerModeValue;
+  if(playWithMeSessionLength)playWithMeSessionLength.value=previousLessonContext.playWithMeSessionLengthValue;
+  if(playWithMeLead)playWithMeLead.value=previousLessonContext.playWithMeLeadValue;
+  playWithMeRoundCount=previousLessonContext.playWithMeRoundCountValue;
+  playWithMePhraseRepeat=previousLessonContext.playWithMePhraseRepeatValue;
+  playWithMeActive=false;playWithMeRange=null;playWithMeLastTick=-1;
+  playWithMePaint('idle');
+  if(playWithMeStart)playWithMeStart.disabled=false;
+  if(playWithMeReplay)playWithMeReplay.disabled=true;
+  if(playWithMeRestart)playWithMeRestart.disabled=true;
+  if(playWithMeResume)playWithMeResume.disabled=false;
+  if(playWithMeNext)playWithMeNext.disabled=true;
+  if(playWithMeStop)playWithMeStop.disabled=true;
   if(libertyAuto)libertyAuto.value=previousLessonContext.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLessonContext.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLessonContext.libertyStartFadeValue;
