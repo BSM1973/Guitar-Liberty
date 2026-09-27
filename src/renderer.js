@@ -1311,7 +1311,22 @@ function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  playing=false;clearTimeout(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
 }
-function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&v[3])||.5;return 60000/+tempo.value*beats}
+function noteIntervalMs(){
+ const e=exercises[current],v=e.notes[index];
+ let beats=(v&&(v[6]||v[3]))||.5;
+ if(practiceLoop&&e?.measures?.length&&v){
+  const range=internalLoopBounds(e);
+  if(range&&index===range.end-1){
+   const measureOffsets=[];let total=0;
+   e.measures.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
+   const loopEndMeasure=Math.max(+loopStart.value||1,+loopEnd.value||1);
+   const loopEndBeat=(measureOffsets[loopEndMeasure-1]||0)+(+e.measures[loopEndMeasure-1]?.length||0);
+   const noteBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
+   beats=Math.max(.125,loopEndBeat-noteBeat);
+  }
+ }
+ return 60000/+tempo.value*beats
+}
 function scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}
 function internalLoopBounds(e){
  if(!practiceLoop||!e?.measures?.length)return null;
@@ -2250,12 +2265,23 @@ if(importButton) importButton.onclick=async()=>{
     if(s<0||fret<0)return;
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
-    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1]);
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset]);
     md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':''});
    });
    importedMeasures.push(md);
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
+  // Preserve MusicXML rhythmic spacing in the lightweight internal player.
+  // Slot 6 stores the real beat distance to the next playable note, including
+  // rests, forwards and silent measure tails.
+  const measureOffsets=[];let accumulatedBeats=0;
+  importedMeasures.forEach((md,i)=>{measureOffsets[i]=accumulatedBeats;accumulatedBeats+=+md.length||0});
+  imported.forEach((note,i)=>{
+   const absoluteOnset=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
+   const next=imported[i+1];
+   const nextOnset=next?(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0):accumulatedBeats;
+   note[6]=Math.max(.125,nextOnset-absoluteOnset);
+  });
   const key='imported';
   const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),historyRows=readHistory().filter(x=>(x.exercise||x.title)===importedTitle),historySession=latestExerciseSession(historyRows),historyLastTempo=historySession?(+historySession.end||+historySession.best||0):0,historyCompleted=historyRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),historyConfirmedTempo=historyCompleted.length>=2?historyCompleted[1]:0,rememberedTempo=savedExerciseTempo(importedTitle)||historyConfirmedTempo||historyLastTempo,rememberedGoal=savedExerciseGoal(importedTitle)||(historySession&&Number.isFinite(+historySession.goal)?+historySession.goal:0);
   if(sessionStarted&&currentPracticeTitle!==importedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
