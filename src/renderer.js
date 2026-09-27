@@ -1763,6 +1763,9 @@ if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
  if(importLibraryGeneration!==libraryLoadGeneration)return;
+ // Choosing a new score is not active practice time. Pause the real session
+ // clock here; beginPracticePassage() will resume it only when playing starts.
+ pausePracticeClock();
  const previousAlphaTabSource=currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null;
  const previousLessonContext={
   id:currentLessonId,
