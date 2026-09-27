@@ -1906,8 +1906,22 @@ if(importButton) importButton.onclick=async()=>{
  // Opening the file picker interrupts active practice too. Pause before the
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
+ const importInterruptedPlayback=!!(practiceTimer||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
  pausePracticeClock();
- const resumeUnchangedPracticeClock=()=>{if(wasPracticeClockRunning&&importLibraryGeneration===libraryLoadGeneration)resumePracticeClock()};
+ if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ const importOverlay=document.querySelector('#countInOverlay');if(importOverlay){importOverlay.classList.remove('active');importOverlay.hidden=true;}
+ cancelDelayedPlayback();stopBacking(false);
+ if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
+ if(playing){playing=false;clearTimeout(timer);timer=null;stopAllVoices();}
+ if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
+ if(videoEnabled&&wistiaPlayer){try{if(wistiaPlayer.state==='playing')wistiaPlayer.pause()}catch(_){}}
+ if(importInterruptedPlayback){document.querySelector('#play').textContent='▶ PLAY';practiceStatus.textContent='Prêt à reprendre';paintSession();}
+ const resumeUnchangedPracticeClock=()=>{
+  // The score is unchanged, but transport remains intentionally paused.
+  // Practice time resumes only on the next real played passage.
+  if(importInterruptedPlayback)return;
+  if(wasPracticeClockRunning&&importLibraryGeneration===libraryLoadGeneration)resumePracticeClock();
+ };
  const file=await window.guitarAudio.importScore();
  // A newer library/import request owns the practice clock now. A stale picker
  // must not resume or otherwise mutate the session it no longer belongs to.
