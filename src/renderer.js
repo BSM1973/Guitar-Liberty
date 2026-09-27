@@ -1657,7 +1657,8 @@ async function loadWithAlphaTab(file){
   }
  });
 
- let completed=false;
+ let completed=false,resolveLoad,rejectLoad;
+ const loadResult=new Promise((resolve,reject)=>{resolveLoad=resolve;rejectLoad=reject;});
  api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   if(!isActiveLoad())return;
@@ -1681,6 +1682,7 @@ async function loadWithAlphaTab(file){
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
+  resolveLoad(true);
  });
  api.error.on(err=>{
   if(!isActiveLoad())return;
@@ -1688,13 +1690,13 @@ async function loadWithAlphaTab(file){
   const msg=err?.message||String(err);
   console.error('alphaTab import error',err);
   importStatus.textContent='Erreur Guitar Pro : '+msg;
-  alert('Import Guitar Pro impossible : '+msg);
+  rejectLoad(err instanceof Error?err:new Error(msg));
  });
  importStatus.textContent='Chargement de '+file.name+'…';
  const accepted=api.load(bytes);
  if(!accepted){try{api.destroy()}catch(_){try{api.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;alphaTabMode=false;practiceScore=null;playCursor=null;tab.classList.remove('alphatab-score');tab.innerHTML='';document.querySelector('#play').textContent='▶ PLAY';throw new Error('alphaTab a refusé les données du fichier.');}
  setTimeout(()=>{if(isActiveLoad()&&!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
- return true;
+ return await loadResult;
 }
 function setTutorial(url){
  currentTutorialUrl=url||null;
