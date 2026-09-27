@@ -1742,31 +1742,33 @@ if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
  if(importLibraryGeneration!==libraryLoadGeneration)return;
- // Manual files are independent exercises: never inherit media or lesson
- // metadata from the previously selected bundled course exercise.
- setBackingTrack(null);
- setVideoTrack(null,null);
- setTutorial(null);
- currentBackingLeadBeats=0;
- currentVideoLeadBeats=0;
- document.querySelectorAll('.library-exercise').forEach(b=>b.classList.remove('active'));
- const importedLessonTitle=(file.name||'Tablature importée').replace(/\.(gp|gp3|gp4|gp5|gpx|musicxml|xml|mxl|mid|midi)$/i,'');
- currentLessonId='import:'+importedLessonTitle;
- lessonObjective.textContent='Travailler cette tablature personnelle proprement, à ton rythme.';
- lessonPrereq.textContent='Selon la tablature importée';
- lessonDifficulty.textContent='Personnel';
- lessonKey.textContent='—';
- lessonTempo.textContent='—';
- // Do not calculate mastery against the previous exercise while the imported
- // score title is still unknown. The definitive paint happens once the GP
- // internal title or MusicXML title becomes currentPracticeTitle.
- lessonComplete.classList.remove('complete');
- lessonComplete.textContent='✓ MARQUER TERMINÉ';
- lessonLearningState.textContent='À DÉCOUVRIR';
- lessonLearningState.dataset.state='À DÉCOUVRIR';
- lessonMasteryText.textContent='Chargement de la progression…';
- lessonMasteryBar.style.width='0%';
+ const prepareManualImportContext=()=>{
+  setBackingTrack(null);
+  setVideoTrack(null,null);
+  setTutorial(null);
+  currentBackingLeadBeats=0;
+  currentVideoLeadBeats=0;
+  document.querySelectorAll('.library-exercise').forEach(b=>b.classList.remove('active'));
+  const importedLessonTitle=(file.name||'Tablature importée').replace(/\.(gp|gp3|gp4|gp5|gpx|musicxml|xml|mxl|mid|midi)$/i,'');
+  currentLessonId='import:'+importedLessonTitle;
+  lessonObjective.textContent='Travailler cette tablature personnelle proprement, à ton rythme.';
+  lessonPrereq.textContent='Selon la tablature importée';
+  lessonDifficulty.textContent='Personnel';
+  lessonKey.textContent='—';
+  lessonTempo.textContent='—';
+  // Do not calculate mastery against the previous exercise while the imported
+  // score title is still unknown. The definitive paint happens once the GP
+  // internal title or MusicXML title becomes currentPracticeTitle.
+  lessonComplete.classList.remove('complete');
+  lessonComplete.textContent='✓ MARQUER TERMINÉ';
+  lessonLearningState.textContent='À DÉCOUVRIR';
+  lessonLearningState.dataset.state='À DÉCOUVRIR';
+  lessonMasteryText.textContent='Chargement de la progression…';
+  lessonMasteryBar.style.width='0%';
+ 
+ };
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
+  prepareManualImportContext();
   try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
  }
@@ -1776,6 +1778,7 @@ if(importButton) importButton.onclick=async()=>{
   alert('Pour importer cette tablature Guitar Pro dans Guitare Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
   return;
  }
+ prepareManualImportContext();
  try{
   if(!['.musicxml','.xml'].includes(file.ext)){
    importStatus.textContent=file.name+' chargé — lecture visuelle bientôt disponible pour ce format';
