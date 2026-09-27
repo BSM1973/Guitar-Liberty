@@ -1742,7 +1742,8 @@ async function loadBundledScore(button){
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,lessonTempo:lessonTempo.textContent,
   backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
-  tutorialUrl:currentTutorialUrl,workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
+  workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   alphaSource:currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null
  };
  const libraryGeneration=++libraryLoadGeneration;
@@ -1774,11 +1775,14 @@ async function loadBundledScore(button){
   setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;
   setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;
   setTutorial(previousLibraryState.tutorialUrl);
+  currentPracticeTitle=previousLibraryState.practiceTitle;
+  document.querySelector('#title').textContent=currentPracticeTitle;
   if(previousLibraryState.workingTempo)tempo.value=previousLibraryState.workingTempo;
   if(previousLibraryState.targetTempo)targetBpm.value=previousLibraryState.targetTempo;
   syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===previousLibraryButton));
   paintLessonComplete();paintLessonMastery();
+  renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   importStatus.textContent='Exercice non installé : '+button.textContent.trim();
  }
 }
