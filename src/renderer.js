@@ -1152,6 +1152,10 @@ loopToggle.onclick=()=>{
  }
  practiceLoop=!practiceLoop;
  if(!resumingPausedSession)practiceIteration=0;
+ if(practiceLoop&&!alphaTabMode){
+  const range=internalLoopBounds(exercises[current]);
+  if(range)index=range.start;
+ }
  lastLoopTick=-1;updatePracticeProgress(resumingPausedSession?practiceIteration:0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
  if(!practiceLoop&&practiceTimer){clearInterval(practiceTimer);practiceTimer=null;cancelDelayedPlayback();const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}}
  if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
