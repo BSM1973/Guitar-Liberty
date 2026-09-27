@@ -1742,6 +1742,15 @@ if(importButton) importButton.onclick=async()=>{
  currentBackingLeadBeats=0;
  currentVideoLeadBeats=0;
  document.querySelectorAll('.library-exercise').forEach(b=>b.classList.remove('active'));
+ const importedLessonTitle=(file.name||'Tablature importée').replace(/\.(gp|gp3|gp4|gp5|gpx|musicxml|xml|mxl|mid|midi)$/i,'');
+ currentLessonId='import:'+importedLessonTitle;
+ lessonObjective.textContent='Travailler cette tablature personnelle proprement, à ton rythme.';
+ lessonPrereq.textContent='Selon la tablature importée';
+ lessonDifficulty.textContent='Personnel';
+ lessonKey.textContent='—';
+ lessonTempo.textContent='—';
+ paintLessonComplete();
+ paintLessonMastery();
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
   try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
