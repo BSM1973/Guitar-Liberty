@@ -1979,13 +1979,16 @@ if(importButton) importButton.onclick=async()=>{
   }
   // Invalidate every alphaTab load still in flight before switching renderers.
   // This prevents a late Guitar Pro callback from taking the UI back after MusicXML is active.
-  alphaTabLoadGeneration++;
+  invalidateAlphaTabLoad();
   const previousApi=window.guitarLibertyAlphaTab;
   stop();
   if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
   if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}}
   alphaPlayedBeat=null;playCursor=null;
   alphaTabMode=false;practiceScore=null;if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;tab.classList.remove('alphatab-score');
+  // MusicXML is now the authoritative score. Never let a later recovery path
+  // resurrect a Guitar Pro score that belonged to an older exercise.
+  currentAlphaTabSource=null;
   current=key; render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
