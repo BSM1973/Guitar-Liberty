@@ -1736,6 +1736,15 @@ async function loadBundledScore(button){
  // Switching exercises is not active practice time. Stop counting as soon as
  // the user commits to the new library exercise, before fetch/parsing begins.
  pausePracticeClock();
+ const previousLibraryButton=document.querySelector('.library-exercise.active');
+ const previousLibraryState={
+  lessonId:currentLessonId,objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
+  difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,lessonTempo:lessonTempo.textContent,
+  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
+  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
+  tutorialUrl:currentTutorialUrl,workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  alphaSource:currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null
+ };
  const libraryGeneration=++libraryLoadGeneration;
  const isCurrentLibraryLoad=()=>libraryGeneration===libraryLoadGeneration;
  setLessonInfo(button);
@@ -1755,7 +1764,23 @@ async function loadBundledScore(button){
   const loaded=await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
   if(!loaded)return;
   if(currentPracticeTitle&&savedExerciseTempo(currentPracticeTitle)){tempo.value=savedExerciseTempo(currentPracticeTitle);syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab)}
- }catch(err){if(!isCurrentLibraryLoad())return;console.error(err);importStatus.textContent='Exercice non installé : '+button.textContent.trim();}
+ }catch(err){
+  if(!isCurrentLibraryLoad())return;
+  console.error(err);
+  if(previousLibraryState.alphaSource){try{await loadWithAlphaTab(previousLibraryState.alphaSource,{restoring:true})}catch(restoreErr){console.error('Unable to restore previous library score',restoreErr)}}
+  currentLessonId=previousLibraryState.lessonId;
+  lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
+  lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
+  setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;
+  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;
+  setTutorial(previousLibraryState.tutorialUrl);
+  if(previousLibraryState.workingTempo)tempo.value=previousLibraryState.workingTempo;
+  if(previousLibraryState.targetTempo)targetBpm.value=previousLibraryState.targetTempo;
+  syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
+  document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===previousLibraryButton));
+  paintLessonComplete();paintLessonMastery();
+  importStatus.textContent='Exercice non installé : '+button.textContent.trim();
+ }
 }
 document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked'))loadBundledScore(b)});
 refreshCourseProgress();
