@@ -822,7 +822,11 @@ function resetTrainingSession(){
 resetSession.onclick=resetTrainingSession;
 if(lastSessionInsight)paintSessionInsight(lastSessionInsight,true);
 function updatePracticeProgress(done=practiceIteration){const max=Math.max(1,+loopRepeats.value||1);practiceProgress.style.width=(Math.min(max,Math.max(0,done))/max*100)+'%'}
-function practiceBars(){return practiceScore?.masterBars||[]}
+function practiceBars(){
+ if(practiceScore?.masterBars?.length)return practiceScore.masterBars;
+ const internalMeasures=exercises[current]?.measures;
+ return Array.isArray(internalMeasures)?internalMeasures:[];
+}
 function syncPracticeRange(){
  const n=practiceBars().length||1;
  loopStart.max=loopEnd.max=n;
@@ -830,7 +834,11 @@ function syncPracticeRange(){
  loopEnd.value=Math.min(Math.max(+loopStart.value,+loopEnd.value||Math.min(4,n)),n);
 }
 function practiceTicks(){
- const bars=practiceBars();syncPracticeRange();
+ // Tick ranges only exist in alphaTab. Internal MusicXML measures are exposed
+ // through practiceBars() for LOOP controls, but must never be treated as
+ // alphaTab master bars.
+ if(!practiceScore?.masterBars?.length)return null;
+ const bars=practiceScore.masterBars;syncPracticeRange();
  const a=bars[(+loopStart.value||1)-1],b=bars[(+loopEnd.value||1)-1];
  if(!a||!b)return null;
  const start=a.start||0;
