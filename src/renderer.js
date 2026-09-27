@@ -1289,8 +1289,20 @@ function stop(){
 }
 function noteIntervalMs(){const e=exercises[current],v=e.notes[index],beats=(v&&v[3])||.5;return 60000/+tempo.value*beats}
 function scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}
+function internalLoopBounds(e){
+ if(!practiceLoop||!e?.measures?.length)return null;
+ syncPracticeRange();
+ const startMeasure=+loopStart.value||1,endMeasure=+loopEnd.value||startMeasure;
+ let start=e.notes.findIndex(n=>(+n[4]||1)>=startMeasure);
+ if(start<0)start=0;
+ let end=e.notes.findIndex((n,i)=>i>=start&&(+n[4]||1)>endMeasure);
+ if(end<0)end=e.notes.length;
+ return {start,end};
+}
 function tick(){
  const e=exercises[current];
+ const internalRange=internalLoopBounds(e);
+ if(internalRange&&(index<internalRange.start||index>=internalRange.end))index=internalRange.start;
  const notes=document.querySelectorAll('.note');
  notes.forEach(n=>n.classList.toggle('active',+n.dataset.i===index));
  const active=document.querySelector('.note.active');
@@ -1307,7 +1319,24 @@ function tick(){
  }
  const [s,f]=e.notes[index];playNote(s,f);
  progress.style.width=((index+1)/e.notes.length*100)+'%';
- index++;if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
+ index++;
+ if(internalRange&&index>=internalRange.end){
+  index=internalRange.start;
+  practiceIteration++;
+  if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}
+  sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
+  const max=Math.max(1,+loopRepeats.value||1);
+  if(practiceIteration>=max){
+   updatePracticeProgress(max);sessionSeriesCount++;paintSession();practiceIteration=0;
+   const inc=+autoBpm.value||0;
+   if(inc){
+    const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max)),next=Math.min(goal,+tempo.value+inc);
+    tempo.value=next;syncTempo();
+    if(next>=goal){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearTimeout(timer);practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
+    else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
+   }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearTimeout(timer);practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
+  }
+ }else if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
 let preservePreferredTempo=false;
@@ -1412,6 +1441,7 @@ document.querySelector('#play').onclick=async()=>{
  if(playing){stop();return}
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
+ if(practiceLoop){const range=internalLoopBounds(exercises[current]);if(range)index=range.start;beginPracticePassage();}
  playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()
 };
 // L'application démarre désormais sur l'accueil, sans charger l'ancien exercice de démonstration.
@@ -2192,7 +2222,7 @@ if(importButton) importButton.onclick=async()=>{
     if(s<0||fret<0)return;
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
-    const noteIndex=imported.length; imported.push([s,fret,finger,duration]);
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1]);
     md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':''});
    });
    importedMeasures.push(md);
