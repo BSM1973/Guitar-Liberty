@@ -1746,7 +1746,7 @@ async function loadBundledScore(button){
   backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
-  workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
   loopStartValue:+loopStart.value||1,loopEndValue:+loopEnd.value||1,loopRepeatsValue:+loopRepeats.value||1,
   practiceStatusText:practiceStatus.textContent,
@@ -1805,6 +1805,7 @@ async function loadBundledScore(button){
   document.querySelector('#title').textContent=currentPracticeTitle;
   if(previousLibraryState.workingTempo)tempo.value=previousLibraryState.workingTempo;
   if(previousLibraryState.targetTempo)targetBpm.value=previousLibraryState.targetTempo;
+  autoBpm.value=previousLibraryState.autoBpmValue;
   syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
   practiceLoop=previousLibraryState.practiceLoop;
   practiceIteration=previousLibraryState.practiceIteration;
@@ -1857,7 +1858,7 @@ if(importButton) importButton.onclick=async()=>{
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
   tutorialUrl:currentTutorialUrl,
   practiceTitle:currentPracticeTitle,
-  workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
   loopStartValue:+loopStart.value||1,loopEndValue:+loopEnd.value||1,loopRepeatsValue:+loopRepeats.value||1,
   practiceStatusText:practiceStatus.textContent,
@@ -1880,6 +1881,7 @@ if(importButton) importButton.onclick=async()=>{
   currentPracticeTitle=previousLessonContext.practiceTitle;
   if(previousLessonContext.workingTempo)tempo.value=previousLessonContext.workingTempo;
   if(previousLessonContext.targetTempo)targetBpm.value=previousLessonContext.targetTempo;
+  autoBpm.value=previousLessonContext.autoBpmValue;
   syncTempo();
   practiceLoop=previousLessonContext.practiceLoop;
   practiceIteration=previousLessonContext.practiceIteration;
