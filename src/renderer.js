@@ -1914,9 +1914,11 @@ if(importButton) importButton.onclick=async()=>{
  }
  try{
   if(!['.musicxml','.xml'].includes(file.ext)){
-   prepareManualImportContext();
-   importStatus.textContent=file.name+' chargé — lecture visuelle bientôt disponible pour ce format';
+   // MXL/MIDI do not have a visual playback engine yet. Keep the current
+   // exercise completely intact instead of pretending the pending file has
+   // replaced it. The file remains available for the future importer.
    window.pendingImportedScore=file;
+   importStatus.textContent=file.name+' sélectionné — ce format n’est pas encore affichable';
    return;
   }
   // Validate MusicXML before replacing the currently active lesson context.
