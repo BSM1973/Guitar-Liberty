@@ -1373,7 +1373,7 @@ function tick(){
    }
   }
  }
- eventNotes.forEach(v=>{const [s,f]=v;playNote(s,f)});
+ eventNotes.forEach(v=>{if(v[7])return;const [s,f]=v;playNote(s,f)});
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
  index=eventEnd;
  if(internalRange&&index>=internalRange.end){
@@ -2282,8 +2282,9 @@ if(importButton) importButton.onclick=async()=>{
     if(s<0||fret<0)return;
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
-    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset]);
-    md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':''});
+    const tieStart=!!node.querySelector(':scope > tie[type="start"], :scope > notations tied[type="start"]'),tieStop=!!node.querySelector(':scope > tie[type="stop"], :scope > notations tied[type="stop"]');
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart]);
+    md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop});
    });
    importedMeasures.push(md);
   });
