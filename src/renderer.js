@@ -1917,7 +1917,8 @@ if(importButton) importButton.onclick=async()=>{
   if(wasPracticeClockRunning)resumePracticeClock();
   return;
  }
- const previousAlphaTabSource=currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null;
+ const previousAlphaTabSource=alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null;
+ const previousInternalExerciseKey=!alphaTabMode&&exercises[current]?current:null;
  const previousLessonContext={
   id:currentLessonId,
   objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
@@ -2022,17 +2023,36 @@ if(importButton) importButton.onclick=async()=>{
   paintLessonComplete();paintLessonMastery();
   renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
  };
- const restorePreviousAlphaTab=async()=>{
-  if(!previousAlphaTabSource)return false;
-  try{
-   const restored=await loadWithAlphaTab(previousAlphaTabSource,{restoring:true});
-   restorePreviousLessonContext();
-   return !!restored;
-  }catch(restoreErr){
-   console.error('Unable to restore previous alphaTab score',restoreErr);
-   restorePreviousLessonContext();
-   return false;
+ const restorePreviousScore=async()=>{
+  if(previousAlphaTabSource){
+   try{
+    const restored=await loadWithAlphaTab(previousAlphaTabSource,{restoring:true});
+    restorePreviousLessonContext();
+    return !!restored;
+   }catch(restoreErr){
+    console.error('Unable to restore previous alphaTab score',restoreErr);
+   }
   }
+  if(previousInternalExerciseKey&&exercises[previousInternalExerciseKey]){
+   invalidateAlphaTabLoad();
+   const failedApi=window.guitarLibertyAlphaTab;
+   if(failedApi){
+    try{failedApi.destroy()}catch(_){try{failedApi.stop()}catch(__){}}
+   }
+   window.guitarLibertyAlphaTab=null;
+   alphaTabMode=false;
+   practiceScore=null;
+   playCursor=null;
+   alphaPlayedBeat=null;
+   currentAlphaTabSource=null;
+   tab.classList.remove('alphatab-score');
+   current=previousInternalExerciseKey;
+   render();
+   restorePreviousLessonContext();
+   return true;
+  }
+  restorePreviousLessonContext();
+  return false;
  };
  const prepareManualImportContext=()=>{
   // Only a validated, displayable manual import replaces the current score.
@@ -2072,9 +2092,9 @@ if(importButton) importButton.onclick=async()=>{
    if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
    prepareManualImportContext();
    const loaded=await loadWithAlphaTab({...file,bytes});
-   if(!loaded){await restorePreviousAlphaTab();restorePreviousLessonContext();}
+   if(!loaded){await restorePreviousScore();restorePreviousLessonContext();}
   }catch(err){
-   await restorePreviousAlphaTab();
+   await restorePreviousScore();
    restorePreviousLessonContext();
    console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);
   }
