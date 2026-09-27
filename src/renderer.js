@@ -1767,6 +1767,8 @@ if(importButton) importButton.onclick=async()=>{
   backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
   tutorialUrl:currentTutorialUrl,
+  practiceTitle:currentPracticeTitle,
+  workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
  const restorePreviousLessonContext=()=>{
@@ -1781,8 +1783,14 @@ if(importButton) importButton.onclick=async()=>{
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
   setTutorial(previousLessonContext.tutorialUrl);
+  currentPracticeTitle=previousLessonContext.practiceTitle;
+  if(previousLessonContext.workingTempo)tempo.value=previousLessonContext.workingTempo;
+  if(previousLessonContext.targetTempo)targetBpm.value=previousLessonContext.targetTempo;
+  syncTempo();
+  document.querySelector('#title').textContent=currentPracticeTitle;
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
+  renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
  };
  const prepareManualImportContext=()=>{
   setBackingTrack(null);
