@@ -1763,7 +1763,11 @@ if(importButton) importButton.onclick=async()=>{
  const previousLessonContext={
   id:currentLessonId,
   objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
-  difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,tempo:lessonTempo.textContent
+  difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,tempo:lessonTempo.textContent,
+  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
+  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
+  tutorialUrl:currentTutorialUrl,
+  activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
  const restorePreviousLessonContext=()=>{
   currentLessonId=previousLessonContext.id;
@@ -1772,6 +1776,12 @@ if(importButton) importButton.onclick=async()=>{
   lessonDifficulty.textContent=previousLessonContext.difficulty;
   lessonKey.textContent=previousLessonContext.key;
   lessonTempo.textContent=previousLessonContext.tempo;
+  setBackingTrack(previousLessonContext.backingUrl);
+  currentBackingLeadBeats=previousLessonContext.backingLeadBeats;
+  setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
+  currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
+  setTutorial(previousLessonContext.tutorialUrl);
+  document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
  };
  const prepareManualImportContext=()=>{
