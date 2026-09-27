@@ -1507,7 +1507,7 @@ function drawLeftHandFingerings(api){
  if(count){tab.style.position='relative';tab.appendChild(layer);}
 }
 
-async function loadWithAlphaTab(file){
+async function loadWithAlphaTab(file,{restoring=false}={}){
  if(!window.alphaTab)throw new Error('Le moteur alphaTab n’est pas chargé dans cette version de Guitare Liberty.');
  invalidateAlphaTabLoad();
  const loadGeneration=alphaTabLoadGeneration;
@@ -1678,7 +1678,7 @@ async function loadWithAlphaTab(file){
   if(!isActiveLoad())return;
   completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
-  if(sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
+  if(!restoring&&sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   // Keep only a source that alphaTab has actually parsed successfully. This
   // gives failed future imports a trustworthy score to restore from.
   currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
@@ -1799,7 +1799,7 @@ if(importButton) importButton.onclick=async()=>{
  const restorePreviousAlphaTab=async()=>{
   if(!previousAlphaTabSource)return false;
   try{
-   const restored=await loadWithAlphaTab(previousAlphaTabSource);
+   const restored=await loadWithAlphaTab(previousAlphaTabSource,{restoring:true});
    restorePreviousLessonContext();
    return !!restored;
   }catch(restoreErr){
