@@ -1997,7 +1997,8 @@ if(importButton) importButton.onclick=async()=>{
   renderHistory();refreshDashboard();paintMeasureMemory();if(!sessionStarted)paintSessionInsight();
   document.querySelectorAll('.exercise').forEach(b=>b.classList.remove('active'));
   importStatus.textContent=file.name+' — '+imported.length+' notes affichées';
-  window.pendingImportedScore=file;
+  // This score is fully active, so there is no longer an unresolved import.
+  window.pendingImportedScore=null;
  }catch(err){
   console.error('MusicXML import failed',err);
   importStatus.textContent='Erreur import : '+err.message;
