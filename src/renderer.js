@@ -1763,6 +1763,14 @@ async function loadBundledScore(button){
   playWithMeRepeatValue:+playWithMeRepeat?.value||1,playWithMeAnswerModeValue:playWithMeAnswerMode?.value??'manual',
   playWithMeSessionLengthValue:playWithMeSessionLength?.value??'all',playWithMeLeadValue:playWithMeLead?.value??'0',
   playWithMeRoundCountValue:playWithMeRoundCount,playWithMePhraseRepeatValue:playWithMePhraseRepeat,
+  analysisHitsValue:analysisHits,analysisTotalValue:analysisTotal,timingHitsValue:timingHits,
+  currentAnalysisMeasureValue:currentAnalysisMeasure,
+  measurePerformanceValue:JSON.parse(JSON.stringify(measurePerformance||{})),
+  weakMeasureValue:weakMeasure,
+  adaptiveModeValue:adaptiveMode,adaptiveMeasureNoValue:adaptiveMeasureNo,
+  adaptiveBaselineValue:adaptiveBaseline?JSON.parse(JSON.stringify(adaptiveBaseline)):null,
+  adaptivePassesValue:adaptivePasses,
+  adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
@@ -1848,6 +1856,18 @@ async function loadBundledScore(button){
   if(playWithMeResume)playWithMeResume.disabled=false;
   if(playWithMeNext)playWithMeNext.disabled=true;
   if(playWithMeStop)playWithMeStop.disabled=true;
+  analysisHits=previousLibraryState.analysisHitsValue;
+  analysisTotal=previousLibraryState.analysisTotalValue;
+  timingHits=previousLibraryState.timingHitsValue;
+  currentAnalysisMeasure=previousLibraryState.currentAnalysisMeasureValue;
+  measurePerformance=JSON.parse(JSON.stringify(previousLibraryState.measurePerformanceValue||{}));
+  weakMeasure=previousLibraryState.weakMeasureValue;
+  adaptiveMode=previousLibraryState.adaptiveModeValue;
+  adaptiveMeasureNo=previousLibraryState.adaptiveMeasureNoValue;
+  adaptiveBaseline=previousLibraryState.adaptiveBaselineValue?JSON.parse(JSON.stringify(previousLibraryState.adaptiveBaselineValue)):null;
+  adaptivePasses=previousLibraryState.adaptivePassesValue;
+  adaptiveLastTotals=JSON.parse(JSON.stringify(previousLibraryState.adaptiveLastTotalsValue||{}));
+  refreshPerformanceScores();paintMeasureAnalysis();adaptivePanel();
   if(libertyAuto)libertyAuto.value=previousLibraryState.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLibraryState.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLibraryState.libertyStartFadeValue;
@@ -1905,6 +1925,14 @@ if(importButton) importButton.onclick=async()=>{
   playWithMeRepeatValue:+playWithMeRepeat?.value||1,playWithMeAnswerModeValue:playWithMeAnswerMode?.value??'manual',
   playWithMeSessionLengthValue:playWithMeSessionLength?.value??'all',playWithMeLeadValue:playWithMeLead?.value??'0',
   playWithMeRoundCountValue:playWithMeRoundCount,playWithMePhraseRepeatValue:playWithMePhraseRepeat,
+  analysisHitsValue:analysisHits,analysisTotalValue:analysisTotal,timingHitsValue:timingHits,
+  currentAnalysisMeasureValue:currentAnalysisMeasure,
+  measurePerformanceValue:JSON.parse(JSON.stringify(measurePerformance||{})),
+  weakMeasureValue:weakMeasure,
+  adaptiveModeValue:adaptiveMode,adaptiveMeasureNoValue:adaptiveMeasureNo,
+  adaptiveBaselineValue:adaptiveBaseline?JSON.parse(JSON.stringify(adaptiveBaseline)):null,
+  adaptivePassesValue:adaptivePasses,
+  adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
@@ -1954,6 +1982,18 @@ if(importButton) importButton.onclick=async()=>{
   if(playWithMeResume)playWithMeResume.disabled=false;
   if(playWithMeNext)playWithMeNext.disabled=true;
   if(playWithMeStop)playWithMeStop.disabled=true;
+  analysisHits=previousLessonContext.analysisHitsValue;
+  analysisTotal=previousLessonContext.analysisTotalValue;
+  timingHits=previousLessonContext.timingHitsValue;
+  currentAnalysisMeasure=previousLessonContext.currentAnalysisMeasureValue;
+  measurePerformance=JSON.parse(JSON.stringify(previousLessonContext.measurePerformanceValue||{}));
+  weakMeasure=previousLessonContext.weakMeasureValue;
+  adaptiveMode=previousLessonContext.adaptiveModeValue;
+  adaptiveMeasureNo=previousLessonContext.adaptiveMeasureNoValue;
+  adaptiveBaseline=previousLessonContext.adaptiveBaselineValue?JSON.parse(JSON.stringify(previousLessonContext.adaptiveBaselineValue)):null;
+  adaptivePasses=previousLessonContext.adaptivePassesValue;
+  adaptiveLastTotals=JSON.parse(JSON.stringify(previousLessonContext.adaptiveLastTotalsValue||{}));
+  refreshPerformanceScores();paintMeasureAnalysis();adaptivePanel();
   if(libertyAuto)libertyAuto.value=previousLessonContext.libertyAutoValue;
   if(libertyCycle)libertyCycle.value=previousLessonContext.libertyCycleValue;
   if(libertyStartFade)libertyStartFade.value=previousLessonContext.libertyStartFadeValue;
