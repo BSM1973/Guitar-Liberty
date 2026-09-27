@@ -309,7 +309,10 @@ async function startListening(){
  }catch(e){console.error(e);document.querySelector('#listenStatus').textContent='Accès audio refusé ou entrée indisponible.'}
 }
 function stopListening(){
- listening=false;cancelAnimationFrame(listenFrame);listenStream?.getTracks().forEach(t=>t.stop());listenContext?.close();guitarMonitor.pause();guitarMonitor.srcObject=null;listenStream=null;listenContext=null;listenAnalyser=null;listenStart.textContent='DÉMARRER L’ANALYSE';listenStart.classList.remove('active');document.querySelector('#listenStatus').textContent='Analyse arrêtée';
+ // Invalidate any delayed expected-note timeout before releasing the audio
+ // graph. A score switch must never score a late miss against the old lesson.
+ listening=false;expectedToken++;expectedMidi=null;expectedResolved=true;
+ cancelAnimationFrame(listenFrame);listenFrame=0;listenStream?.getTracks().forEach(t=>t.stop());listenContext?.close();guitarMonitor.pause();guitarMonitor.srcObject=null;listenStream=null;listenContext=null;listenAnalyser=null;listenStart.textContent='DÉMARRER L’ANALYSE';listenStart.classList.remove('active');document.querySelector('#listenStatus').textContent='Analyse arrêtée';
 }
 document.querySelector('#aiListen').onclick=()=>{aiListening.hidden=!aiListening.hidden;if(!aiListening.hidden)listAudioInputs()};
 document.querySelector('#audioRefresh').onclick=listAudioInputs;listenStart.onclick=startListening;
@@ -1736,6 +1739,9 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ // Listening is tied to the score being analysed. Stop it before another
+ // library score can become authoritative; audio device preferences remain.
+ if(listening)stopListening();
  // Switching exercises is not active practice time. Stop counting as soon as
  // the user commits to the new library exercise, before fetch/parsing begins.
  pausePracticeClock();
@@ -1977,6 +1983,9 @@ if(importButton) importButton.onclick=async()=>{
   }
  };
  const prepareManualImportContext=()=>{
+  // Only a validated, displayable manual import replaces the current score.
+  // At that moment ÉCOUTE IA must release the old score and pending note.
+  if(listening)stopListening();
   setBackingTrack(null);
   setVideoTrack(null,null);
   setTutorial(null);
