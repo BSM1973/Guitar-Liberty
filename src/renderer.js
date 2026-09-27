@@ -1664,6 +1664,15 @@ async function loadWithAlphaTab(file){
 
  let completed=false,resolveLoad,rejectLoad;
  const loadResult=new Promise((resolve,reject)=>{resolveLoad=resolve;rejectLoad=reject;alphaTabPendingResolve=resolve;});
+ const cleanupFailedAlphaLoad=()=>{
+  if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
+  if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;
+  try{api.destroy()}catch(_){try{api.stop()}catch(__){}}
+  alphaTabMode=false;practiceScore=null;playCursor=null;alphaPlayedBeat=null;
+  if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
+  tab.classList.remove('alphatab-score');tab.innerHTML='';
+  document.querySelector('#play').textContent='▶ PLAY';
+ };
  api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   if(!isActiveLoad())return;
@@ -1696,12 +1705,12 @@ async function loadWithAlphaTab(file){
   const msg=err?.message||String(err);
   console.error('alphaTab import error',err);
   importStatus.textContent='Erreur Guitar Pro : '+msg;
-  if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
+  cleanupFailedAlphaLoad();
   rejectLoad(err instanceof Error?err:new Error(msg));
  });
  importStatus.textContent='Chargement de '+file.name+'…';
  const accepted=api.load(bytes);
- if(!accepted){try{api.destroy()}catch(_){try{api.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;alphaTabMode=false;practiceScore=null;playCursor=null;tab.classList.remove('alphatab-score');tab.innerHTML='';document.querySelector('#play').textContent='▶ PLAY';throw new Error('alphaTab a refusé les données du fichier.');}
+ if(!accepted){cleanupFailedAlphaLoad();throw new Error('alphaTab a refusé les données du fichier.');}
  setTimeout(()=>{if(isActiveLoad()&&!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
  return await loadResult;
 }
