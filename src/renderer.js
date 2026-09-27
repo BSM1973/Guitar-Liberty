@@ -1773,6 +1773,8 @@ if(importButton) importButton.onclick=async()=>{
   tutorialUrl:currentTutorialUrl,
   practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
+  practiceLoop,practiceIteration,lastLoopTick,
+  sessionSeriesCount,sessionRepCount,sessionBest,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
  const restorePreviousLessonContext=()=>{
@@ -1791,6 +1793,14 @@ if(importButton) importButton.onclick=async()=>{
   if(previousLessonContext.workingTempo)tempo.value=previousLessonContext.workingTempo;
   if(previousLessonContext.targetTempo)targetBpm.value=previousLessonContext.targetTempo;
   syncTempo();
+  practiceLoop=previousLessonContext.practiceLoop;
+  practiceIteration=previousLessonContext.practiceIteration;
+  lastLoopTick=previousLessonContext.lastLoopTick;
+  sessionSeriesCount=previousLessonContext.sessionSeriesCount;
+  sessionRepCount=previousLessonContext.sessionRepCount;
+  sessionBest=previousLessonContext.sessionBest;
+  loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
+  loopToggle.classList.toggle('active',practiceLoop);
   document.querySelector('#title').textContent=currentPracticeTitle;
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
