@@ -974,7 +974,7 @@ playWithMeNext?.addEventListener('click',()=>{
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
 let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
-let alphaTabLoadGeneration=0,libraryLoadGeneration=0,alphaTabClickHandler=null,alphaTabPendingResolve=null;
+let alphaTabLoadGeneration=0,libraryLoadGeneration=0,alphaTabClickHandler=null,alphaTabPendingResolve=null,currentAlphaTabSource=null;
 function invalidateAlphaTabLoad(){
  alphaTabLoadGeneration++;
  if(alphaTabPendingResolve){alphaTabPendingResolve(false);alphaTabPendingResolve=null;}
@@ -1679,6 +1679,9 @@ async function loadWithAlphaTab(file){
   completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
   if(sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
+  // Keep only a source that alphaTab has actually parsed successfully. This
+  // gives failed future imports a trustworthy score to restore from.
+  currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)}
   currentPracticeTitle=loadedTitle;
   // Manual imports may expose an internal Guitar Pro title different from the
