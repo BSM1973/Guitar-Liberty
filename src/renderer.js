@@ -1757,8 +1757,15 @@ if(importButton) importButton.onclick=async()=>{
  lessonDifficulty.textContent='Personnel';
  lessonKey.textContent='—';
  lessonTempo.textContent='—';
- paintLessonComplete();
- paintLessonMastery();
+ // Do not calculate mastery against the previous exercise while the imported
+ // score title is still unknown. The definitive paint happens once the GP
+ // internal title or MusicXML title becomes currentPracticeTitle.
+ lessonComplete.classList.remove('complete');
+ lessonComplete.textContent='✓ MARQUER TERMINÉ';
+ lessonLearningState.textContent='À DÉCOUVRIR';
+ lessonLearningState.dataset.state='À DÉCOUVRIR';
+ lessonMasteryText.textContent='Chargement de la progression…';
+ lessonMasteryBar.style.width='0%';
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
   try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
