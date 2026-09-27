@@ -1734,6 +1734,14 @@ if(importButton) importButton.onclick=async()=>{
  const file=await window.guitarAudio.importScore();
  if(!file)return;
  if(importLibraryGeneration!==libraryLoadGeneration)return;
+ // Manual files are independent exercises: never inherit media or lesson
+ // metadata from the previously selected bundled course exercise.
+ setBackingTrack(null);
+ setVideoTrack(null,null);
+ setTutorial(null);
+ currentBackingLeadBeats=0;
+ currentVideoLeadBeats=0;
+ document.querySelectorAll('.library-exercise').forEach(b=>b.classList.remove('active'));
  if(['.gp','.gp3','.gp4','.gp5','.gpx'].includes(file.ext)){
   try{await loadWithAlphaTab(file);}catch(err){console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);}
   return;
