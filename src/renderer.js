@@ -1744,7 +1744,8 @@ async function loadBundledScore(button){
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,
-  alphaSource:currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null
+  alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
+  internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
  };
  const libraryGeneration=++libraryLoadGeneration;
  const isCurrentLibraryLoad=()=>libraryGeneration===libraryLoadGeneration;
@@ -1768,7 +1769,16 @@ async function loadBundledScore(button){
  }catch(err){
   if(!isCurrentLibraryLoad())return;
   console.error(err);
-  if(previousLibraryState.alphaSource){try{await loadWithAlphaTab(previousLibraryState.alphaSource,{restoring:true})}catch(restoreErr){console.error('Unable to restore previous library score',restoreErr)}}
+  if(previousLibraryState.alphaSource){
+   try{await loadWithAlphaTab(previousLibraryState.alphaSource,{restoring:true})}catch(restoreErr){console.error('Unable to restore previous library score',restoreErr)}
+  }else if(previousLibraryState.internalExerciseKey&&exercises[previousLibraryState.internalExerciseKey]){
+   invalidateAlphaTabLoad();
+   const failedApi=window.guitarLibertyAlphaTab;
+   if(failedApi){try{failedApi.destroy()}catch(_){try{failedApi.stop()}catch(__){}}}
+   window.guitarLibertyAlphaTab=null;alphaTabMode=false;practiceScore=null;playCursor=null;alphaPlayedBeat=null;
+   tab.classList.remove('alphatab-score');
+   current=previousLibraryState.internalExerciseKey;render();
+  }
   currentLessonId=previousLibraryState.lessonId;
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
