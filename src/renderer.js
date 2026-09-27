@@ -1138,6 +1138,12 @@ loopToggle.onclick=()=>{
  if(restartingSavedSession){resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
  const completedSeries=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionSeriesCount&&practiceStatus.textContent.indexOf('Série terminée')===0;
  const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
+ const internalTransportWasPlaying=!alphaTabMode&&playing;
+ if(internalTransportWasPlaying){
+  playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+  document.querySelector('#play').textContent='▶ PLAY';
+  document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
+ }
  if(completedSeries){practiceIteration=0;updatePracticeProgress(0)}
  if(!practiceLoop&&!resumingPausedSession&&(+autoBpm.value||0)>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
   practiceStatus.textContent='Objectif déjà atteint • '+(+tempo.value||0)+' BPM • augmente la cible pour continuer';
@@ -1153,6 +1159,10 @@ loopToggle.onclick=()=>{
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
  }
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
+ if(!alphaTabMode&&internalTransportWasPlaying){
+  if(practiceLoop){const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
+  pausePracticeClock();
+ }
  if(practiceLoop&&completedSeries){
   pausePracticeClock();
   practiceStatus.textContent='Nouvelle série prête • répétition 1/'+Math.max(1,+loopRepeats.value||1);
