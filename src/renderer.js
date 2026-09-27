@@ -1701,6 +1701,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   // Keep only a source that alphaTab has actually parsed successfully. This
   // gives failed future imports a trustworthy score to restore from.
   currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
+  if(!restoring)document.querySelector('#play').textContent='▶ PLAY';
   // A successfully parsed Guitar Pro score supersedes any unresolved MXL/MIDI
   // selection left by the placeholder import path.
   window.pendingImportedScore=null;
@@ -2211,6 +2212,7 @@ if(importButton) importButton.onclick=async()=>{
   // MusicXML is now the authoritative score. Never let a later recovery path
   // resurrect a Guitar Pro score that belonged to an older exercise.
   currentAlphaTabSource=null;
+  document.querySelector('#play').textContent='▶ PLAY';
   current=key; render();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
