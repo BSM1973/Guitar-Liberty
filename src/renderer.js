@@ -1907,6 +1907,7 @@ if(importButton) importButton.onclick=async()=>{
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  pausePracticeClock();
+ const resumeUnchangedPracticeClock=()=>{if(wasPracticeClockRunning&&importLibraryGeneration===libraryLoadGeneration)resumePracticeClock()};
  const file=await window.guitarAudio.importScore();
  // A newer library/import request owns the practice clock now. A stale picker
  // must not resume or otherwise mutate the session it no longer belongs to.
@@ -1914,7 +1915,7 @@ if(importButton) importButton.onclick=async()=>{
  if(!file){
   // Cancelling the still-current picker changes no exercise. Resume only if
   // practice was actually running before the dialog opened.
-  if(wasPracticeClockRunning)resumePracticeClock();
+  resumeUnchangedPracticeClock();
   return;
  }
  const previousAlphaTabSource=alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null;
@@ -2094,14 +2095,16 @@ if(importButton) importButton.onclick=async()=>{
    const loaded=await loadWithAlphaTab({...file,bytes});
    if(!loaded){await restorePreviousScore();restorePreviousLessonContext();}
   }catch(err){
+   const scoreReplacementStarted=currentLessonId!==previousLessonContext.id||currentPracticeTitle!==previousLessonContext.practiceTitle;
    await restorePreviousScore();
-   restorePreviousLessonContext();
+   if(!scoreReplacementStarted)resumeUnchangedPracticeClock();
    console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);
   }
   return;
  }
  const supported=['.musicxml','.xml','.mxl','.mid','.midi'];
  if(!supported.includes(file.ext)){
+  resumeUnchangedPracticeClock();
   importStatus.textContent='Guitar Pro : export MusicXML requis';
   alert('Pour importer cette tablature Guitar Pro dans Guitare Liberty, exporte-la d’abord en MusicXML depuis Guitar Pro.');
   return;
@@ -2112,6 +2115,7 @@ if(importButton) importButton.onclick=async()=>{
    // exercise completely intact instead of pretending the pending file has
    // replaced it. The file remains available for the future importer.
    window.pendingImportedScore=file;
+   resumeUnchangedPracticeClock();
    importStatus.textContent=file.name+' sélectionné — ce format n’est pas encore affichable';
    return;
   }
@@ -2197,7 +2201,9 @@ if(importButton) importButton.onclick=async()=>{
   // Parsing can still fail after the validated XML has started replacing the
   // current lesson. Recover the last authoritative score just like a failed GP
   // import, rather than leaving a half-switched MusicXML context on screen.
+  const scoreReplacementStarted=currentLessonId!==previousLessonContext.id||currentPracticeTitle!==previousLessonContext.practiceTitle;
   await restorePreviousScore();
+  if(!scoreReplacementStarted)resumeUnchangedPracticeClock();
   console.error('MusicXML import failed',err);
   importStatus.textContent='Erreur import : '+err.message;
   alert('Impossible d’afficher cette tablature : '+err.message);
