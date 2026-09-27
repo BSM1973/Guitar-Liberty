@@ -1682,6 +1682,9 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   // Keep only a source that alphaTab has actually parsed successfully. This
   // gives failed future imports a trustworthy score to restore from.
   currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
+  // A successfully parsed Guitar Pro score supersedes any unresolved MXL/MIDI
+  // selection left by the placeholder import path.
+  window.pendingImportedScore=null;
   practiceScore=score; syncPracticeRange(); if(playWithMeBar){playWithMeBar.max=practiceBars().length||1;playWithMeBar.value=Math.min(+playWithMeBar.value||1,practiceBars().length||1)}
   currentPracticeTitle=loadedTitle;
   // Manual imports may expose an internal Guitar Pro title different from the
