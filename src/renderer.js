@@ -1768,14 +1768,18 @@ document.querySelector('#play').onclick=async()=>{
     }
    }
    if(resumeLeadIn){
+    let resumeLeadInPlayback=()=>{if(!practiceLoop)return;beginPracticePassage();api.play();};
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));document.querySelector('#play').textContent='⏸ PAUSE';
+     resumeLeadInPlayback=()=>{if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();};
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();try{wistiaPlayer.play();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+     resumeLeadInPlayback=()=>{if(!practiceLoop||!videoEnabled||!wistiaPlayer||!isWistiaPlaying())return;beginPracticePassage();api.play();};
     }else if(backingAudio&&backingEnabled){
      const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
+     resumeLeadInPlayback=()=>{if(!practiceLoop||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play();};
     }
-    scheduleLeadInStart(()=>{if(!practiceLoop)return;beginPracticePassage();api.play();},leadInRemainingMs);
+    scheduleLeadInStart(resumeLeadInPlayback,leadInRemainingMs);
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
