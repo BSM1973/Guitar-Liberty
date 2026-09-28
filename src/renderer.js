@@ -9,8 +9,8 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer(){if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
 const sampleCache=new Map();
@@ -1512,10 +1512,11 @@ function noteIntervalMs(){
 function scheduleNext(delayMs){
  clearInternalTimer();
  if(playing&&Number.isFinite(delayMs)){
+  const schedulerGeneration=internalSchedulerGeneration;
   timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);
   timer=setTimeout(()=>{
    timer=null;timerStartedAt=0;timerDelayMs=0;
-   if(!playing)return;
+   if(!playing||schedulerGeneration!==internalSchedulerGeneration)return;
    scheduleNext(tick());
   },timerDelayMs)
  }
