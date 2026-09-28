@@ -1688,10 +1688,14 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   if(practiceVideo.paused){
    practiceVideo.currentTime=0;
    const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50),startGeneration=++mediaStartGeneration;
+   const startVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
    practiceVideo.play().then(()=>{
-    if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused)return;
+    if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==startVideoSrc)return;
     startSession();document.querySelector('#play').textContent='⏸ PAUSE';
-    scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();},currentVideoLeadBeats*(60000/bpm));
+    scheduleLeadInStart(()=>{
+     if(startGeneration!==mediaStartGeneration||!practiceLoop||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==startVideoSrc)return;
+     beginPracticePassage();api.play();
+    },currentVideoLeadBeats*(60000/bpm));
    }).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Vidéo',e)});
   }
   return;
