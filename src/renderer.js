@@ -1741,13 +1741,14 @@ document.querySelector('#play').onclick=async()=>{
     return;
    }
    if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src&&!practiceVideo.paused){
-    practiceVideo.pause();alphaTabResumePending=true;
+    practiceVideo.pause();try{api.pause()}catch(_){}alphaTabResumePending=true;
     if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
     document.querySelector('#play').textContent='▶ PLAY';return;
    }
    if(videoEnabled&&wistiaPlayer){
     if(isWistiaPlaying()){
      try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+     try{api.pause()}catch(_){}
      alphaTabResumePending=true;
      if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
      document.querySelector('#play').textContent='▶ PLAY';return;
@@ -1768,9 +1769,9 @@ document.querySelector('#play').onclick=async()=>{
    }
    if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
-     syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+     syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
     }else if(videoEnabled&&wistiaPlayer){
-     syncVideoTempo();try{wistiaPlayer.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+     syncVideoTempo();try{wistiaPlayer.play();api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
     }else startAlphaPracticePlayback(api,{resumeAccompaniment:true});
    }else countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
