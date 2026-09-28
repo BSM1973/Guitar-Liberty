@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,internalPlaybackPreparing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
@@ -1763,6 +1763,12 @@ document.querySelector('#play').onclick=async()=>{
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
  if(playing){stop();return}
+ if(internalPlaybackPreparing){
+  internalPlaybackPreparing=false;
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+  return;
+ }
  // During an internal Auto BPM transition the transport is intentionally idle
  // while the next series counts in. Treat PLAY/STOP as a cancellation here;
  // otherwise a click could start playback immediately and the pending count-in
@@ -1773,8 +1779,12 @@ document.querySelector('#play').onclick=async()=>{
   document.querySelector('#play').textContent='▶ PLAY';
   return;
  }
+ internalPlaybackPreparing=true;
+ document.querySelector('#play').textContent='■ STOP';
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
+ if(!internalPlaybackPreparing)return;
+ internalPlaybackPreparing=false;
  if(practiceLoop){
   const range=internalLoopBounds(exercises[current]);
   if(!range){practiceStatus.textContent='Boucle vide • aucune note dans les mesures '+loopStart.value+'–'+loopEnd.value;document.querySelector('#play').textContent='▶ PLAY';return;}
