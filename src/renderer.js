@@ -1238,8 +1238,12 @@ loopRepeats.onchange=()=>{
   return;
  }
  updatePracticeProgress(practiceIteration);
- if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt){
-  practiceStatus.textContent=(sessionPausedAt?'Prêt à reprendre':'En cours')+' • Répétition '+(practiceIteration+1)+'/'+target;
+ if(practiceLoop){
+  if(sessionStarted&&sessionFirstPracticeAt){
+   practiceStatus.textContent=(sessionPausedAt?'Prêt à reprendre':'En cours')+' • Répétition '+(practiceIteration+1)+'/'+target;
+  }else{
+   practiceStatus.textContent='Prêt • répétition '+(practiceIteration+1)+'/'+target;
+  }
  }
 };
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{
