@@ -1815,10 +1815,14 @@ document.querySelector('#play').onclick=async()=>{
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();
      const startGeneration=++mediaStartGeneration;
+     const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
      practiceVideo.play().then(()=>{
-      if(startGeneration!==mediaStartGeneration||practiceVideo.paused)return;
+      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc)return;
       document.querySelector('#play').textContent='⏸ PAUSE';
-      scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||practiceVideo.paused)return;resumeLeadInPlayback()},remainingLeadIn);
+      scheduleLeadInStart(()=>{
+       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc)return;
+       resumeLeadInPlayback();
+      },remainingLeadIn);
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();
