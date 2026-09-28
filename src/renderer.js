@@ -1665,6 +1665,11 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
   }
   return;
  }
+ if(videoEnabled&&currentWistiaId&&!wistiaPlayer){
+  practiceStatus.textContent='Vidéo en cours de chargement…';
+  document.querySelector('#play').textContent='▶ PLAY';
+  return;
+ }
  if(videoEnabled&&wistiaPlayer){
   syncVideoTempo();
   try{
