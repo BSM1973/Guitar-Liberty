@@ -1704,17 +1704,29 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
  if(videoEnabled&&wistiaPlayer){
   syncVideoTempo();
   try{
+   cancelPendingWistiaResume();
+   const startGeneration=wistiaResumeGeneration;
+   const startPlayer=wistiaPlayer;
+   let started=false;
    if(restartAccompaniment){
-    if(typeof wistiaPlayer.time==='function')wistiaPlayer.time(0);
-    else if(typeof wistiaPlayer.currentTime==='function')wistiaPlayer.currentTime(0);
+    if(typeof startPlayer.time==='function')startPlayer.time(0);
+    else if(typeof startPlayer.currentTime==='function')startPlayer.currentTime(0);
    }
-   wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';
-   const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
-   scheduleLeadInStart(()=>{
-    if(!practiceLoop||!videoEnabled||!wistiaPlayer)return;
-    if(!isWistiaPlaying())return;
-    beginPracticePassage();api.play();
-   },currentVideoLeadBeats*(60000/bpm));
+   const startWistiaPractice=()=>{
+    if(started||startGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==startPlayer)return;
+    started=true;pendingWistiaResume=null;
+    try{startPlayer.unbind('play',startWistiaPractice)}catch(_){}
+    startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';
+    const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
+    scheduleLeadInStart(()=>{
+     if(startGeneration!==wistiaResumeGeneration||!practiceLoop||!videoEnabled||wistiaPlayer!==startPlayer||!isWistiaPlaying())return;
+     beginPracticePassage();api.play();
+    },currentVideoLeadBeats*(60000/bpm));
+   };
+   pendingWistiaResume={player:startPlayer,handler:startWistiaPractice};
+   try{startPlayer.bind('play',startWistiaPractice)}catch(_){}
+   startPlayer.play();
+   if(isWistiaPlaying())startWistiaPractice();
   }catch(e){failStart('Wistia',e)}
   return;
  }
