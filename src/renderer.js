@@ -2299,7 +2299,12 @@ if(importButton) importButton.onclick=async()=>{
     const typeName=node.querySelector(':scope > type')?.textContent||''; const dots=node.querySelectorAll(':scope > dot').length;
     const voice=node.querySelector(':scope > voice')?.textContent?.trim()||'1',staff=node.querySelector(':scope > staff')?.textContent?.trim()||'1',voiceKey=staff+':'+voice;
     const chord=!!node.querySelector(':scope > chord'),onset=chord?(lastPlayableOnsetByVoice.get(voiceKey)??lastOnsetByVoice.get(voiceKey)??cursor):cursor;
-    if(!chord){lastOnsetByVoice.set(voiceKey,onset);cursor+=duration;}
+    if(!chord){
+     // A new primary note always starts a new chord context. Only a playable
+     // guitar note below is allowed to establish the next chord anchor.
+     lastPlayableOnsetByVoice.delete(voiceKey);
+     lastOnsetByVoice.set(voiceKey,onset);cursor+=duration;
+    }
     if(node.querySelector(':scope > rest')){const full=!!node.querySelector(':scope > rest[measure="yes"]');md.events.push({type:'rest',onset,duration:full?measureLength:duration,typeName,dots});return;}
     const pitch=node.querySelector(':scope > pitch');if(!pitch)return;
     const step=pitch.querySelector('step')?.textContent||'C',alter=+(pitch.querySelector('alter')?.textContent||0),octave=+(pitch.querySelector('octave')?.textContent||4),midi=(octave+1)*12+stepSemis[step]+alter;
