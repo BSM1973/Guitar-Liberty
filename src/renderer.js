@@ -1709,7 +1709,7 @@ document.querySelector('#play').onclick=async()=>{
     return;
    }
    if(backingStartTimer){
-    cancelDelayedPlayback();stopBacking(false);
+    cancelDelayedPlayback();pauseAlphaPracticeAccompaniment();
     if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
     practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
     document.querySelector('#play').textContent='▶ PLAY';
