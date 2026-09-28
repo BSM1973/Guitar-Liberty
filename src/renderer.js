@@ -1809,7 +1809,24 @@ document.querySelector('#play').onclick=async()=>{
       scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||practiceVideo.paused)return;resumeLeadInPlayback()},remainingLeadIn);
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&wistiaPlayer){
-     syncVideoTempo();try{wistiaPlayer.play();document.querySelector('#play').textContent='⏸ PAUSE';scheduleLeadInStart(()=>{if(!videoEnabled||!wistiaPlayer||!isWistiaPlaying())return;resumeLeadInPlayback()},remainingLeadIn)}catch(e){failAccompanimentResume('Wistia',e)}
+     syncVideoTempo();
+     try{
+      let resumed=false;
+      cancelPendingWistiaResume();
+      const resumeGeneration=wistiaResumeGeneration;
+      const resumePlayer=wistiaPlayer;
+      const resumeWistiaLeadIn=()=>{
+       if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer)return;
+       resumed=true;pendingWistiaResume=null;
+       try{resumePlayer.unbind('play',resumeWistiaLeadIn)}catch(_){}
+       document.querySelector('#play').textContent='⏸ PAUSE';
+       scheduleLeadInStart(()=>{if(resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||!isWistiaPlaying())return;resumeLeadInPlayback()},remainingLeadIn);
+      };
+      pendingWistiaResume={player:resumePlayer,handler:resumeWistiaLeadIn};
+      try{resumePlayer.bind('play',resumeWistiaLeadIn)}catch(_){}
+      resumePlayer.play();
+      if(isWistiaPlaying())resumeWistiaLeadIn();
+     }catch(e){failAccompanimentResume('Wistia',e)}
     }else if(backingAudio&&backingEnabled){
      const startGeneration=++mediaStartGeneration,backingPromise=backingAudio.play();
      const resumeBackingLeadIn=()=>{
