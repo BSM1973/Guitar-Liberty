@@ -1385,7 +1385,12 @@ function tick(){
    const tieLimit=internalRange?internalRange.end:e.notes.length;
    while(tieIndex<tieLimit){
     const tied=e.notes[tieIndex];
-    if((+tied[0]||0)===+s&&(+tied[1]||0)===+f&&tied[7]){holdBeats+=+tied[3]||0;if(!tied[8])break;tieIndex++;continue}
+    if((+tied[0]||0)!==+s){tieIndex++;continue}
+    // On the same string, only the immediately continuing tied pitch belongs
+    // to this sustain. Any other attack ends the chain.
+    if((+tied[1]||0)!==+f||!tied[7])break;
+    holdBeats+=+tied[3]||0;
+    if(!tied[8])break;
     tieIndex++;
    }
   }
