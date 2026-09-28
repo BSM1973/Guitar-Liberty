@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
@@ -1466,7 +1466,7 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  alphaTabResumePending=false;
- internalPlaybackPreparing=false;
+ internalPlaybackPreparing=false;internalPlaybackGeneration++;
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  playing=false;clearInternalTimer();stopAllVoices();
@@ -1765,7 +1765,7 @@ document.querySelector('#play').onclick=async()=>{
  }
  if(playing){stop();return}
  if(internalPlaybackPreparing){
-  internalPlaybackPreparing=false;
+  internalPlaybackPreparing=false;internalPlaybackGeneration++;
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
   return;
@@ -1781,10 +1781,11 @@ document.querySelector('#play').onclick=async()=>{
   return;
  }
  internalPlaybackPreparing=true;
+ const playbackGeneration=++internalPlaybackGeneration;
  document.querySelector('#play').textContent='■ STOP';
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
- if(!internalPlaybackPreparing)return;
+ if(!internalPlaybackPreparing||playbackGeneration!==internalPlaybackGeneration)return;
  internalPlaybackPreparing=false;
  if(practiceLoop){
   const range=internalLoopBounds(exercises[current]);
