@@ -1113,8 +1113,10 @@ function metronomeScheduler(){
  metronomeTimer=setTimeout(metronomeScheduler,25);
 }
 async function startMetronome({afterScheduled=false}={}){
+ const generation=metronomeGeneration;
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
  if(metronomeContext.state==='suspended')await metronomeContext.resume();
+ if(generation!==metronomeGeneration||!metronomeEnabled||countInActive)return;
  const now=metronomeContext.currentTime;
  const safeStart=afterScheduled&&metronomeNextTime>now?metronomeNextTime:now+.04;
  clearTimeout(metronomeTimer);metronomeBeatIndex=0;metronomeNextTime=safeStart;metronomeScheduler();
