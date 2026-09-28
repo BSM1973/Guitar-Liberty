@@ -1310,7 +1310,12 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
- playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
+ playing=false;clearInternalTimer();stopAllVoices();
+ if(!alphaTabMode){
+  const range=internalLoopBounds(exercises[current]);
+  index=range?range.start:0;
+ }
+ document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
 }
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
