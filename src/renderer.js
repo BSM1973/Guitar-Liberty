@@ -1722,16 +1722,17 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   const bpm=Math.max(1,+tempo.value||50),sourceRate=Math.max(.5,Math.min(2,bpm/50));
   backingAudio.playbackRate=sourceRate;
   if(resumeAccompaniment){
-   const backingPromise=backingAudio.play();
-   if(backingPromise?.then)backingPromise.then(()=>{if(!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play()}).catch(e=>failStart('Backing',e));
-   else if(backingAudio&&!backingAudio.paused){beginPracticePassage();api.play()}
+   const startGeneration=++mediaStartGeneration,backingPromise=backingAudio.play();
+   if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Backing',e)});
+   else if(startGeneration===mediaStartGeneration&&backingAudio&&!backingAudio.paused){beginPracticePassage();api.play()}
    return;
   }
   backingAudio.currentTime=0;
-  const startBackingLeadIn=()=>scheduleLeadInStart(()=>{if(!practiceLoop||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
+  const startGeneration=++mediaStartGeneration;
+  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration)return;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
   const backingPromise=backingAudio.play();
-  if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>failStart('Backing',e));
-  else if(!backingAudio.paused)startBackingLeadIn();
+  if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Backing',e)});
+  else if(startGeneration===mediaStartGeneration&&!backingAudio.paused)startBackingLeadIn();
   return;
  }
  beginPracticePassage();api.play();
