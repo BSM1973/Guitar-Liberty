@@ -1382,7 +1382,8 @@ function tick(){
   const [s,f]=v;let holdBeats=+v[3]||0;
   if(v[8]){
    let tieIndex=e.notes.indexOf(v)+1;
-   while(tieIndex<e.notes.length){
+   const tieLimit=internalRange?internalRange.end:e.notes.length;
+   while(tieIndex<tieLimit){
     const tied=e.notes[tieIndex];
     if((+tied[0]||0)===+s&&(+tied[1]||0)===+f&&tied[7]){holdBeats+=+tied[3]||0;if(!tied[8])break;tieIndex++;continue}
     tieIndex++;
@@ -1393,6 +1394,9 @@ function tick(){
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
  index=eventEnd;
  if(internalRange&&index>=internalRange.end){
+  // A loop boundary is a fresh practice repetition: do not let sustained
+  // samples from the previous pass mask or overlap its first attack.
+  stopAllVoices();
   index=internalRange.start;
   practiceIteration++;
   if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}
