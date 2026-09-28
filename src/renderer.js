@@ -1665,7 +1665,7 @@ function pauseAlphaPracticeAccompaniment(){
   try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
  }
 }
-function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
+function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccompaniment=false}={}){
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
   syncVideoTempo();
   if(practiceVideo.paused){
@@ -1704,7 +1704,13 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
  }
  if(backingAudio&&backingEnabled){
   const bpm=Math.max(1,+tempo.value||50),sourceRate=Math.max(.5,Math.min(2,bpm/50));
-  backingAudio.playbackRate=sourceRate;backingAudio.currentTime=0;
+  backingAudio.playbackRate=sourceRate;
+  if(resumeAccompaniment){
+   const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
+   beginPracticePassage();api.play();
+   return;
+  }
+  backingAudio.currentTime=0;
   const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
   cancelDelayedPlayback();
   backingStartTimer=setTimeout(()=>{backingStartTimer=null;if(!practiceLoop)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
@@ -1765,7 +1771,7 @@ document.querySelector('#play').onclick=async()=>{
      syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));startSession();document.querySelector('#play').textContent='⏸ PAUSE';
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();try{wistiaPlayer.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
-    }else startAlphaPracticePlayback(api);
+    }else startAlphaPracticePlayback(api,{resumeAccompaniment:true});
    }else countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
