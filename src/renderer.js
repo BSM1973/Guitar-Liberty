@@ -1738,17 +1738,17 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   const bpm=Math.max(1,+tempo.value||50),sourceRate=Math.max(.5,Math.min(2,bpm/50));
   backingAudio.playbackRate=sourceRate;
   if(resumeAccompaniment){
-   const startGeneration=++mediaStartGeneration,backingPromise=backingAudio.play();
-   if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Backing',e)});
-   else if(startGeneration===mediaStartGeneration&&backingAudio&&!backingAudio.paused){beginPracticePassage();api.play()}
+   const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
+   if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
+   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused){beginPracticePassage();api.play()}
    return;
   }
   backingAudio.currentTime=0;
-  const startGeneration=++mediaStartGeneration;
-  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration)return;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
-  const backingPromise=backingAudio.play();
-  if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Backing',e)});
-  else if(startGeneration===mediaStartGeneration&&!backingAudio.paused)startBackingLeadIn();
+  const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
+  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||backingAudio!==startBacking||startBacking.paused)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
+  const backingPromise=startBacking.play();
+  if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
+  else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused)startBackingLeadIn();
   return;
  }
  beginPracticePassage();api.play();
@@ -1848,12 +1848,12 @@ document.querySelector('#play').onclick=async()=>{
       if(isWistiaPlaying())resumeWistiaLeadIn();
      }catch(e){failAccompanimentResume('Wistia',e)}
     }else if(backingAudio&&backingEnabled){
-     const startGeneration=++mediaStartGeneration,backingPromise=backingAudio.play();
+     const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=backingAudio.play();
      const resumeBackingLeadIn=()=>{
-      if(startGeneration!==mediaStartGeneration||!backingAudio||backingAudio.paused)return;
-      scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!backingAudio||backingAudio.paused)return;resumeLeadInPlayback()},remainingLeadIn);
+      if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;
+      scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;resumeLeadInPlayback()},remainingLeadIn);
      };
-     if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Backing',e)});
+     if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
      else resumeBackingLeadIn();
     }else scheduleLeadInStart(resumeLeadInPlayback,remainingLeadIn);
    }else if(resumeFromPause){
