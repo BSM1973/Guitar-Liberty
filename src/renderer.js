@@ -1620,6 +1620,13 @@ document.addEventListener('keydown',e=>{
  if(playButton)playButton.click();
 },{capture:true});
 
+function pauseAlphaPracticeAccompaniment(){
+ stopBacking(false);
+ if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
+ if(videoEnabled&&wistiaPlayer){
+  try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+ }
+}
 function startAlphaPracticePlayback(api){
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
   syncVideoTempo();
@@ -1960,6 +1967,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       // to the loop start when we detect the completed repetition, so pause it
       // there and run the configured count-in before allowing the next series.
       try{api.pause();api.tickPosition=range.start}catch(_){}
+      pauseAlphaPracticeAccompaniment();
       lastLoopTick=-1;
       countInThenPlay(api,()=>{
        if(!practiceLoop)return;
