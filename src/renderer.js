@@ -2154,7 +2154,7 @@ async function loadBundledScore(button){
   lessonId:currentLessonId,objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,lessonTempo:lessonTempo.textContent,
   backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
-  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
+  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
@@ -2225,7 +2225,7 @@ async function loadBundledScore(button){
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
   setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;
-  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;
+  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;
   setTutorial(previousLibraryState.tutorialUrl);
   currentPracticeTitle=previousLibraryState.practiceTitle;
   document.querySelector('#title').textContent=currentPracticeTitle;
@@ -2334,7 +2334,7 @@ if(importButton) importButton.onclick=async()=>{
   objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,tempo:lessonTempo.textContent,
   backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
-  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,
+  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,
   tutorialUrl:currentTutorialUrl,
   practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
@@ -2371,6 +2371,7 @@ if(importButton) importButton.onclick=async()=>{
   currentBackingLeadBeats=previousLessonContext.backingLeadBeats;
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
+  currentVideoSourceBpm=previousLessonContext.videoSourceBpm||50;
   setTutorial(previousLessonContext.tutorialUrl);
   currentPracticeTitle=previousLessonContext.practiceTitle;
   if(previousLessonContext.workingTempo)tempo.value=previousLessonContext.workingTempo;
