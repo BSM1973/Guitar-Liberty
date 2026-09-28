@@ -1119,7 +1119,7 @@ metronomeToggle.onclick=async()=>{metronomeEnabled=!metronomeEnabled;metronomeTo
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled){stopMetronome();startMetronome()}};
 function cancelPracticeTransition({stopBackingAudio=false}={}){
- if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
  cancelDelayedPlayback();
  if(stopBackingAudio)stopBacking(false);
@@ -1128,19 +1128,26 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  const bars=Math.max(0,+countIn.value||0);
  const overlay=document.querySelector('#countInOverlay'),number=document.querySelector('#countInNumber');
  if(!bars){if(overlay)overlay.hidden=true;startPlayback();return}
- const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4,total=bars*beats,beatMs=60000/+tempo.value;
- let beat=0;clearInterval(practiceTimer);practiceStatus.textContent='Compte : '+total;
+ const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4,total=bars*beats;
+ let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
  if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
  metronomeClick(true);
- practiceTimer=setInterval(()=>{
-  beat++;
-  if(beat>=total){
-   clearInterval(practiceTimer);practiceTimer=null;practiceStatus.textContent='En cours';
-   if(overlay){overlay.classList.remove('active');overlay.hidden=true}startPlayback();return;
-  }
-  const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
-  metronomeClick(beat%beats===0);
- },beatMs);
+ const scheduleCountBeat=()=>{
+  // Re-read tempo before every beat so a manual tempo edit during count-in
+  // immediately changes the remaining count instead of finishing at stale BPM.
+  const beatMs=60000/Math.max(1,+tempo.value||120);
+  practiceTimer=setTimeout(()=>{
+   practiceTimer=null;beat++;
+   if(beat>=total){
+    practiceStatus.textContent='En cours';
+    if(overlay){overlay.classList.remove('active');overlay.hidden=true}startPlayback();return;
+   }
+   const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
+   metronomeClick(beat%beats===0);
+   scheduleCountBeat();
+  },beatMs);
+ };
+ scheduleCountBeat();
 }
 loopToggle.onclick=()=>{
  const restartingSavedSession=!practiceLoop&&sessionHistorySaved&&sessionStarted;
@@ -1379,7 +1386,7 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
- if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
@@ -1593,7 +1600,7 @@ document.querySelector('#play').onclick=async()=>{
   const api=window.guitarLibertyAlphaTab;
   try{
    if(practiceTimer){
-    clearInterval(practiceTimer);practiceTimer=null;cancelDelayedPlayback();
+    clearTimeout(practiceTimer);practiceTimer=null;cancelDelayedPlayback();
     const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}
     practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
     document.querySelector('#play').textContent='▶ PLAY';
@@ -1620,7 +1627,7 @@ document.querySelector('#play').onclick=async()=>{
  // otherwise a click could start playback immediately and the pending count-in
  // callback would start it a second time.
  if(practiceTimer){
-  clearInterval(practiceTimer);practiceTimer=null;
+  clearTimeout(practiceTimer);practiceTimer=null;
   const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
   document.querySelector('#play').textContent='▶ PLAY';
@@ -1770,7 +1777,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  stop();
  // A score switch is a hard playback boundary: no delayed callback from the
  // previous exercise may start audio or mutate practice UI after the new load.
- if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
  cancelDelayedPlayback();stopBacking(false);
  if(playWithMeActive||playWithMeAnswerTimer||playWithMeCountdownTimer||playWithMeElapsedTimer)stopPlayWithMe();
@@ -2156,7 +2163,7 @@ if(importButton) importButton.onclick=async()=>{
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  const importInterruptedPlayback=!!(practiceTimer||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
  pausePracticeClock();
- if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const importOverlay=document.querySelector('#countInOverlay');if(importOverlay){importOverlay.classList.remove('active');importOverlay.hidden=true;}
  cancelDelayedPlayback();stopBacking(false);
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
