@@ -1493,7 +1493,18 @@ function tick(){
    if(autoStep){
     const {next,reached}=autoStep;
     if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
-    else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
+    else{
+     // Do not let the internal scheduler fall straight into the next Auto BPM
+     // series. Stop this scheduling chain, count in at the new tempo, then
+     // restart exactly at the loop boundary.
+     playing=false;clearInternalTimer();index=internalRange.start;
+     countInThenPlay(null,()=>{
+      if(!practiceLoop)return;
+      beginPracticePassage();
+      playing=true;document.querySelector('#play').textContent='■ STOP';
+      scheduleNext(tick());
+     });
+    }
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
  }else if(index>=e.notes.length){
@@ -1883,7 +1894,18 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       pausePracticeClock();cancelDelayedPlayback();try{api.pause()}catch(_){}
       practiceStatus.textContent='Objectif atteint • '+next+' BPM';
       if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
-     }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
+     }else{
+      // Auto BPM starts a genuinely new series. alphaTab has already wrapped
+      // to the loop start when we detect the completed repetition, so pause it
+      // there and run the configured count-in before allowing the next series.
+      try{api.pause();api.tickPosition=range.start}catch(_){}
+      lastLoopTick=-1;
+      countInThenPlay(api,()=>{
+       if(!practiceLoop)return;
+       beginPracticePassage();
+       try{api.play()}catch(_){}
+      });
+     }
     }else{
      api.isLooping=false;practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
      pausePracticeClock();cancelDelayedPlayback();try{api.pause()}catch(_){}
