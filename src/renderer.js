@@ -1441,8 +1441,7 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
- if(countInActive){clearTimeout(practiceTimer);practiceTimer=null;}
- const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
+ cancelPracticeTransition({stopBackingAudio:true});
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
   const range=internalLoopBounds(exercises[current]);
@@ -1830,9 +1829,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  stop();
  // A score switch is a hard playback boundary: no delayed callback from the
  // previous exercise may start audio or mutate practice UI after the new load.
- if(countInActive){clearTimeout(practiceTimer);practiceTimer=null;}
- const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
- cancelDelayedPlayback();stopBacking(false);
+ cancelPracticeTransition({stopBackingAudio:true});
  if(playWithMeActive||playWithMeAnswerTimer||playWithMeCountdownTimer||playWithMeElapsedTimer)stopPlayWithMe();
  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
  index=0;playing=false;clearInternalTimer();stopAllVoices();
@@ -2216,9 +2213,7 @@ if(importButton) importButton.onclick=async()=>{
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  const importInterruptedPlayback=!!(practiceTimer||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
  pausePracticeClock();
- if(countInActive){clearTimeout(practiceTimer);practiceTimer=null;}
- const importOverlay=document.querySelector('#countInOverlay');if(importOverlay){importOverlay.classList.remove('active');importOverlay.hidden=true;}
- cancelDelayedPlayback();stopBacking(false);
+ cancelPracticeTransition({stopBackingAudio:true});
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
  if(playing){playing=false;clearInternalTimer();stopAllVoices();}
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
