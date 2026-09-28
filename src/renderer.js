@@ -1217,7 +1217,17 @@ targetBpm.onchange=()=>{
 loopRepeats.onchange=()=>{
  loopRepeats.value=Math.max(1,+loopRepeats.value||1);
  const target=+loopRepeats.value;
- if(practiceIteration>=target)practiceIteration=Math.max(0,target-1);
+ if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&practiceIteration>=target){
+  // Lowering the repetition target below already completed work completes the
+  // current series; never rewrite history by moving the counter backwards.
+  updatePracticeProgress(target);sessionSeriesCount++;practiceIteration=0;
+  pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();
+  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+  document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
+  practiceStatus.textContent='Série terminée • '+target+' répétitions';paintSession();
+  if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
+  return;
+ }
  updatePracticeProgress(practiceIteration);
  if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt){
   practiceStatus.textContent=(sessionPausedAt?'Prêt à reprendre':'En cours')+' • Répétition '+(practiceIteration+1)+'/'+target;
