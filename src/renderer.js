@@ -1427,7 +1427,14 @@ function tick(){
     else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearTimeout(timer);timer=null;stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
- }else if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
+ }else if(index>=e.notes.length){
+  // Natural end outside LOOP: return to an idle, replayable transport instead
+  // of scheduling the score again from index 0.
+  index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+  document.querySelector('#play').textContent='▶ PLAY';
+  document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
+  const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'});
+ }
  return eventDelay;
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
