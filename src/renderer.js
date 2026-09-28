@@ -1842,10 +1842,16 @@ function stopBacking(reset=true){
  if(!backingAudio)return;
  backingAudio.pause();if(reset)backingAudio.currentTime=0;
 }
+function syncBackingVolume(){
+ const volume=Math.max(0,Math.min(100,+backingVolume?.value||0));
+ if(backingVolumeLabel)backingVolumeLabel.textContent=volume+'%';
+ if(backingAudio)backingAudio.volume=volume/100;
+}
 function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
  backingAudio=url?new Audio(encodeURI(url)):null;
- if(backingAudio){backingAudio.preload='auto';backingAudio.volume=(+backingVolume.value||0)/100;}
+ if(backingAudio)backingAudio.preload='auto';
+ syncBackingVolume();
  backingToggle.disabled=!url;
  const backingActive=backingEnabled&&!!url;
  backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
@@ -1862,10 +1868,8 @@ if(backingToggle)backingToggle.onclick=()=>{
  backingToggle.classList.toggle('active',backingActive);
  if(!backingEnabled)stopBacking(false);
 };
-if(backingVolume)backingVolume.oninput=()=>{
- backingVolumeLabel.textContent=backingVolume.value+'%';
- if(backingAudio)backingAudio.volume=+backingVolume.value/100;
-};
+if(backingVolume)backingVolume.oninput=syncBackingVolume;
+syncBackingVolume();
 const importButton=document.querySelector('#importScore');
 const importStatus=document.querySelector('#importStatus');
 function drawLeftHandFingerings(api){
