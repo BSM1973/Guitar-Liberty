@@ -1338,7 +1338,15 @@ function noteIntervalMs(){
  }
  return 60000/+tempo.value*beats
 }
-function scheduleNext(){clearTimeout(timer);if(playing)timer=setTimeout(()=>{tick();scheduleNext()},noteIntervalMs())}
+function scheduleNext(delayMs=noteIntervalMs()){
+ clearTimeout(timer);
+ if(playing)timer=setTimeout(()=>{
+  if(!playing)return;
+  const nextDelay=noteIntervalMs();
+  tick();
+  scheduleNext(nextDelay);
+ },delayMs)
+}
 function internalLoopBounds(e){
  if(!practiceLoop||!e?.measures?.length)return null;
  syncPracticeRange();
