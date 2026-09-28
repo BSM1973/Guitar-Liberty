@@ -1669,6 +1669,16 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
     else if(typeof wistiaPlayer.currentTime==='function')wistiaPlayer.currentTime(0);
    }
    wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';
+   const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
+   cancelDelayedPlayback();
+   backingStartTimer=setTimeout(()=>{
+    backingStartTimer=null;
+    if(!practiceLoop||!videoEnabled||!wistiaPlayer)return;
+    let wistiaPlaying=false;
+    try{wistiaPlaying=typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){}
+    if(!wistiaPlaying)return;
+    beginPracticePassage();api.play();
+   },currentVideoLeadBeats*(60000/bpm));
   }catch(e){console.error('Wistia playback',e)}
   return;
  }
