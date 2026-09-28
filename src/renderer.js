@@ -1550,6 +1550,31 @@ document.addEventListener('keydown',e=>{
  if(playButton)playButton.click();
 },{capture:true});
 
+function startAlphaPracticePlayback(api){
+ if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
+  syncVideoTempo();
+  if(practiceVideo.paused){
+   practiceVideo.currentTime=0;
+   practiceVideo.play().catch(e=>console.error('Practice video',e));
+   startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+  }
+  return;
+ }
+ if(videoEnabled&&wistiaPlayer){
+  syncVideoTempo();
+  try{wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+  return;
+ }
+ if(backingAudio&&backingEnabled){
+  const bpm=Math.max(1,+tempo.value||50),sourceRate=Math.max(.5,Math.min(2,bpm/50));
+  backingAudio.playbackRate=sourceRate;backingAudio.currentTime=0;
+  const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
+  cancelDelayedPlayback();
+  backingStartTimer=setTimeout(()=>{backingStartTimer=null;if(!practiceLoop)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
+  return;
+ }
+ beginPracticePassage();api.play();
+}
 document.querySelector('#play').onclick=async()=>{
  if(document.querySelector('#play').textContent.includes('REPRENDRE')){
   document.querySelector('#play').textContent='▶ PLAY';
@@ -1576,50 +1601,7 @@ document.querySelector('#play').onclick=async()=>{
    if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
-   countInThenPlay(api,()=>{
-     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
-       syncVideoTempo();
-       if(practiceVideo.paused){
-         practiceVideo.play().catch(e=>console.error('Practice video',e));startSession();document.querySelector('#play').textContent='⏸ PAUSE';
-       }else{practiceVideo.pause();document.querySelector('#play').textContent='▶ PLAY';}
-       return;
-     }else if(videoEnabled&&wistiaPlayer){
-       syncVideoTempo();
-       try{
-         const state=wistiaPlayer.state||'';
-         if(state==='playing'){
-           wistiaPlayer.pause();
-           document.querySelector('#play').textContent='▶ PLAY';
-         }else{
-           wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();
-           document.querySelector('#play').textContent='⏸ PAUSE';
-         }
-       }catch(e){console.error('Wistia playback',e)}
-       return;
-     }else if(backingAudio&&backingEnabled){
-       const bpm=Math.max(1,+tempo.value||50);
-       const rate=Math.max(.5,Math.min(2,bpm/50));
-       backingAudio.playbackRate=rate;
-       // Musical pickup model:
-       // backing starts from its real beginning on beat 3.5 of an imaginary previous 4/4 bar;
-       // TAB bar 1 starts 1.5 quarter-note beats later.
-       const sourceRate=Math.max(.5,Math.min(2,bpm/50));
-       backingAudio.playbackRate=sourceRate;
-       backingAudio.currentTime=0;
-       const backingPromise=backingAudio.play();
-       if(backingPromise?.catch)backingPromise.catch(console.error);
-       cancelDelayedPlayback();
-       const tabDelayMs=currentBackingLeadBeats*(60000/bpm);
-       backingStartTimer=setTimeout(()=>{
-         backingStartTimer=null;
-         beginPracticePassage();
-         api.play();
-       },tabDelayMs);
-     }else{
-       beginPracticePassage();
-       api.play();
-     }
-   });
+   countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
@@ -1915,8 +1897,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       lastLoopTick=-1;
       countInThenPlay(api,()=>{
        if(!practiceLoop)return;
-       beginPracticePassage();
-       try{api.play()}catch(_){}
+       startAlphaPracticePlayback(api);
       });
      }
     }else{
