@@ -1600,7 +1600,7 @@ tempo.oninput=()=>{
   scheduleNext(noteIntervalMs()*remainingRatio);
  }
  if(videoEnabled)syncVideoTempo();
- if(metronomeEnabled){stopMetronome();startMetronome()}
+ if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}
  if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){
   sessionBest=Math.max(sessionBest,+tempo.value||0);
   paintSession();
