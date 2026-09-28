@@ -2375,7 +2375,7 @@ if(importButton) importButton.onclick=async()=>{
  // Opening the file picker interrupts active practice too. Pause before the
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
- const importInterruptedPlayback=!!(countInActive||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
+ const importInterruptedPlayback=!!(internalPlaybackPreparing||countInActive||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  pausePracticeClock();
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
