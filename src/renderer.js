@@ -1231,10 +1231,26 @@ loopRepeats.onchange=()=>{
   // current series; never rewrite history by moving the counter backwards.
   updatePracticeProgress(target);sessionSeriesCount++;practiceIteration=0;
   pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();
-  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
   document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
-  practiceStatus.textContent='Série terminée • '+target+' répétitions';paintSession();
-  if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
+  const inc=+autoBpm.value||0;
+  if(inc){
+   const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
+   const next=Math.min(goal,(+tempo.value||0)+inc);
+   tempo.value=next;syncTempo();
+   if(next>=goal){
+    practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+    practiceStatus.textContent='Objectif atteint • '+next+' BPM';
+    if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
+   }else{
+    practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM • prêt';
+    updatePracticeProgress(0);
+   }
+  }else{
+   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
+   practiceStatus.textContent='Série terminée • '+target+' répétitions';
+   if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
+  }
+  paintSession();
   return;
  }
  updatePracticeProgress(practiceIteration);
