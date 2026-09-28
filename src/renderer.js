@@ -1332,6 +1332,8 @@ function advanceAutoBpm(){
  const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
  const next=Math.min(goal,(+tempo.value||0)+inc);
  tempo.value=next;syncTempo();
+ if(videoEnabled)syncVideoTempo();
+ if(metronomeEnabled){stopMetronome();startMetronome()}
  return {next,reached:next>=goal};
 }
 function playNote(string,fret,holdBeats=0){
@@ -1859,7 +1861,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
     if(autoStep){
      const {next,reached}=autoStep;
      const original=practiceScore?.tempo||120;
-     api.playbackSpeed=Math.max(.25,Math.min(3,next/original));if(videoEnabled)syncVideoTempo();
+     api.playbackSpeed=Math.max(.25,Math.min(3,next/original));
      if(reached){
       api.isLooping=false;
       practiceLoop=false;
