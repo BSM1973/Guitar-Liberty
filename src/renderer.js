@@ -1665,6 +1665,7 @@ function isWistiaPlaying(){
  try{return typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){return false}
 }
 function pauseAlphaPracticeAccompaniment(){
+ mediaStartGeneration++;
  stopBacking(false);
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(videoEnabled&&wistiaPlayer){
