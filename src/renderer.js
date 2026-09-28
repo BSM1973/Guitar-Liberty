@@ -1195,13 +1195,15 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
   // their denominator; compound x/8 meters use one dotted-quarter pulse.
   const beatMs=(60000/Math.max(1,+tempo.value||120))*pulseQuarterLength;
   practiceTimer=setTimeout(()=>{
-   practiceTimer=null;beat++;
+   practiceTimer=null;
+   if(generation!==countInGeneration||!countInActive)return;
+   beat++;
    if(beat>=total){
     practiceStatus.textContent='En cours';
     if(overlay){overlay.classList.remove('active');overlay.hidden=true}finishCountIn();return;
    }
    const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
-   metronomeClick(!!countPlan[beat]?.accent);
+   metronomeClick(!!countPlan[beat]?.accent,generation);
    scheduleCountBeat();
   },beatMs);
  };
