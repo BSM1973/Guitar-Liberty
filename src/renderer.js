@@ -1700,7 +1700,13 @@ document.querySelector('#play').onclick=async()=>{
    }
    if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
    document.querySelector('#play').textContent='■ STOP';
-   setAlphaTempo(api); if(practiceLoop)setPracticeRange(api);
+   setAlphaTempo(api);
+   if(practiceLoop){
+    setPracticeRange(api);
+    const range=practiceTicks();
+    if(range){try{api.tickPosition=range.start}catch(_){}}
+    lastLoopTick=-1;
+   }
    countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
