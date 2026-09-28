@@ -1136,7 +1136,8 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  for(let barOffset=0;barOffset<bars;barOffset++){
   const sourceBar=scoreBars?.[loopBarIndex+barOffset]??internalBars?.[loopBarIndex+barOffset];
   const barBeats=Math.max(1,+(sourceBar?.timeSignatureNumerator??sourceBar?.beats??fallbackBeats)||fallbackBeats);
-  for(let b=0;b<barBeats;b++)countPlan.push({accent:b===0});
+  const beatUnit=Math.max(1,+(sourceBar?.timeSignatureDenominator??sourceBar?.beatType??4)||4);
+  for(let b=0;b<barBeats;b++)countPlan.push({accent:b===0,beatUnit});
  }
  const total=countPlan.length;
  let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
@@ -1145,7 +1146,10 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  const scheduleCountBeat=()=>{
   // Re-read tempo before every beat so a manual tempo edit during count-in
   // immediately changes the remaining count instead of finishing at stale BPM.
-  const beatMs=60000/Math.max(1,+tempo.value||120);
+  const beatUnit=Math.max(1,+countPlan[beat]?.beatUnit||4);
+  // Tempo is quarter-note based in Guitar Liberty; scale each count pulse to
+  // the denominator of the active time signature (8th=half, half-note=double).
+  const beatMs=(60000/Math.max(1,+tempo.value||120))*(4/beatUnit);
   practiceTimer=setTimeout(()=>{
    practiceTimer=null;beat++;
    if(beat>=total){
