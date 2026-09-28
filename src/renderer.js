@@ -1079,8 +1079,11 @@ function updatePlayCursor(api,tick){
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  // Viewport is deliberately never moved by playback. The orange cursor continues independently.
 }
-function metronomeClick(accent=false){
+async function metronomeClick(accent=false){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
+ if(countInAudio.state==='suspended'){
+  try{await countInAudio.resume()}catch(e){console.error('Count-in audio resume',e);return}
+ }
  const o=countInAudio.createOscillator(),g=countInAudio.createGain(),now=countInAudio.currentTime;
  const vol=(+metronomeVolume?.value||0)/100;
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(Math.max(.0001,vol*.22),now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
