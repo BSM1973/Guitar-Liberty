@@ -1338,13 +1338,11 @@ function noteIntervalMs(){
  }
  return 60000/+tempo.value*beats
 }
-function scheduleNext(delayMs=noteIntervalMs()){
+function scheduleNext(delayMs){
  clearTimeout(timer);
- if(playing)timer=setTimeout(()=>{
+ if(playing&&Number.isFinite(delayMs))timer=setTimeout(()=>{
   if(!playing)return;
-  const nextDelay=noteIntervalMs();
-  tick();
-  scheduleNext(nextDelay);
+  scheduleNext(tick());
  },delayMs)
 }
 function internalLoopBounds(e){
@@ -1362,6 +1360,7 @@ function sameInternalOnset(a,b){
 }
 function tick(){
  const e=exercises[current];
+ const eventDelay=noteIntervalMs();
  const internalRange=internalLoopBounds(e);
  if(internalRange&&(index<internalRange.start||index>=internalRange.end))index=internalRange.start;
  const eventStart=index,eventNotes=[e.notes[eventStart]];
@@ -1429,6 +1428,7 @@ function tick(){
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearTimeout(timer);timer=null;stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
  }else if(index>=e.notes.length){index=0;const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'})}
+ return eventDelay;
 }
 document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
 let preservePreferredTempo=false;
@@ -1538,7 +1538,7 @@ document.querySelector('#play').onclick=async()=>{
   if(!range){practiceStatus.textContent='Boucle vide • aucune note dans les mesures '+loopStart.value+'–'+loopEnd.value;document.querySelector('#play').textContent='▶ PLAY';return;}
   index=range.start;beginPracticePassage();
  }
- playing=true;document.querySelector('#play').textContent='■ STOP';tick();scheduleNext()
+ playing=true;document.querySelector('#play').textContent='■ STOP';scheduleNext(tick())
 };
 // L'application démarre désormais sur l'accueil, sans charger l'ancien exercice de démonstration.
 const homePage=document.querySelector('#homePage'),appWorkspace=document.querySelector('#appWorkspace');
