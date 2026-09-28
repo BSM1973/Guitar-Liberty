@@ -14,6 +14,7 @@ function clearInternalTimer(){if(timer){clearTimeout(timer);timer=null}timerStar
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
 const sampleCache=new Map();
+const sampleLoadPromises=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
 function ensureOutput(){
@@ -73,7 +74,9 @@ function decodeAiffPcm(raw){
 async function loadGuitarSample(string){
  audio ||= new (window.AudioContext||window.webkitAudioContext)();
  if(sampleCache.has(string)) return sampleCache.get(string);
- try{
+ if(sampleLoadPromises.has(string))return sampleLoadPromises.get(string);
+ const loadPromise=(async()=>{
+  try{
    if(!window.guitarAudio) throw new Error('Electron audio bridge unavailable');
    const raw=await window.guitarAudio.loadSample(GUITAR_SAMPLES[string]);
    const bytes=raw instanceof Uint8Array?raw:new Uint8Array(raw);
@@ -81,10 +84,13 @@ async function loadGuitarSample(string){
    sampleCache.set(string,buffer);
    console.log('Loaded real AIFF guitar sample:',GUITAR_SAMPLES[string],buffer.duration.toFixed(2)+'s');
    return buffer;
- }catch(e){
+  }catch(e){
    console.error('Guitar sample load failed:',GUITAR_SAMPLES[string],e);
-   return null;
- }
+   throw e;
+  }finally{sampleLoadPromises.delete(string)}
+ })();
+ sampleLoadPromises.set(string,loadPromise);
+ return loadPromise;
 }
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory'),historyRecord=document.querySelector('#historyRecord'),historySessions=document.querySelector('#historySessions'),historyTime=document.querySelector('#historyTime'),historyStreak=document.querySelector('#historyStreak'),bpmChart=document.querySelector('#bpmChart'),exerciseProgressTitle=document.querySelector('#exerciseProgressTitle'),exerciseProgressStats=document.querySelector('#exerciseProgressStats'),personalBest=document.querySelector('#personalBest'),recordDelta=document.querySelector('#recordDelta'),masteryLevel=document.querySelector('#masteryLevel'),masteryBar=document.querySelector('#masteryBar'),masteryInfo=document.querySelector('#masteryInfo'),pathList=document.querySelector('#pathList'),pathSummary=document.querySelector('#pathSummary');
