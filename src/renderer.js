@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){clearInternalTimer();timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
 const sampleCache=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -1805,7 +1805,8 @@ function setVideoTrack(id,practiceUrl=null){
 }
 function syncVideoTempo(){
  if(!practiceVideo||practiceVideo.hidden)return;
- practiceVideo.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||50)/50));
+ const sourceBpm=Math.max(1,+currentVideoSourceBpm||50);
+ practiceVideo.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||sourceBpm)/sourceBpm));
 }
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
@@ -2192,6 +2193,7 @@ async function loadBundledScore(button){
  currentBackingLeadBeats=Math.max(0,+button.dataset.backingLeadBeats||0);
  currentVideoLeadBeats=Math.max(0,+button.dataset.videoLeadBeats||0);
  const libraryDefaultBpm=+button.dataset.bpm||0;
+ currentVideoSourceBpm=libraryDefaultBpm||50;
  if(libraryDefaultBpm){tempo.value=libraryDefaultBpm;syncTempo();}
  if(!isCurrentLibraryLoad())return;
  try{
