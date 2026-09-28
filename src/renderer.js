@@ -1370,6 +1370,8 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
+ if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
   const range=internalLoopBounds(exercises[current]);
@@ -1622,6 +1624,17 @@ document.querySelector('#play').onclick=async()=>{
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
  if(playing){stop();return}
+ // During an internal Auto BPM transition the transport is intentionally idle
+ // while the next series counts in. Treat PLAY/STOP as a cancellation here;
+ // otherwise a click could start playback immediately and the pending count-in
+ // callback would start it a second time.
+ if(practiceTimer){
+  clearInterval(practiceTimer);practiceTimer=null;
+  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+  document.querySelector('#play').textContent='▶ PLAY';
+  return;
+ }
  ensureOutput(); if(audio.state==='suspended')await audio.resume();
  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
  if(practiceLoop){
