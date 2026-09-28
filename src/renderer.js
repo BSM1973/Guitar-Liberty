@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null;
 const sampleCache=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
@@ -1142,8 +1142,14 @@ metronomeToggle.onclick=async()=>{
 };
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}};
+function cancelPendingWistiaResume(){
+ wistiaResumeGeneration++;
+ if(!pendingWistiaResume)return;
+ const {player,handler}=pendingWistiaResume;pendingWistiaResume=null;
+ try{player?.unbind('play',handler)}catch(_){}
+}
 function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
- alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;wistiaResumeGeneration++;
+ alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;cancelPendingWistiaResume();
  internalPlaybackPreparing=false;internalPlaybackGeneration++;
  countInGeneration++;countInActive=false;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
@@ -1794,14 +1800,16 @@ document.querySelector('#play').onclick=async()=>{
      syncVideoTempo();
      try{
       let resumed=false;
-      const resumeGeneration=++wistiaResumeGeneration;
+      cancelPendingWistiaResume();
+      const resumeGeneration=wistiaResumeGeneration;
       const resumePlayer=wistiaPlayer;
       const resumeAlphaTab=()=>{
        if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer)return;
-       resumed=true;
+       resumed=true;pendingWistiaResume=null;
        try{resumePlayer.unbind('play',resumeAlphaTab)}catch(_){}
        api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
       };
+      pendingWistiaResume={player:resumePlayer,handler:resumeAlphaTab};
       try{resumePlayer.bind('play',resumeAlphaTab)}catch(_){}
       resumePlayer.play();
       if(isWistiaPlaying())resumeAlphaTab();
@@ -1905,7 +1913,7 @@ function finishPracticeVideoPlayback(){
 if(practiceVideo)practiceVideo.addEventListener('ended',finishPracticeVideoPlayback);
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
- wistiaResumeGeneration++;
+ cancelPendingWistiaResume();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
  if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
@@ -1946,7 +1954,7 @@ function openVideo(){
 function closeVideo(){
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
- alphaTabResumePending=false;wistiaResumeGeneration++;
+ alphaTabResumePending=false;cancelPendingWistiaResume();
  videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
  if(wistiaFrame)wistiaFrame.src='';
