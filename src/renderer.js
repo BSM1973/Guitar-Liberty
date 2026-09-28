@@ -1796,7 +1796,7 @@ const wistiaFrame=document.querySelector('#wistiaFrame');
 const practiceVideo=document.querySelector('#practiceVideo');
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
- currentWistiaId=id||null;currentVideoLeadBeats=0;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
+ currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
  if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
  if(wistiaFrame)wistiaFrame.src='';
