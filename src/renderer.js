@@ -2314,6 +2314,21 @@ if(importButton) importButton.onclick=async()=>{
    importedMeasures.push(md);
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
+  // MusicXML voices can rewind the cursor with <backup>. Normalize playback
+  // order by musical position, then repair each rendered event's noteIndex.
+  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0));
+  const noteQueues=new Map();
+  imported.forEach((note,i)=>{
+   const key=[+note[4]||1,+note[5]||0,+note[0]||0,+note[1]||0].join(':');
+   if(!noteQueues.has(key))noteQueues.set(key,[]);
+   noteQueues.get(key).push(i);
+  });
+  importedMeasures.forEach((md,measureIndex)=>md.events.forEach(ev=>{
+   if(ev.type!=='note')return;
+   const key=[measureIndex+1,+ev.onset||0,+ev.string||0,+ev.fret||0].join(':');
+   const queue=noteQueues.get(key);
+   if(queue?.length)ev.noteIndex=queue.shift();
+  }));
   // Preserve MusicXML rhythmic spacing in the lightweight internal player.
   // Slot 6 stores the real beat distance to the next playable note, including
   // rests, forwards and silent measure tails.
