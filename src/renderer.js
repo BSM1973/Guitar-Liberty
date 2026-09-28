@@ -1791,7 +1791,19 @@ document.querySelector('#play').onclick=async()=>{
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();practiceVideo.play().then(()=>{api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE'}).catch(e=>failAccompanimentResume('Vidéo',e));
     }else if(videoEnabled&&wistiaPlayer){
-     syncVideoTempo();try{wistiaPlayer.play();api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+     syncVideoTempo();
+     try{
+      let resumed=false;
+      const resumeAlphaTab=()=>{
+       if(resumed||!videoEnabled||!wistiaPlayer)return;
+       resumed=true;
+       try{wistiaPlayer.unbind('play',resumeAlphaTab)}catch(_){}
+       api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+      };
+      try{wistiaPlayer.bind('play',resumeAlphaTab)}catch(_){}
+      wistiaPlayer.play();
+      if(isWistiaPlaying())resumeAlphaTab();
+     }catch(e){failAccompanimentResume('Wistia',e)}
     }else startAlphaPracticePlayback(api,{resumeAccompaniment:true});
    }else countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
