@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,timer=null,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null;
 const sampleCache=new Map();
@@ -1339,11 +1339,15 @@ function noteIntervalMs(){
  return 60000/+tempo.value*beats
 }
 function scheduleNext(delayMs){
- clearTimeout(timer);
- if(playing&&Number.isFinite(delayMs))timer=setTimeout(()=>{
-  if(!playing)return;
-  scheduleNext(tick());
- },delayMs)
+ clearTimeout(timer);timer=null;
+ if(playing&&Number.isFinite(delayMs)){
+  timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);
+  timer=setTimeout(()=>{
+   timer=null;timerStartedAt=0;timerDelayMs=0;
+   if(!playing)return;
+   scheduleNext(tick());
+  },timerDelayMs)
+ }
 }
 function internalLoopBounds(e){
  if(!practiceLoop||!e?.measures?.length)return null;
@@ -1442,7 +1446,11 @@ let preservePreferredTempo=false;
 tempo.oninput=()=>{
  if(!preservePreferredTempo)saveExerciseTempo(currentPracticeTitle,+tempo.value);
  syncTempo();
- if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext(noteIntervalMs())}
+ if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){
+  const elapsed=timerStartedAt?Math.max(0,performance.now()-timerStartedAt):0;
+  const remainingRatio=timerDelayMs>0?Math.max(0,Math.min(1,1-elapsed/timerDelayMs)):1;
+  scheduleNext(noteIntervalMs()*remainingRatio);
+ }
  if(videoEnabled)syncVideoTempo();
  if(metronomeEnabled){stopMetronome();startMetronome()}
  if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){
