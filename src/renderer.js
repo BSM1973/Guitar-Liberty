@@ -1090,6 +1090,7 @@ async function metronomeClick(accent=false){
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
 let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false,countInGeneration=0,countInActive=false;
+let alphaTabResumePending=false;
 const metronomeToggle=document.querySelector('#metronomeToggle'),metronomeVolume=document.querySelector('#metronomeVolume'),metronomeVolumeLabel=document.querySelector('#metronomeVolumeLabel'),metronomeSignature=document.querySelector('#metronomeSignature'),metronomeBeatView=document.querySelector('#metronomeBeat');
 function metronomeClickAt(time,accent=false){
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
@@ -1458,6 +1459,7 @@ function playNote(string,fret,holdBeats=0){
  });
 }
 function stop(){
+ alphaTabResumePending=false;
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  playing=false;clearInternalTimer();stopAllVoices();
@@ -1698,16 +1700,21 @@ document.querySelector('#play').onclick=async()=>{
     paintSession();
     return;
    }
-   if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);document.querySelector('#play').textContent='▶ PLAY';return;}
+   if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);alphaTabResumePending=true;document.querySelector('#play').textContent='▶ PLAY';return;}
+   const resumeFromPause=alphaTabResumePending;
+   alphaTabResumePending=false;
    document.querySelector('#play').textContent='■ STOP';
    setAlphaTempo(api);
    if(practiceLoop){
     setPracticeRange(api);
-    const range=practiceTicks();
-    if(range){try{api.tickPosition=range.start}catch(_){}}
-    lastLoopTick=-1;
+    if(!resumeFromPause){
+     const range=practiceTicks();
+     if(range){try{api.tickPosition=range.start}catch(_){}}
+     lastLoopTick=-1;
+    }
    }
-   countInThenPlay(api,()=>startAlphaPracticePlayback(api));
+   if(resumeFromPause)startAlphaPracticePlayback(api);
+   else countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
