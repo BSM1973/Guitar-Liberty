@@ -1672,14 +1672,22 @@ function pauseAlphaPracticeAccompaniment(){
  }
 }
 function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccompaniment=false}={}){
+ const failStart=(label,error)=>{
+  cancelDelayedPlayback();try{api.pause()}catch(_){}
+  alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=label+' indisponible • prêt à relancer';
+  if(error)console.error(label+' playback',error);
+ };
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
   syncVideoTempo();
   if(practiceVideo.paused){
    practiceVideo.currentTime=0;
-   practiceVideo.play().catch(e=>console.error('Practice video',e));
-   startSession();document.querySelector('#play').textContent='⏸ PAUSE';
    const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
-   scheduleLeadInStart(()=>{if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();},currentVideoLeadBeats*(60000/bpm));
+   practiceVideo.play().then(()=>{
+    startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+    scheduleLeadInStart(()=>{if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();},currentVideoLeadBeats*(60000/bpm));
+   }).catch(e=>failStart('Vidéo',e));
   }
   return;
  }
@@ -1702,20 +1710,23 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     if(!isWistiaPlaying())return;
     beginPracticePassage();api.play();
    },currentVideoLeadBeats*(60000/bpm));
-  }catch(e){console.error('Wistia playback',e)}
+  }catch(e){failStart('Wistia',e)}
   return;
  }
  if(backingAudio&&backingEnabled){
   const bpm=Math.max(1,+tempo.value||50),sourceRate=Math.max(.5,Math.min(2,bpm/50));
   backingAudio.playbackRate=sourceRate;
   if(resumeAccompaniment){
-   const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
-   beginPracticePassage();api.play();
+   const backingPromise=backingAudio.play();
+   if(backingPromise?.then)backingPromise.then(()=>{if(!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play()}).catch(e=>failStart('Backing',e));
+   else if(backingAudio&&!backingAudio.paused){beginPracticePassage();api.play()}
    return;
   }
   backingAudio.currentTime=0;
-  const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
-  scheduleLeadInStart(()=>{if(!practiceLoop)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
+  const startBackingLeadIn=()=>scheduleLeadInStart(()=>{if(!practiceLoop||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
+  const backingPromise=backingAudio.play();
+  if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>failStart('Backing',e));
+  else if(!backingAudio.paused)startBackingLeadIn();
   return;
  }
  beginPracticePassage();api.play();
