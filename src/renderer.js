@@ -1118,6 +1118,12 @@ function stopMetronome(){clearTimeout(metronomeTimer);metronomeTimer=null;metron
 metronomeToggle.onclick=async()=>{metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';if(metronomeEnabled)await startMetronome();else stopMetronome()};
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled){stopMetronome();startMetronome()}};
+function cancelPracticeTransition({stopBackingAudio=false}={}){
+ if(practiceTimer){clearInterval(practiceTimer);practiceTimer=null;}
+ const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
+ cancelDelayedPlayback();
+ if(stopBackingAudio)stopBacking(false);
+}
 function countInThenPlay(api,startPlayback=()=>api.play()){
  const bars=Math.max(0,+countIn.value||0);
  const overlay=document.querySelector('#countInOverlay'),number=document.querySelector('#countInNumber');
@@ -1163,7 +1169,7 @@ loopToggle.onclick=()=>{
   if(range)index=range.start;
  }
  lastLoopTick=-1;updatePracticeProgress(resumingPausedSession?practiceIteration:0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
- if(!practiceLoop&&practiceTimer){clearInterval(practiceTimer);practiceTimer=null;cancelDelayedPlayback();const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}}
+ if(!practiceLoop&&wasLooping)cancelPracticeTransition({stopBackingAudio:true});
  if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
   pausePracticeClock();
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
@@ -1187,7 +1193,7 @@ autoBpm.onchange=()=>{
  if(sessionStarted&&sessionFirstPracticeAt){
   if(+autoBpm.value>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
    practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
-   pausePracticeClock();cancelDelayedPlayback();
+   pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});
    const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}
    practiceStatus.textContent='Objectif atteint • '+(+tempo.value||0)+' BPM';
    if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
@@ -1206,7 +1212,7 @@ targetBpm.onchange=()=>{
  const currentTempo=+tempo.value||0,target=+targetBpm.value||0,autoStep=+autoBpm.value||0;
  if(sessionStarted&&sessionFirstPracticeAt&&autoStep>0&&target<=currentTempo){
   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
-  pausePracticeClock();cancelDelayedPlayback();
+  pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});
   const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}
   practiceStatus.textContent='Objectif atteint • '+currentTempo+' BPM';
   paintSession();
