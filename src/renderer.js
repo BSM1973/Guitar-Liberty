@@ -1238,7 +1238,7 @@ loopRepeats.onchange=()=>{
   // Lowering the repetition target below already completed work completes the
   // current series; never rewrite history by moving the counter backwards.
   updatePracticeProgress(target);sessionSeriesCount++;practiceIteration=0;
-  pausePracticeClock();cancelDelayedPlayback();playing=false;clearInternalTimer();stopAllVoices();
+  pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});playing=false;clearInternalTimer();stopAllVoices();
   const activeApi=window.guitarLibertyAlphaTab;
   if(activeApi){try{activeApi.pause()}catch(_){}}
   document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
@@ -1272,6 +1272,9 @@ loopRepeats.onchange=()=>{
 };
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{
  if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;
+ // A range edit defines a new practice task. Cancel any count-in/backing pickup
+ // armed for the previous range before resetting counters or alphaTab bounds.
+ if(practiceLoop&&(practiceTimer||backingStartTimer))cancelPracticeTransition({stopBackingAudio:true});
  if(practiceLoop&&!alphaTabMode&&playing){
   playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
