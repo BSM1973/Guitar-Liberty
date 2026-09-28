@@ -1079,11 +1079,12 @@ function updatePlayCursor(api,tick){
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  // Viewport is deliberately never moved by playback. The orange cursor continues independently.
 }
-async function metronomeClick(accent=false){
+async function metronomeClick(accent=false,generation=countInGeneration){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
  if(countInAudio.state==='suspended'){
   try{await countInAudio.resume()}catch(e){console.error('Count-in audio resume',e);return}
  }
+ if(generation!==countInGeneration||!countInActive)return;
  const o=countInAudio.createOscillator(),g=countInAudio.createGain(),now=countInAudio.currentTime;
  const vol=(+metronomeVolume?.value||0)/100;
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(Math.max(.0001,vol*.22),now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
@@ -1207,7 +1208,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  // AudioContext.resume() is asynchronous on some systems. Do not start the
  // visual/timing countdown until its first audible click is ready, and ignore
  // completion if STOP or another transition cancelled this generation.
- Promise.resolve(metronomeClick(true)).then(()=>{
+ Promise.resolve(metronomeClick(true,generation)).then(()=>{
   if(generation!==countInGeneration)return;
   scheduleCountBeat();
  });
