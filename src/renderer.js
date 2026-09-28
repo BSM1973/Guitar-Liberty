@@ -1468,7 +1468,7 @@ function playNote(string,fret,holdBeats=0){
    activeVoices.set(string,{source,gain});
    source.onended=()=>{if(activeVoices.get(string)?.source===source)activeVoices.delete(string)};
    source.start(now); source.stop(now+releaseAt+.02);
- });
+ }).catch(err=>console.error('Guitar note playback unavailable:',GUITAR_SAMPLES[string],err));
 }
 function stop(){
  alphaTabResumePending=false;
