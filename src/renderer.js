@@ -1664,10 +1664,13 @@ function isWistiaPlaying(){
  if(!videoEnabled||!wistiaPlayer)return false;
  try{return typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){return false}
 }
-function pauseAlphaPracticeAccompaniment(){
+function pauseLocalPracticeVideo(){
  mediaStartGeneration++;
- stopBacking(false);
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
+}
+function pauseAlphaPracticeAccompaniment(){
+ stopBacking(false);
+ pauseLocalPracticeVideo();
  if(videoEnabled&&wistiaPlayer){
   try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
  }
@@ -1758,7 +1761,7 @@ document.querySelector('#play').onclick=async()=>{
     return;
    }
    if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src&&!practiceVideo.paused){
-    practiceVideo.pause();try{api.pause()}catch(_){}alphaTabResumePending=true;
+    pauseLocalPracticeVideo();try{api.pause()}catch(_){}alphaTabResumePending=true;
     if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
     document.querySelector('#play').textContent='▶ PLAY';return;
    }
@@ -1933,9 +1936,9 @@ function setVideoTrack(id,practiceUrl=null){
  wistiaLoadGeneration++;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
- if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
+ if(practiceVideo){pauseLocalPracticeVideo();practiceVideo.currentTime=0;}
  if(wistiaFrame)wistiaFrame.src='';
- if(practiceVideo){practiceVideo.pause();practiceVideo.hidden=true;practiceVideo.removeAttribute('src');practiceVideo.load();}
+ if(practiceVideo){pauseLocalPracticeVideo();practiceVideo.hidden=true;practiceVideo.removeAttribute('src');practiceVideo.load();}
  if(videoToggle){videoToggle.disabled=!(id||practiceUrl);videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
@@ -1972,7 +1975,7 @@ function openVideo(){
 }
 function closeVideo(){
  wistiaLoadGeneration++;
- if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
+ pauseLocalPracticeVideo();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
  alphaTabResumePending=false;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
  videoEnabled=false;wistiaPlayer=null;
