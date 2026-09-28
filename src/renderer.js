@@ -1146,7 +1146,15 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  const total=countPlan.length;
  let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
  if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
+ // The count-in owns its clicks. Pause the free-running metronome so both
+ // clocks cannot sound on top of each other, then restore it for playback.
+ const restoreMetronome=metronomeEnabled;
+ if(restoreMetronome)stopMetronome();
  metronomeClick(true);
+ const finishCountIn=()=>{
+  if(restoreMetronome&&metronomeEnabled)startMetronome();
+  startPlayback();
+ };
  const scheduleCountBeat=()=>{
   // Re-read tempo before every beat so a manual tempo edit during count-in
   // immediately changes the remaining count instead of finishing at stale BPM.
@@ -1158,7 +1166,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
    practiceTimer=null;beat++;
    if(beat>=total){
     practiceStatus.textContent='En cours';
-    if(overlay){overlay.classList.remove('active');overlay.hidden=true}startPlayback();return;
+    if(overlay){overlay.classList.remove('active');overlay.hidden=true}finishCountIn();return;
    }
    const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
    metronomeClick(!!countPlan[beat]?.accent);
