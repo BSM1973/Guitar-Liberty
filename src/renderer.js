@@ -2289,7 +2289,7 @@ if(importButton) importButton.onclick=async()=>{
    const md={repeatStart:false,repeatEnd:false,text:'',beats:currentBeats,beatType:currentBeatType,timeChanged:measureIndex===0||oldBeats!==currentBeats||oldBeatType!==currentBeatType,length:measureLength,events:[]};
    measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')md.repeatStart=true;if(rep.getAttribute('direction')==='backward')md.repeatEnd=true;});
    md.text=[...measure.querySelectorAll(':scope > direction direction-type words')].map(w=>w.textContent.trim()).filter(Boolean).join(' • ');
-   let cursor=0,lastOnset=0;
+   let cursor=0;const lastOnsetByVoice=new Map();
    [...measure.children].forEach(node=>{
     const tag=node.tagName;
     if(tag==='backup'){cursor=Math.max(0,cursor+( -+(node.querySelector('duration')?.textContent||0)/currentDivisions));return;}
@@ -2297,9 +2297,9 @@ if(importButton) importButton.onclick=async()=>{
     if(tag!=='note')return;
     const duration=Math.max(.125,+(node.querySelector(':scope > duration')?.textContent||currentDivisions)/currentDivisions);
     const typeName=node.querySelector(':scope > type')?.textContent||''; const dots=node.querySelectorAll(':scope > dot').length;
-    const voice=node.querySelector(':scope > voice')?.textContent?.trim()||'1',staff=node.querySelector(':scope > staff')?.textContent?.trim()||'1';
-    const chord=!!node.querySelector(':scope > chord'),onset=chord?lastOnset:cursor;
-    if(!chord){lastOnset=onset;cursor+=duration;}
+    const voice=node.querySelector(':scope > voice')?.textContent?.trim()||'1',staff=node.querySelector(':scope > staff')?.textContent?.trim()||'1',voiceKey=staff+':'+voice;
+    const chord=!!node.querySelector(':scope > chord'),onset=chord?(lastOnsetByVoice.get(voiceKey)??cursor):cursor;
+    if(!chord){lastOnsetByVoice.set(voiceKey,onset);cursor+=duration;}
     if(node.querySelector(':scope > rest')){const full=!!node.querySelector(':scope > rest[measure="yes"]');md.events.push({type:'rest',onset,duration:full?measureLength:duration,typeName,dots});return;}
     const pitch=node.querySelector(':scope > pitch');if(!pitch)return;
     const step=pitch.querySelector('step')?.textContent||'C',alter=+(pitch.querySelector('alter')?.textContent||0),octave=+(pitch.querySelector('octave')?.textContent||4),midi=(octave+1)*12+stepSemis[step]+alter;
