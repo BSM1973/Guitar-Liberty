@@ -1129,9 +1129,16 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  const overlay=document.querySelector('#countInOverlay'),number=document.querySelector('#countInNumber');
  if(!bars){if(overlay)overlay.hidden=true;startPlayback();return}
  const loopBarIndex=practiceLoop?Math.max(0,(+loopStart.value||1)-1):0;
- const scoreBar=practiceScore?.masterBars?.[loopBarIndex];
- const internalBar=!practiceScore?.masterBars?.length?practiceBars()[loopBarIndex]:null;
- const beats=Math.max(1,+(scoreBar?.timeSignatureNumerator??internalBar?.beats??metronomeSignature?.value??4)||4),total=bars*beats;
+ const scoreBars=practiceScore?.masterBars?.length?practiceScore.masterBars:null,internalBars=!scoreBars?practiceBars():null;
+ const fallbackBeats=Math.max(1,+metronomeSignature?.value||4),countPlan=[];
+ // Build the preparation measure by measure. This keeps both its length and
+ // downbeat accents correct when the score changes time signature near LOOP.
+ for(let barOffset=0;barOffset<bars;barOffset++){
+  const sourceBar=scoreBars?.[loopBarIndex+barOffset]??internalBars?.[loopBarIndex+barOffset];
+  const barBeats=Math.max(1,+(sourceBar?.timeSignatureNumerator??sourceBar?.beats??fallbackBeats)||fallbackBeats);
+  for(let b=0;b<barBeats;b++)countPlan.push({accent:b===0});
+ }
+ const total=countPlan.length;
  let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
  if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
  metronomeClick(true);
@@ -1146,7 +1153,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
     if(overlay){overlay.classList.remove('active');overlay.hidden=true}startPlayback();return;
    }
    const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
-   metronomeClick(beat%beats===0);
+   metronomeClick(!!countPlan[beat]?.accent);
    scheduleCountBeat();
   },beatMs);
  };
