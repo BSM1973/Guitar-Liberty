@@ -1852,9 +1852,14 @@ function setBackingTrack(url){
  backingToggle.classList.toggle('active',backingActive);
 }
 if(backingToggle)backingToggle.onclick=()=>{
+ if(!currentBackingUrl){
+  backingToggle.textContent='♫ BACKING OFF';backingToggle.classList.remove('active');
+  return;
+ }
  backingEnabled=!backingEnabled;
- backingToggle.textContent=backingEnabled?'♫ BACKING ON':'♫ BACKING OFF';
- backingToggle.classList.toggle('active',backingEnabled&&!!currentBackingUrl);
+ const backingActive=backingEnabled&&!!currentBackingUrl;
+ backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
+ backingToggle.classList.toggle('active',backingActive);
  if(!backingEnabled)stopBacking(false);
 };
 if(backingVolume)backingVolume.oninput=()=>{
