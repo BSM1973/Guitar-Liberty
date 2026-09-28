@@ -2375,7 +2375,8 @@ if(importButton) importButton.onclick=async()=>{
  // Opening the file picker interrupts active practice too. Pause before the
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
- const importInterruptedPlayback=!!(internalPlaybackPreparing||countInActive||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
+ const importInterruptedPreparation=internalPlaybackPreparing;
+ const importInterruptedPlayback=!!(countInActive||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  pausePracticeClock();
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
@@ -2386,6 +2387,9 @@ if(importButton) importButton.onclick=async()=>{
   document.querySelector('#play').textContent='▶ REPRENDRE';
   practiceStatus.textContent=practiceLoop?'Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'Prêt à reprendre';
   paintSession();
+ }else if(importInterruptedPreparation){
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
  const resumeUnchangedPracticeClock=()=>{
   // The score is unchanged, but transport remains intentionally paused.
