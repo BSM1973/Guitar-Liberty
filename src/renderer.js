@@ -1724,7 +1724,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     },currentVideoLeadBeats*(60000/bpm));
    };
    pendingWistiaResume={player:startPlayer,handler:startWistiaPractice};
-   try{startPlayer.bind('play',startWistiaPractice)}catch(_){}
+   try{startPlayer.bind('play',startWistiaPractice)}catch(e){pendingWistiaResume=null;failStart('Wistia',e);return}
    startPlayer.play();
    if(isWistiaPlaying())startWistiaPractice();
   }catch(e){failStart('Wistia',e)}
@@ -1835,7 +1835,7 @@ document.querySelector('#play').onclick=async()=>{
        scheduleLeadInStart(()=>{if(resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||!isWistiaPlaying())return;resumeLeadInPlayback()},remainingLeadIn);
       };
       pendingWistiaResume={player:resumePlayer,handler:resumeWistiaLeadIn};
-      try{resumePlayer.bind('play',resumeWistiaLeadIn)}catch(_){}
+      try{resumePlayer.bind('play',resumeWistiaLeadIn)}catch(e){pendingWistiaResume=null;failAccompanimentResume('Wistia',e);return}
       resumePlayer.play();
       if(isWistiaPlaying())resumeWistiaLeadIn();
      }catch(e){failAccompanimentResume('Wistia',e)}
@@ -1865,7 +1865,7 @@ document.querySelector('#play').onclick=async()=>{
        api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
       };
       pendingWistiaResume={player:resumePlayer,handler:resumeAlphaTab};
-      try{resumePlayer.bind('play',resumeAlphaTab)}catch(_){}
+      try{resumePlayer.bind('play',resumeAlphaTab)}catch(e){pendingWistiaResume=null;failAccompanimentResume('Wistia',e);return}
       resumePlayer.play();
       if(isWistiaPlaying())resumeAlphaTab();
      }catch(e){failAccompanimentResume('Wistia',e)}
