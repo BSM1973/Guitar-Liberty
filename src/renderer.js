@@ -1848,7 +1848,7 @@ document.querySelector('#play').onclick=async()=>{
       if(isWistiaPlaying())resumeWistiaLeadIn();
      }catch(e){failAccompanimentResume('Wistia',e)}
     }else if(backingAudio&&backingEnabled){
-     const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=backingAudio.play();
+     const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
      const resumeBackingLeadIn=()=>{
       if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;
       scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;resumeLeadInPlayback()},remainingLeadIn);
