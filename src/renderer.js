@@ -1847,8 +1847,9 @@ function setBackingTrack(url){
  backingAudio=url?new Audio(encodeURI(url)):null;
  if(backingAudio){backingAudio.preload='auto';backingAudio.volume=(+backingVolume.value||0)/100;}
  backingToggle.disabled=!url;
- backingToggle.textContent=backingEnabled?'♫ BACKING ON':'♫ BACKING OFF';
- backingToggle.classList.toggle('active',backingEnabled&&!!url);
+ const backingActive=backingEnabled&&!!url;
+ backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
+ backingToggle.classList.toggle('active',backingActive);
 }
 if(backingToggle)backingToggle.onclick=()=>{
  backingEnabled=!backingEnabled;
