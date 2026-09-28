@@ -11,7 +11,7 @@ const exercises={
 };
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
 const sampleCache=new Map();
 const sampleLoadPromises=new Map();
@@ -1143,7 +1143,7 @@ metronomeToggle.onclick=async()=>{
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}};
 function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
- alphaTabResumePending=false;leadInResumePending=false;
+ alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
  internalPlaybackPreparing=false;internalPlaybackGeneration++;
  countInGeneration++;countInActive=false;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
@@ -1673,8 +1673,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
    practiceVideo.play().catch(e=>console.error('Practice video',e));
    startSession();document.querySelector('#play').textContent='⏸ PAUSE';
    const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
-   cancelDelayedPlayback();
-   backingStartTimer=setTimeout(()=>{backingStartTimer=null;if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();},currentVideoLeadBeats*(60000/bpm));
+   scheduleLeadInStart(()=>{if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();},currentVideoLeadBeats*(60000/bpm));
   }
   return;
  }
@@ -1692,9 +1691,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
    }
    wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';
    const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
-   cancelDelayedPlayback();
-   backingStartTimer=setTimeout(()=>{
-    backingStartTimer=null;
+   scheduleLeadInStart(()=>{
     if(!practiceLoop||!videoEnabled||!wistiaPlayer)return;
     if(!isWistiaPlaying())return;
     beginPracticePassage();api.play();
@@ -1712,8 +1709,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   }
   backingAudio.currentTime=0;
   const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
-  cancelDelayedPlayback();
-  backingStartTimer=setTimeout(()=>{backingStartTimer=null;if(!practiceLoop)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
+  scheduleLeadInStart(()=>{if(!practiceLoop)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm));
   return;
  }
  beginPracticePassage();api.play();
@@ -1733,6 +1729,7 @@ document.querySelector('#play').onclick=async()=>{
     return;
    }
    if(backingStartTimer){
+    leadInRemainingMs=Math.max(0,leadInDelayMs-(performance.now()-leadInStartedAt));
     leadInResumePending=true;
     cancelDelayedPlayback();pauseAlphaPracticeAccompaniment();
     if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
@@ -1771,7 +1768,14 @@ document.querySelector('#play').onclick=async()=>{
     }
    }
    if(resumeLeadIn){
-    startAlphaPracticePlayback(api);
+    if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
+     syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));document.querySelector('#play').textContent='⏸ PAUSE';
+    }else if(videoEnabled&&wistiaPlayer){
+     syncVideoTempo();try{wistiaPlayer.play();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+    }else if(backingAudio&&backingEnabled){
+     const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
+    }
+    scheduleLeadInStart(()=>{if(!practiceLoop)return;beginPracticePassage();api.play();},leadInRemainingMs);
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
@@ -1924,7 +1928,12 @@ function closeVideo(){
 }
 if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
 function cancelDelayedPlayback(){
- clearTimeout(backingStartTimer);backingStartTimer=null;
+ clearTimeout(backingStartTimer);backingStartTimer=null;leadInStartedAt=0;leadInDelayMs=0;
+}
+function scheduleLeadInStart(callback,delayMs){
+ cancelDelayedPlayback();
+ leadInDelayMs=Math.max(0,delayMs||0);leadInStartedAt=performance.now();
+ backingStartTimer=setTimeout(()=>{backingStartTimer=null;leadInStartedAt=0;leadInDelayMs=0;leadInRemainingMs=0;callback()},leadInDelayMs);
 }
 function stopBacking(reset=true){
  cancelDelayedPlayback();
