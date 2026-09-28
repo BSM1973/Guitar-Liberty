@@ -1786,7 +1786,10 @@ document.querySelector('#play').onclick=async()=>{
   });
   return;
  }
- playing=true;document.querySelector('#play').textContent='■ STOP';scheduleNext(tick())
+ document.querySelector('#play').textContent='■ STOP';
+ countInThenPlay(null,()=>{
+  beginPracticePassage();playing=true;scheduleNext(tick());
+ });
 };
 // L'application démarre désormais sur l'accueil, sans charger l'ancien exercice de démonstration.
 const homePage=document.querySelector('#homePage'),appWorkspace=document.querySelector('#appWorkspace');
