@@ -1115,9 +1115,19 @@ async function startMetronome({afterScheduled=false}={}){
  clearTimeout(metronomeTimer);metronomeBeatIndex=0;metronomeNextTime=safeStart;metronomeScheduler();
 }
 function stopMetronome(){clearTimeout(metronomeTimer);metronomeTimer=null;metronomeBeatIndex=0;[...metronomeBeatView.querySelectorAll('i')].forEach(d=>d.classList.remove('active','accent'))}
-metronomeToggle.onclick=async()=>{metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';if(metronomeEnabled)await startMetronome();else stopMetronome()};
+metronomeToggle.onclick=async()=>{
+ metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';
+ // During count-in its own clock owns the clicks. Changing the metronome here
+ // only changes whether the free-running metronome resumes with playback.
+ if(practiceTimer){
+  countInMetronomeSuspended=metronomeEnabled;
+  if(!metronomeEnabled)stopMetronome();
+  return;
+ }
+ if(metronomeEnabled)await startMetronome();else stopMetronome();
+};
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
-metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled){stopMetronome();startMetronome()}};
+metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!practiceTimer){stopMetronome();startMetronome()}};
 function cancelPracticeTransition({stopBackingAudio=false}={}){
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
