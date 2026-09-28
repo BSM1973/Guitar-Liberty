@@ -1952,7 +1952,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       api.isLooping=false;
       practiceLoop=false;
       loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
-      pausePracticeClock();cancelDelayedPlayback();try{api.pause()}catch(_){}
+      pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});try{api.pause()}catch(_){}
       practiceStatus.textContent='Objectif atteint • '+next+' BPM';
       if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
      }else{
@@ -1968,7 +1968,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
      }
     }else{
      api.isLooping=false;practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
-     pausePracticeClock();cancelDelayedPlayback();try{api.pause()}catch(_){}
+     pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});try{api.pause()}catch(_){}
      practiceStatus.textContent='Série terminée • prêt à reprendre';
      paintSession();
     }
@@ -1997,7 +1997,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   if(!isActiveLoad())return;
   completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
-  if(!restoring&&sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
+  if(!restoring&&sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   // Keep only a source that alphaTab has actually parsed successfully. This
   // gives failed future imports a trustworthy score to restore from.
   currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
@@ -2524,7 +2524,7 @@ if(importButton) importButton.onclick=async()=>{
   });
   const key='imported';
   const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),historyRows=readHistory().filter(x=>(x.exercise||x.title)===importedTitle),historySession=latestExerciseSession(historyRows),historyLastTempo=historySession?(+historySession.end||+historySession.best||0):0,historyCompleted=historyRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),historyConfirmedTempo=historyCompleted.length>=2?historyCompleted[1]:0,rememberedTempo=savedExerciseTempo(importedTitle)||historyConfirmedTempo||historyLastTempo,rememberedGoal=savedExerciseGoal(importedTitle)||(historySession&&Number.isFinite(+historySession.goal)?+historySession.goal:0);
-  if(sessionStarted&&currentPracticeTitle!==importedTitle){pausePracticeClock();cancelDelayedPlayback();practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
+  if(sessionStarted&&currentPracticeTitle!==importedTitle){pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true});practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');const api=window.guitarLibertyAlphaTab;if(api){api.isLooping=false;try{api.pause()}catch(_){}}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   exercises[key]={title:importedTitle,subtitle:'Tablature importée • MusicXML',tempo:rememberedTempo||importedTempo,repeat:1,notes:imported,measures:importedMeasures};
   currentPracticeTitle=importedTitle;
   if(currentLessonId?.startsWith('import:')){
