@@ -1701,6 +1701,21 @@ document.querySelector('#play').onclick=async()=>{
     paintSession();
     return;
    }
+   if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src&&!practiceVideo.paused){
+    practiceVideo.pause();alphaTabResumePending=true;
+    if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
+    document.querySelector('#play').textContent='▶ PLAY';return;
+   }
+   if(videoEnabled&&wistiaPlayer){
+    let wistiaPlaying=false;
+    try{wistiaPlaying=typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){}
+    if(wistiaPlaying){
+     try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+     alphaTabResumePending=true;
+     if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
+     document.querySelector('#play').textContent='▶ PLAY';return;
+    }
+   }
    if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);alphaTabResumePending=true;document.querySelector('#play').textContent='▶ PLAY';return;}
    const resumeFromPause=alphaTabResumePending;
    alphaTabResumePending=false;
@@ -1714,8 +1729,13 @@ document.querySelector('#play').onclick=async()=>{
      lastLoopTick=-1;
     }
    }
-   if(resumeFromPause)startAlphaPracticePlayback(api);
-   else countInThenPlay(api,()=>startAlphaPracticePlayback(api));
+   if(resumeFromPause){
+    if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
+     syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+    }else if(videoEnabled&&wistiaPlayer){
+     syncVideoTempo();try{wistiaPlayer.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+    }else startAlphaPracticePlayback(api);
+   }else countInThenPlay(api,()=>startAlphaPracticePlayback(api));
    return;
   }catch(err){console.error('alphaTab playback',err);importStatus.textContent='Lecture alphaTab indisponible : '+(err.message||err);return;}
  }
