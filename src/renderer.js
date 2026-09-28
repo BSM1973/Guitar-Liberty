@@ -1107,10 +1107,12 @@ function metronomeScheduler(){
  }
  metronomeTimer=setTimeout(metronomeScheduler,25);
 }
-async function startMetronome(){
+async function startMetronome({afterScheduled=false}={}){
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
  if(metronomeContext.state==='suspended')await metronomeContext.resume();
- clearTimeout(metronomeTimer);metronomeBeatIndex=0;metronomeNextTime=metronomeContext.currentTime+.04;metronomeScheduler();
+ const now=metronomeContext.currentTime;
+ const safeStart=afterScheduled&&metronomeNextTime>now?metronomeNextTime:now+.04;
+ clearTimeout(metronomeTimer);metronomeBeatIndex=0;metronomeNextTime=safeStart;metronomeScheduler();
 }
 function stopMetronome(){clearTimeout(metronomeTimer);metronomeTimer=null;metronomeBeatIndex=0;[...metronomeBeatView.querySelectorAll('i')].forEach(d=>d.classList.remove('active','accent'))}
 metronomeToggle.onclick=async()=>{metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';if(metronomeEnabled)await startMetronome();else stopMetronome()};
@@ -1333,7 +1335,11 @@ function advanceAutoBpm(){
  const next=Math.min(goal,(+tempo.value||0)+inc);
  tempo.value=next;syncTempo();
  if(videoEnabled)syncVideoTempo();
- if(metronomeEnabled){stopMetronome();startMetronome()}
+ if(metronomeEnabled){
+  const scheduledThrough=metronomeNextTime;
+  stopMetronome();metronomeNextTime=scheduledThrough;
+  startMetronome({afterScheduled:true});
+ }
  return {next,reached:next>=goal};
 }
 function playNote(string,fret,holdBeats=0){
