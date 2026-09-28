@@ -1137,7 +1137,11 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
   const sourceBar=scoreBars?.[loopBarIndex+barOffset]??internalBars?.[loopBarIndex+barOffset];
   const barBeats=Math.max(1,+(sourceBar?.timeSignatureNumerator??sourceBar?.beats??fallbackBeats)||fallbackBeats);
   const beatUnit=Math.max(1,+(sourceBar?.timeSignatureDenominator??sourceBar?.beatType??4)||4);
-  for(let b=0;b<barBeats;b++)countPlan.push({accent:b===0,beatUnit});
+  // Compound x/8 meters are felt in dotted-quarter pulses: 6/8 -> 2,
+  // 9/8 -> 3, 12/8 -> 4. Keep simple meters on their written beat unit.
+  const compound=beatUnit===8&&barBeats>=6&&barBeats%3===0;
+  const pulseCount=compound?barBeats/3:barBeats,pulseQuarterLength=compound?1.5:(4/beatUnit);
+  for(let b=0;b<pulseCount;b++)countPlan.push({accent:b===0,pulseQuarterLength});
  }
  const total=countPlan.length;
  let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
@@ -1146,10 +1150,10 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  const scheduleCountBeat=()=>{
   // Re-read tempo before every beat so a manual tempo edit during count-in
   // immediately changes the remaining count instead of finishing at stale BPM.
-  const beatUnit=Math.max(1,+countPlan[beat]?.beatUnit||4);
-  // Tempo is quarter-note based in Guitar Liberty; scale each count pulse to
-  // the denominator of the active time signature (8th=half, half-note=double).
-  const beatMs=(60000/Math.max(1,+tempo.value||120))*(4/beatUnit);
+  const pulseQuarterLength=Math.max(.125,+countPlan[beat]?.pulseQuarterLength||1);
+  // Tempo is quarter-note based in Guitar Liberty. Simple meters scale from
+  // their denominator; compound x/8 meters use one dotted-quarter pulse.
+  const beatMs=(60000/Math.max(1,+tempo.value||120))*pulseQuarterLength;
   practiceTimer=setTimeout(()=>{
    practiceTimer=null;beat++;
    if(beat>=total){
