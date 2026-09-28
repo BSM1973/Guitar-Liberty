@@ -1340,7 +1340,14 @@ loopRepeats.onchange=()=>{
  if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;
  // A range edit defines a new practice task. Cancel any count-in/backing pickup
  // armed for the previous range before resetting counters or alphaTab bounds.
- if(practiceLoop&&(practiceTimer||backingStartTimer))cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+ const alphaApi=window.guitarLibertyAlphaTab;
+ const rangePlaybackActive=practiceLoop&&(countInActive||backingStartTimer||playing||(alphaTabMode&&alphaApi?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
+ if(rangePlaybackActive){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  if(alphaTabMode&&alphaApi){try{alphaApi.pause()}catch(_){}}
+  pausePracticeClock();
+  document.querySelector('#play').textContent='▶ PLAY';
+ }
  if(practiceLoop&&!alphaTabMode&&playing){
   playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
