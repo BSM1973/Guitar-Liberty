@@ -1283,7 +1283,7 @@ function rhythmGlyph(duration,typeName,dots=0){
 }
 function rhythmRestGlyph(duration){if(duration>=2)return '𝄼';if(duration>=1)return '𝄽';if(duration>=.5)return '𝄾';if(duration>=.25)return '𝄿';return '𝅀'}
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
-function playNote(string,fret){
+function playNote(string,fret,holdBeats=0){
  ensureOutput();
  loadGuitarSample(string).then(buffer=>{
    if(!buffer) return;
@@ -1298,13 +1298,13 @@ function playNote(string,fret){
    gain.gain.setValueAtTime(.0001,now);
    gain.gain.linearRampToValueAtTime(velocity,now+.004);
    // Keep the recorded decay instead of imposing the old synthetic 2.2 s envelope.
-   const natural=Math.min(buffer.duration/rate,4.8);
-   gain.gain.setValueAtTime(velocity,now+Math.min(.06,natural*.15));
-   gain.gain.exponentialRampToValueAtTime(.0001,now+natural);
+   const natural=Math.min(buffer.duration/rate,4.8),requestedHold=holdBeats>0?holdBeats*60000/Math.max(1,+tempo.value)/1000:0,releaseAt=Math.min(natural,Math.max(.08,requestedHold||natural));
+   gain.gain.setValueAtTime(velocity,now+Math.min(.06,releaseAt*.15));
+   gain.gain.exponentialRampToValueAtTime(.0001,now+releaseAt);
    source.connect(tone).connect(gain).connect(masterGain);
    activeVoices.set(string,{source,gain});
    source.onended=()=>{if(activeVoices.get(string)?.source===source)activeVoices.delete(string)};
-   source.start(now); source.stop(now+natural+.02);
+   source.start(now); source.stop(now+releaseAt+.02);
  });
 }
 function stop(){
@@ -1373,7 +1373,19 @@ function tick(){
    }
   }
  }
- eventNotes.forEach(v=>{if(v[7])return;const [s,f]=v;playNote(s,f)});
+ eventNotes.forEach(v=>{
+  if(v[7])return;
+  const [s,f]=v;let holdBeats=+v[3]||0;
+  if(v[8]){
+   let tieIndex=e.notes.indexOf(v)+1;
+   while(tieIndex<e.notes.length){
+    const tied=e.notes[tieIndex];
+    if((+tied[0]||0)===+s&&(+tied[1]||0)===+f&&tied[7]){holdBeats+=+tied[3]||0;if(!tied[8])break;tieIndex++;continue}
+    tieIndex++;
+   }
+  }
+  playNote(s,f,holdBeats);
+ });
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
  index=eventEnd;
  if(internalRange&&index>=internalRange.end){
