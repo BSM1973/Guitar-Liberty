@@ -1232,7 +1232,9 @@ loopRepeats.onchange=()=>{
   // Lowering the repetition target below already completed work completes the
   // current series; never rewrite history by moving the counter backwards.
   updatePracticeProgress(target);sessionSeriesCount++;practiceIteration=0;
-  pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();
+  pausePracticeClock();cancelDelayedPlayback();playing=false;clearInternalTimer();stopAllVoices();
+  const activeApi=window.guitarLibertyAlphaTab;
+  if(activeApi){try{activeApi.pause()}catch(_){}}
   document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
   const autoStep=advanceAutoBpm();
   if(autoStep){
