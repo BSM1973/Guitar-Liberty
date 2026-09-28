@@ -1936,9 +1936,11 @@ function setVideoTrack(id,practiceUrl=null){
  wistiaLoadGeneration++;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
- if(practiceVideo){pauseLocalPracticeVideo();practiceVideo.currentTime=0;}
+ if(practiceVideo){
+  pauseLocalPracticeVideo();practiceVideo.currentTime=0;practiceVideo.hidden=true;
+  practiceVideo.removeAttribute('src');practiceVideo.load();
+ }
  if(wistiaFrame)wistiaFrame.src='';
- if(practiceVideo){pauseLocalPracticeVideo();practiceVideo.hidden=true;practiceVideo.removeAttribute('src');practiceVideo.load();}
  if(videoToggle){videoToggle.disabled=!(id||practiceUrl);videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
