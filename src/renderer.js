@@ -1945,6 +1945,7 @@ function openVideo(){
    window._wq.push({id:requestedWistiaId,onReady:video=>{
     if(!videoEnabled||currentWistiaId!==requestedWistiaId)return;
     wistiaPlayer=video;
+    try{video.unbind('end',finishPracticeVideoPlayback)}catch(_){}
     try{video.bind('end',finishPracticeVideoPlayback)}catch(e){console.error('Wistia end binding',e)}
    }});
    wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(requestedWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
