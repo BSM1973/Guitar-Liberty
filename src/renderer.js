@@ -1677,7 +1677,7 @@ function pauseAlphaPracticeAccompaniment(){
 }
 function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccompaniment=false}={}){
  const failStart=(label,error)=>{
-  cancelDelayedPlayback();try{api.pause()}catch(_){}
+  mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();try{api.pause()}catch(_){}
   alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=label+' indisponible • prêt à relancer';
@@ -1803,7 +1803,7 @@ document.querySelector('#play').onclick=async()=>{
     }
    }
    const failAccompanimentResume=(label,error)=>{
-    cancelDelayedPlayback();try{api.pause()}catch(_){}
+    mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();try{api.pause()}catch(_){}
     alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
     document.querySelector('#play').textContent='▶ PLAY';
     practiceStatus.textContent=label+' indisponible • prêt à relancer';
