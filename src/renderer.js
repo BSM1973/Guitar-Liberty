@@ -2384,6 +2384,7 @@ if(importButton) importButton.onclick=async()=>{
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(isWistiaPlaying()){try{wistiaPlayer.pause()}catch(_){}}
  if(importInterruptedPlayback){
+  alphaTabResumePending=alphaTabMode;
   document.querySelector('#play').textContent='▶ REPRENDRE';
   practiceStatus.textContent=practiceLoop?'Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'Prêt à reprendre';
   paintSession();
