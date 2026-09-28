@@ -1085,7 +1085,7 @@ function metronomeClick(accent=false){
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(.18,now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
-let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null;
+let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false;
 const metronomeToggle=document.querySelector('#metronomeToggle'),metronomeVolume=document.querySelector('#metronomeVolume'),metronomeVolumeLabel=document.querySelector('#metronomeVolumeLabel'),metronomeSignature=document.querySelector('#metronomeSignature'),metronomeBeatView=document.querySelector('#metronomeBeat');
 function metronomeClickAt(time,accent=false){
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
@@ -1121,6 +1121,10 @@ metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled){stopM
 function cancelPracticeTransition({stopBackingAudio=false}={}){
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
+ if(countInMetronomeSuspended){
+  countInMetronomeSuspended=false;
+  if(metronomeEnabled)startMetronome();
+ }
  cancelDelayedPlayback();
  if(stopBackingAudio)stopBacking(false);
 }
@@ -1148,10 +1152,12 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
  // The count-in owns its clicks. Pause the free-running metronome so both
  // clocks cannot sound on top of each other, then restore it for playback.
- const restoreMetronome=metronomeEnabled;
- if(restoreMetronome)stopMetronome();
+ countInMetronomeSuspended=metronomeEnabled;
+ if(countInMetronomeSuspended)stopMetronome();
  metronomeClick(true);
  const finishCountIn=()=>{
+  const restoreMetronome=countInMetronomeSuspended;
+  countInMetronomeSuspended=false;
   if(restoreMetronome&&metronomeEnabled)startMetronome();
   startPlayback();
  };
