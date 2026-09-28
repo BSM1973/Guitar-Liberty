@@ -1350,7 +1350,7 @@ loopRepeats.onchange=()=>{
  // A range edit defines a new practice task. Cancel any count-in/backing pickup
  // armed for the previous range before resetting counters or alphaTab bounds.
  const alphaApi=window.guitarLibertyAlphaTab;
- const rangePlaybackActive=practiceLoop&&(countInActive||backingStartTimer||playing||(alphaTabMode&&alphaApi?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
+ const rangePlaybackActive=practiceLoop&&(countInActive||backingStartTimer||playing||(alphaTabMode&&alphaApi?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  if(rangePlaybackActive){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   if(alphaTabMode&&alphaApi){try{alphaApi.pause()}catch(_){}}
@@ -1641,6 +1641,10 @@ document.addEventListener('keydown',e=>{
  if(playButton)playButton.click();
 },{capture:true});
 
+function isWistiaPlaying(){
+ if(!videoEnabled||!wistiaPlayer)return false;
+ try{return typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){return false}
+}
 function pauseAlphaPracticeAccompaniment(){
  stopBacking(false);
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
@@ -1674,9 +1678,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
    backingStartTimer=setTimeout(()=>{
     backingStartTimer=null;
     if(!practiceLoop||!videoEnabled||!wistiaPlayer)return;
-    let wistiaPlaying=false;
-    try{wistiaPlaying=typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){}
-    if(!wistiaPlaying)return;
+    if(!isWistiaPlaying())return;
     beginPracticePassage();api.play();
    },currentVideoLeadBeats*(60000/bpm));
   }catch(e){console.error('Wistia playback',e)}
@@ -1720,9 +1722,7 @@ document.querySelector('#play').onclick=async()=>{
     document.querySelector('#play').textContent='▶ PLAY';return;
    }
    if(videoEnabled&&wistiaPlayer){
-    let wistiaPlaying=false;
-    try{wistiaPlaying=typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){}
-    if(wistiaPlaying){
+    if(isWistiaPlaying()){
      try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
      alphaTabResumePending=true;
      if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
@@ -2312,13 +2312,13 @@ if(importButton) importButton.onclick=async()=>{
  // Opening the file picker interrupts active practice too. Pause before the
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
- const importInterruptedPlayback=!!(practiceTimer||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
+ const importInterruptedPlayback=!!(countInActive||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  pausePracticeClock();
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
  if(playing){playing=false;clearInternalTimer();stopAllVoices();}
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
- if(videoEnabled&&wistiaPlayer){try{if(wistiaPlayer.state==='playing')wistiaPlayer.pause()}catch(_){}}
+ if(isWistiaPlaying()){try{wistiaPlayer.pause()}catch(_){}}
  if(importInterruptedPlayback){
   document.querySelector('#play').textContent='▶ REPRENDRE';
   practiceStatus.textContent=practiceLoop?'Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'Prêt à reprendre';
