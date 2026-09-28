@@ -1442,7 +1442,7 @@ let preservePreferredTempo=false;
 tempo.oninput=()=>{
  if(!preservePreferredTempo)saveExerciseTempo(currentPracticeTitle,+tempo.value);
  syncTempo();
- if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext()}
+ if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){clearTimeout(timer);scheduleNext(noteIntervalMs())}
  if(videoEnabled)syncVideoTempo();
  if(metronomeEnabled){stopMetronome();startMetronome()}
  if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){
