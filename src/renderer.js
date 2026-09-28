@@ -1374,7 +1374,11 @@ function tick(){
   }
  }
  eventNotes.forEach(v=>{
-  if(v[7])return;
+  // A tie-stop normally has no new attack. At the first event of an isolated
+  // LOOP, however, its original attack may live before loopStart; retrigger it
+  // so every repetition can be heard independently.
+  const loopBoundaryAttack=!!(practiceLoop&&internalRange&&eventStart===internalRange.start);
+  if(v[7]&&!loopBoundaryAttack)return;
   const [s,f]=v;let holdBeats=+v[3]||0;
   if(v[8]){
    let tieIndex=e.notes.indexOf(v)+1;
