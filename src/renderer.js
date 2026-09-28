@@ -1846,7 +1846,15 @@ function openVideo(){
    }
    syncVideoTempo();
  }else if(wistiaFrame){
-   practiceVideo.hidden=true;wistiaFrame.hidden=false;wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(currentWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
+   practiceVideo.hidden=true;wistiaFrame.hidden=false;
+   const requestedWistiaId=currentWistiaId;
+   window._wq=window._wq||[];
+   window._wq.push({id:requestedWistiaId,onReady:video=>{
+    if(!videoEnabled||currentWistiaId!==requestedWistiaId)return;
+    wistiaPlayer=video;
+    try{video.bind('end',finishPracticeVideoPlayback)}catch(e){console.error('Wistia end binding',e)}
+   }});
+   wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(requestedWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  }
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
