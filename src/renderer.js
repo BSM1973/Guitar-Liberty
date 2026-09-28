@@ -1990,6 +1990,7 @@ function scheduleLeadInStart(callback,delayMs){
  backingStartTimer=setTimeout(()=>{backingStartTimer=null;leadInStartedAt=0;leadInDelayMs=0;leadInRemainingMs=0;callback()},leadInDelayMs);
 }
 function stopBacking(reset=true){
+ mediaStartGeneration++;
  cancelDelayedPlayback();
  if(!backingAudio)return;
  backingAudio.pause();if(reset)backingAudio.currentTime=0;
