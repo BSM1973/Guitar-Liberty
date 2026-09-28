@@ -1217,6 +1217,15 @@ targetBpm.onchange=()=>{
 loopRepeats.onchange=()=>{
  loopRepeats.value=Math.max(1,+loopRepeats.value||1);
  const target=+loopRepeats.value;
+ if(!practiceLoop&&sessionHistorySaved&&sessionStarted){
+  // The previous result is already in history. Changing the repetition target
+  // prepares a genuinely new series instead of leaving the UI attached to the
+  // completed/saved session.
+  resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);
+  practiceStatus.textContent='Nouvelle série prête • 0/'+target+' répétitions';
+  paintSession();
+  return;
+ }
  if(practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&practiceIteration>=target){
   // Lowering the repetition target below already completed work completes the
   // current series; never rewrite history by moving the counter backwards.
