@@ -1818,6 +1818,9 @@ function openVideo(){
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
+ if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
+ if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
+ alphaTabResumePending=false;
  videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
  if(wistiaFrame)wistiaFrame.src='';
