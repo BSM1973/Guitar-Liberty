@@ -1767,22 +1767,29 @@ document.querySelector('#play').onclick=async()=>{
      lastLoopTick=-1;
     }
    }
+   const failAccompanimentResume=(label,error)=>{
+    cancelDelayedPlayback();try{api.pause()}catch(_){}
+    alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
+    document.querySelector('#play').textContent='▶ PLAY';
+    practiceStatus.textContent=label+' indisponible • prêt à relancer';
+    if(error)console.error(label+' resume',error);
+   };
    if(resumeLeadIn){
     let resumeLeadInPlayback=()=>{if(!practiceLoop)return;beginPracticePassage();api.play();};
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
-     syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));document.querySelector('#play').textContent='⏸ PAUSE';
+     syncVideoTempo();practiceVideo.play().then(()=>{document.querySelector('#play').textContent='⏸ PAUSE'}).catch(e=>failAccompanimentResume('Vidéo',e));
      resumeLeadInPlayback=()=>{if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();};
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();try{wistiaPlayer.play();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
      resumeLeadInPlayback=()=>{if(!practiceLoop||!videoEnabled||!wistiaPlayer||!isWistiaPlaying())return;beginPracticePassage();api.play();};
     }else if(backingAudio&&backingEnabled){
-     const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(console.error);
+     const backingPromise=backingAudio.play();if(backingPromise?.catch)backingPromise.catch(e=>failAccompanimentResume('Backing',e));
      resumeLeadInPlayback=()=>{if(!practiceLoop||!backingAudio||backingAudio.paused)return;beginPracticePassage();api.play();};
     }
     scheduleLeadInStart(resumeLeadInPlayback,leadInRemainingMs);
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
-     syncVideoTempo();practiceVideo.play().catch(e=>console.error('Practice video',e));api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+     syncVideoTempo();practiceVideo.play().then(()=>{api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE'}).catch(e=>failAccompanimentResume('Vidéo',e));
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();try{wistiaPlayer.play();api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
     }else startAlphaPracticePlayback(api,{resumeAccompaniment:true});
