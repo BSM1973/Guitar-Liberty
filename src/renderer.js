@@ -1128,7 +1128,10 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  const bars=Math.max(0,+countIn.value||0);
  const overlay=document.querySelector('#countInOverlay'),number=document.querySelector('#countInNumber');
  if(!bars){if(overlay)overlay.hidden=true;startPlayback();return}
- const beats=practiceScore?.masterBars?.[0]?.timeSignatureNumerator||4,total=bars*beats;
+ const loopBarIndex=practiceLoop?Math.max(0,(+loopStart.value||1)-1):0;
+ const scoreBar=practiceScore?.masterBars?.[loopBarIndex];
+ const internalBar=!practiceScore?.masterBars?.length?practiceBars()[loopBarIndex]:null;
+ const beats=Math.max(1,+(scoreBar?.timeSignatureNumerator??internalBar?.beats??metronomeSignature?.value??4)||4),total=bars*beats;
  let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
  if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
  metronomeClick(true);
