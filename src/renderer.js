@@ -1801,7 +1801,7 @@ function setVideoTrack(id,practiceUrl=null){
  if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
  if(wistiaFrame)wistiaFrame.src='';
  if(practiceVideo){practiceVideo.pause();practiceVideo.hidden=true;practiceVideo.removeAttribute('src');practiceVideo.load();}
- if(videoToggle){videoToggle.disabled=!id;videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
+ if(videoToggle){videoToggle.disabled=!(id||practiceUrl);videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
  if(!practiceVideo||practiceVideo.hidden)return;
