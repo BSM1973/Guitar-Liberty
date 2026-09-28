@@ -1082,7 +1082,8 @@ function updatePlayCursor(api,tick){
 function metronomeClick(accent=false){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
  const o=countInAudio.createOscillator(),g=countInAudio.createGain(),now=countInAudio.currentTime;
- o.frequency.value=accent?1200:850;g.gain.setValueAtTime(.18,now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
+ const vol=(+metronomeVolume?.value||0)/100;
+ o.frequency.value=accent?1200:850;g.gain.setValueAtTime(Math.max(.0001,vol*.22),now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
 let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false;
