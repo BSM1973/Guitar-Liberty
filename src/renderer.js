@@ -1166,6 +1166,7 @@ loopToggle.onclick=()=>{
  const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  if(!alphaTabMode&&internalTransportWasPlaying){
   if(practiceLoop){const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
+  else index=0;
   pausePracticeClock();
  }
  if(practiceLoop&&completedSeries){
