@@ -1627,7 +1627,7 @@ function pauseAlphaPracticeAccompaniment(){
   try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
  }
 }
-function startAlphaPracticePlayback(api){
+function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
   syncVideoTempo();
   if(practiceVideo.paused){
@@ -1639,7 +1639,13 @@ function startAlphaPracticePlayback(api){
  }
  if(videoEnabled&&wistiaPlayer){
   syncVideoTempo();
-  try{wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';}catch(e){console.error('Wistia playback',e)}
+  try{
+   if(restartAccompaniment){
+    if(typeof wistiaPlayer.time==='function')wistiaPlayer.time(0);
+    else if(typeof wistiaPlayer.currentTime==='function')wistiaPlayer.currentTime(0);
+   }
+   wistiaPlayer.play();startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';
+  }catch(e){console.error('Wistia playback',e)}
   return;
  }
  if(backingAudio&&backingEnabled){
@@ -1971,7 +1977,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       lastLoopTick=-1;
       countInThenPlay(api,()=>{
        if(!practiceLoop)return;
-       startAlphaPracticePlayback(api);
+       startAlphaPracticePlayback(api,{restartAccompaniment:true});
       });
      }
     }else{
