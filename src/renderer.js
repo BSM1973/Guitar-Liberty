@@ -10,6 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer(){clearInternalTimer();timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null;
 const sampleCache=new Map();
@@ -1140,7 +1141,7 @@ loopToggle.onclick=()=>{
  const wasLooping=practiceLoop,resumingPausedSession=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
  const internalTransportWasPlaying=!alphaTabMode&&playing;
  if(internalTransportWasPlaying){
-  playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+  playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
  }
@@ -1221,7 +1222,7 @@ loopRepeats.onchange=()=>{
 [loopStart,loopEnd].forEach(el=>el.onchange=()=>{
  if(+loopEnd.value<+loopStart.value)loopEnd.value=loopStart.value;
  if(practiceLoop&&!alphaTabMode&&playing){
-  playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+  playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
   const range=internalLoopBounds(exercises[current]);if(range)index=range.start;
@@ -1309,7 +1310,7 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
- playing=false;clearTimeout(timer);stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
+ playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
 }
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
@@ -1339,7 +1340,7 @@ function noteIntervalMs(){
  return 60000/+tempo.value*beats
 }
 function scheduleNext(delayMs){
- clearTimeout(timer);timer=null;
+ clearInternalTimer();
  if(playing&&Number.isFinite(delayMs)){
   timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);
   timer=setTimeout(()=>{
@@ -1427,14 +1428,14 @@ function tick(){
    if(inc){
     const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max)),next=Math.min(goal,+tempo.value+inc);
     tempo.value=next;syncTempo();
-    if(next>=goal){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearTimeout(timer);timer=null;stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
+    if(next>=goal){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
     else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
-   }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearTimeout(timer);timer=null;stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
+   }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
  }else if(index>=e.notes.length){
   // Natural end outside LOOP: return to an idle, replayable transport instead
   // of scheduling the score again from index 0.
-  index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+  index=0;playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
   const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'});
@@ -1689,7 +1690,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  cancelDelayedPlayback();stopBacking(false);
  if(playWithMeActive||playWithMeAnswerTimer||playWithMeCountdownTimer||playWithMeElapsedTimer)stopPlayWithMe();
  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
- index=0;playing=false;clearTimeout(timer);timer=null;stopAllVoices();
+ index=0;playing=false;clearInternalTimer();stopAllVoices();
  practiceScore=null;playCursor=null;alphaPlayedBeat=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
  if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
  tab.classList.remove('alphatab-score');tab.innerHTML='';
@@ -2066,7 +2067,7 @@ if(importButton) importButton.onclick=async()=>{
  const importOverlay=document.querySelector('#countInOverlay');if(importOverlay){importOverlay.classList.remove('active');importOverlay.hidden=true;}
  cancelDelayedPlayback();stopBacking(false);
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
- if(playing){playing=false;clearTimeout(timer);timer=null;stopAllVoices();}
+ if(playing){playing=false;clearInternalTimer();stopAllVoices();}
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(videoEnabled&&wistiaPlayer){try{if(wistiaPlayer.state==='playing')wistiaPlayer.pause()}catch(_){}}
  if(importInterruptedPlayback){
