@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer(){clearInternalTimer();timerStartedAt=0;timerDelayMs=0}
+function clearInternalTimer(){if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50;
 const sampleCache=new Map();
