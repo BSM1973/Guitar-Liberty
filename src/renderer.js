@@ -1089,7 +1089,7 @@ async function metronomeClick(accent=false){
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(Math.max(.0001,vol*.22),now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
-let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false;
+let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false,countInGeneration=0;
 const metronomeToggle=document.querySelector('#metronomeToggle'),metronomeVolume=document.querySelector('#metronomeVolume'),metronomeVolumeLabel=document.querySelector('#metronomeVolumeLabel'),metronomeSignature=document.querySelector('#metronomeSignature'),metronomeBeatView=document.querySelector('#metronomeBeat');
 function metronomeClickAt(time,accent=false){
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
@@ -1133,6 +1133,7 @@ metronomeToggle.onclick=async()=>{
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!practiceTimer){stopMetronome();startMetronome()}};
 function cancelPracticeTransition({stopBackingAudio=false}={}){
+ countInGeneration++;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
  if(countInMetronomeSuspended){
@@ -1166,9 +1167,9 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
  // The count-in owns its clicks. Pause the free-running metronome so both
  // clocks cannot sound on top of each other, then restore it for playback.
+ const generation=++countInGeneration;
  countInMetronomeSuspended=metronomeEnabled;
  if(countInMetronomeSuspended)stopMetronome();
- metronomeClick(true);
  const finishCountIn=()=>{
   const restoreMetronome=countInMetronomeSuspended;
   countInMetronomeSuspended=false;
@@ -1193,7 +1194,13 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
    scheduleCountBeat();
   },beatMs);
  };
- scheduleCountBeat();
+ // AudioContext.resume() is asynchronous on some systems. Do not start the
+ // visual/timing countdown until its first audible click is ready, and ignore
+ // completion if STOP or another transition cancelled this generation.
+ Promise.resolve(metronomeClick(true)).then(()=>{
+  if(generation!==countInGeneration)return;
+  scheduleCountBeat();
+ });
 }
 loopToggle.onclick=()=>{
  const restartingSavedSession=!practiceLoop&&sessionHistorySaved&&sessionStarted;
