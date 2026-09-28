@@ -1655,6 +1655,9 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false}={}){
    practiceVideo.currentTime=0;
    practiceVideo.play().catch(e=>console.error('Practice video',e));
    startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+   const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
+   cancelDelayedPlayback();
+   backingStartTimer=setTimeout(()=>{backingStartTimer=null;if(!practiceLoop||practiceVideo.paused)return;beginPracticePassage();api.play();},currentVideoLeadBeats*(60000/bpm));
   }
   return;
  }
