@@ -1089,14 +1089,14 @@ async function metronomeClick(accent=false){
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(Math.max(.0001,vol*.22),now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
-let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,metronomeGeneration=0,countInMetronomeSuspended=false,countInGeneration=0,countInActive=false;
+let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,metronomeGeneration=0,metronomeScheduledSources=new Set(),countInMetronomeSuspended=false,countInGeneration=0,countInActive=false;
 let alphaTabResumePending=false;
 const metronomeToggle=document.querySelector('#metronomeToggle'),metronomeVolume=document.querySelector('#metronomeVolume'),metronomeVolumeLabel=document.querySelector('#metronomeVolumeLabel'),metronomeSignature=document.querySelector('#metronomeSignature'),metronomeBeatView=document.querySelector('#metronomeBeat');
 function metronomeClickAt(time,accent=false){
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
  const osc=metronomeContext.createOscillator(),gain=metronomeContext.createGain(),vol=(+metronomeVolume.value||0)/100;
  osc.frequency.value=accent?1400:950;gain.gain.setValueAtTime(Math.max(.0001,vol*.22),time);gain.gain.exponentialRampToValueAtTime(.0001,time+.045);
- osc.connect(gain).connect(metronomeContext.destination);osc.start(time);osc.stop(time+.05);
+ osc.connect(gain).connect(metronomeContext.destination);metronomeScheduledSources.add(osc);osc.onended=()=>metronomeScheduledSources.delete(osc);osc.start(time);osc.stop(time+.05);
 }
 function paintMetronomeBeat(beat){
  const dots=[...metronomeBeatView.querySelectorAll('i')],beats=+metronomeSignature.value||4;
@@ -1119,7 +1119,7 @@ async function startMetronome({afterScheduled=false}={}){
  const safeStart=afterScheduled&&metronomeNextTime>now?metronomeNextTime:now+.04;
  clearTimeout(metronomeTimer);metronomeBeatIndex=0;metronomeNextTime=safeStart;metronomeScheduler();
 }
-function stopMetronome(){metronomeGeneration++;clearTimeout(metronomeTimer);metronomeTimer=null;metronomeBeatIndex=0;[...metronomeBeatView.querySelectorAll('i')].forEach(d=>d.classList.remove('active','accent'))}
+function stopMetronome(){metronomeGeneration++;clearTimeout(metronomeTimer);metronomeTimer=null;metronomeBeatIndex=0;for(const source of metronomeScheduledSources){try{source.stop()}catch(_){}}metronomeScheduledSources.clear();[...metronomeBeatView.querySelectorAll('i')].forEach(d=>d.classList.remove('active','accent'))}
 metronomeToggle.onclick=async()=>{
  metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';
  // During count-in its own clock owns the clicks. Changing the metronome here
