@@ -1316,6 +1316,13 @@ loopRepeats.onchange=()=>{
     practiceStatus.textContent='Objectif atteint • '+next+' BPM';
     if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
    }else{
+    const nextRange=practiceTicks();
+    if(activeApi&&nextRange){try{activeApi.tickPosition=nextRange.start}catch(_){}}
+    if(!alphaTabMode){
+     const internalRange=internalLoopBounds(exercises[current]);
+     if(internalRange)index=internalRange.start;
+    }
+    lastLoopTick=-1;
     practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM • prêt';
     updatePracticeProgress(0);
    }
