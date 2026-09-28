@@ -1616,7 +1616,13 @@ document.querySelector('#play').onclick=async()=>{
  if(practiceLoop){
   const range=internalLoopBounds(exercises[current]);
   if(!range){practiceStatus.textContent='Boucle vide • aucune note dans les mesures '+loopStart.value+'–'+loopEnd.value;document.querySelector('#play').textContent='▶ PLAY';return;}
-  index=range.start;beginPracticePassage();
+  index=range.start;
+  document.querySelector('#play').textContent='■ STOP';
+  countInThenPlay(null,()=>{
+   if(!practiceLoop)return;
+   beginPracticePassage();playing=true;scheduleNext(tick());
+  });
+  return;
  }
  playing=true;document.querySelector('#play').textContent='■ STOP';scheduleNext(tick())
 };
