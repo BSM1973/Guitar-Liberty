@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0;
 const sampleCache=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
@@ -1917,7 +1917,7 @@ function detachWistiaPracticeHandlers(){
 }
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
- cancelPendingWistiaResume();detachWistiaPracticeHandlers();
+ wistiaLoadGeneration++;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
  if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
@@ -1945,9 +1945,10 @@ function openVideo(){
  }else if(wistiaFrame){
    practiceVideo.hidden=true;wistiaFrame.hidden=false;
    const requestedWistiaId=currentWistiaId;
+   const loadGeneration=++wistiaLoadGeneration;
    window._wq=window._wq||[];
    window._wq.push({id:requestedWistiaId,onReady:video=>{
-    if(!videoEnabled||currentWistiaId!==requestedWistiaId)return;
+    if(loadGeneration!==wistiaLoadGeneration||!videoEnabled||currentWistiaId!==requestedWistiaId)return;
     wistiaPlayer=video;
     try{video.unbind('end',finishPracticeVideoPlayback)}catch(_){}
     try{video.bind('end',finishPracticeVideoPlayback)}catch(e){console.error('Wistia end binding',e)}
@@ -1957,6 +1958,7 @@ function openVideo(){
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
+ wistiaLoadGeneration++;
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
  alphaTabResumePending=false;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
