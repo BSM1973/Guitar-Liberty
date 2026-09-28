@@ -1134,6 +1134,7 @@ metronomeToggle.onclick=async()=>{
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}};
 function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
+ alphaTabResumePending=false;
  countInGeneration++;countInActive=false;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
