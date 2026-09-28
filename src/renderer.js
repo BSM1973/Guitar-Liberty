@@ -1232,12 +1232,10 @@ loopRepeats.onchange=()=>{
   updatePracticeProgress(target);sessionSeriesCount++;practiceIteration=0;
   pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
-  const inc=+autoBpm.value||0;
-  if(inc){
-   const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
-   const next=Math.min(goal,(+tempo.value||0)+inc);
-   tempo.value=next;syncTempo();
-   if(next>=goal){
+  const autoStep=advanceAutoBpm();
+  if(autoStep){
+   const {next,reached}=autoStep;
+   if(reached){
     practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
     practiceStatus.textContent='Objectif atteint • '+next+' BPM';
     if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
@@ -1329,6 +1327,13 @@ function rhythmGlyph(duration,typeName,dots=0){
 }
 function rhythmRestGlyph(duration){if(duration>=2)return '𝄼';if(duration>=1)return '𝄽';if(duration>=.5)return '𝄾';if(duration>=.25)return '𝄿';return '𝅀'}
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
+function advanceAutoBpm(){
+ const inc=+autoBpm.value||0;if(!inc)return null;
+ const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
+ const next=Math.min(goal,(+tempo.value||0)+inc);
+ tempo.value=next;syncTempo();
+ return {next,reached:next>=goal};
+}
 function playNote(string,fret,holdBeats=0){
  ensureOutput();
  loadGuitarSample(string).then(buffer=>{
@@ -1474,11 +1479,10 @@ function tick(){
   const max=Math.max(1,+loopRepeats.value||1);
   if(practiceIteration>=max){
    updatePracticeProgress(max);sessionSeriesCount++;paintSession();practiceIteration=0;
-   const inc=+autoBpm.value||0;
-   if(inc){
-    const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max)),next=Math.min(goal,+tempo.value+inc);
-    tempo.value=next;syncTempo();
-    if(next>=goal){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
+   const autoStep=advanceAutoBpm();
+   if(autoStep){
+    const {next,reached}=autoStep;
+    if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
     else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
@@ -1851,14 +1855,12 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
     updatePracticeProgress(max);
     sessionSeriesCount++;paintSession();
     practiceIteration=0;
-    const inc=+autoBpm.value||0;
-    if(inc){
-     const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
-     const next=Math.min(goal,+tempo.value+inc);
-     tempo.value=next;syncTempo();
+    const autoStep=advanceAutoBpm();
+    if(autoStep){
+     const {next,reached}=autoStep;
      const original=practiceScore?.tempo||120;
      api.playbackSpeed=Math.max(.25,Math.min(3,next/original));if(videoEnabled)syncVideoTempo();
-     if(next>=goal){
+     if(reached){
       api.isLooping=false;
       practiceLoop=false;
       loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
