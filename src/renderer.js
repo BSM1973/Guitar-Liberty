@@ -1807,6 +1807,18 @@ let currentTutorialUrl=null;
 const videoStage=document.querySelector('#videoStage');
 const wistiaFrame=document.querySelector('#wistiaFrame');
 const practiceVideo=document.querySelector('#practiceVideo');
+function finishPracticeVideoPlayback(){
+ if(!videoEnabled)return;
+ cancelPracticeTransition({stopBackingAudio:true});
+ const api=window.guitarLibertyAlphaTab;
+ if(alphaTabMode&&api){try{api.pause()}catch(_){}}
+ pausePracticeClock();
+ alphaTabResumePending=false;
+ document.querySelector('#play').textContent='▶ PLAY';
+ practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+ paintSession();
+}
+if(practiceVideo)practiceVideo.addEventListener('ended',finishPracticeVideoPlayback);
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
