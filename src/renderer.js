@@ -1373,7 +1373,7 @@ function tick(){
    }
   }
  }
- eventNotes.forEach(v=>{
+ eventNotes.forEach((v,eventOffset)=>{
   // A tie-stop normally has no new attack. At the first event of an isolated
   // LOOP, however, its original attack may live before loopStart; retrigger it
   // so every repetition can be heard independently.
@@ -1381,7 +1381,10 @@ function tick(){
   if(v[7]&&!loopBoundaryAttack)return;
   const [s,f]=v;let holdBeats=+v[3]||0;
   if(v[8]){
-   let tieIndex=e.notes.indexOf(v)+1;
+   // Use the exact score position rather than Array.indexOf(): polyphonic
+   // chords may contain equivalent note arrays and every string must extend
+   // its own tie chain from the note that actually sounded.
+   let tieIndex=eventStart+eventOffset+1;
    const tieLimit=internalRange?internalRange.end:e.notes.length;
    while(tieIndex<tieLimit){
     const tied=e.notes[tieIndex];
