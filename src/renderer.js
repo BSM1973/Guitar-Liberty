@@ -1231,7 +1231,9 @@ loopRepeats.onchange=()=>{
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
   const range=internalLoopBounds(exercises[current]);if(range)index=range.start;
  }
- if(sessionStarted&&sessionFirstPracticeAt&&sessionRepCount){
+ if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){
+  // Changing the practiced measures defines a new training task, even if the
+  // first repetition of the previous range had not finished yet.
   pausePracticeClock();
   resetTrainingSession();
   practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);
