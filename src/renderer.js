@@ -1089,7 +1089,7 @@ async function metronomeClick(accent=false){
  o.frequency.value=accent?1200:850;g.gain.setValueAtTime(Math.max(.0001,vol*.22),now);g.gain.exponentialRampToValueAtTime(.0001,now+.055);
  o.connect(g).connect(countInAudio.destination);o.start(now);o.stop(now+.06);
 }
-let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false,countInGeneration=0;
+let metronomeEnabled=false,metronomeTimer=null,metronomeBeatIndex=0,metronomeNextTime=0,metronomeContext=null,countInMetronomeSuspended=false,countInGeneration=0,countInActive=false;
 const metronomeToggle=document.querySelector('#metronomeToggle'),metronomeVolume=document.querySelector('#metronomeVolume'),metronomeVolumeLabel=document.querySelector('#metronomeVolumeLabel'),metronomeSignature=document.querySelector('#metronomeSignature'),metronomeBeatView=document.querySelector('#metronomeBeat');
 function metronomeClickAt(time,accent=false){
  if(!metronomeContext)metronomeContext=new (window.AudioContext||window.webkitAudioContext)();
@@ -1123,7 +1123,7 @@ metronomeToggle.onclick=async()=>{
  metronomeEnabled=!metronomeEnabled;metronomeToggle.classList.toggle('active',metronomeEnabled);metronomeToggle.textContent=metronomeEnabled?'♩ MÉTRONOME ON':'♩ MÉTRONOME OFF';
  // During count-in its own clock owns the clicks. Changing the metronome here
  // only changes whether the free-running metronome resumes with playback.
- if(practiceTimer){
+ if(countInActive){
   countInMetronomeSuspended=metronomeEnabled;
   if(!metronomeEnabled)stopMetronome();
   return;
@@ -1131,9 +1131,9 @@ metronomeToggle.onclick=async()=>{
  if(metronomeEnabled)await startMetronome();else stopMetronome();
 };
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
-metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!practiceTimer){stopMetronome();startMetronome()}};
+metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}};
 function cancelPracticeTransition({stopBackingAudio=false}={}){
- countInGeneration++;
+ countInGeneration++;countInActive=false;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
  if(countInMetronomeSuspended){
@@ -1168,9 +1168,11 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
  // The count-in owns its clicks. Pause the free-running metronome so both
  // clocks cannot sound on top of each other, then restore it for playback.
  const generation=++countInGeneration;
+ countInActive=true;
  countInMetronomeSuspended=metronomeEnabled;
  if(countInMetronomeSuspended)stopMetronome();
  const finishCountIn=()=>{
+  countInActive=false;
   const restoreMetronome=countInMetronomeSuspended;
   countInMetronomeSuspended=false;
   if(restoreMetronome&&metronomeEnabled)startMetronome();
@@ -1439,7 +1441,7 @@ function playNote(string,fret,holdBeats=0){
 }
 function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
- if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
+ if(countInActive){clearTimeout(practiceTimer);practiceTimer=null;}
  const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
@@ -1652,9 +1654,8 @@ document.querySelector('#play').onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){
   const api=window.guitarLibertyAlphaTab;
   try{
-   if(practiceTimer){
-    clearTimeout(practiceTimer);practiceTimer=null;cancelDelayedPlayback();
-    const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}
+   if(countInActive){
+    cancelPracticeTransition();
     practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
     document.querySelector('#play').textContent='▶ PLAY';
     return;
@@ -1679,9 +1680,8 @@ document.querySelector('#play').onclick=async()=>{
  // while the next series counts in. Treat PLAY/STOP as a cancellation here;
  // otherwise a click could start playback immediately and the pending count-in
  // callback would start it a second time.
- if(practiceTimer){
-  clearTimeout(practiceTimer);practiceTimer=null;
-  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true}
+ if(countInActive){
+  cancelPracticeTransition();
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
   document.querySelector('#play').textContent='▶ PLAY';
   return;
@@ -1830,7 +1830,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  stop();
  // A score switch is a hard playback boundary: no delayed callback from the
  // previous exercise may start audio or mutate practice UI after the new load.
- if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
+ if(countInActive){clearTimeout(practiceTimer);practiceTimer=null;}
  const countInOverlay=document.querySelector('#countInOverlay');if(countInOverlay){countInOverlay.classList.remove('active');countInOverlay.hidden=true;}
  cancelDelayedPlayback();stopBacking(false);
  if(playWithMeActive||playWithMeAnswerTimer||playWithMeCountdownTimer||playWithMeElapsedTimer)stopPlayWithMe();
@@ -2216,7 +2216,7 @@ if(importButton) importButton.onclick=async()=>{
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  const importInterruptedPlayback=!!(practiceTimer||backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||(videoEnabled&&wistiaPlayer?.state==='playing'));
  pausePracticeClock();
- if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
+ if(countInActive){clearTimeout(practiceTimer);practiceTimer=null;}
  const importOverlay=document.querySelector('#countInOverlay');if(importOverlay){importOverlay.classList.remove('active');importOverlay.hidden=true;}
  cancelDelayedPlayback();stopBacking(false);
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
