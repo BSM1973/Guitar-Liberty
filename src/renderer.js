@@ -1850,7 +1850,13 @@ document.querySelector('#play').onclick=async()=>{
     }else scheduleLeadInStart(resumeLeadInPlayback,remainingLeadIn);
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
-     syncVideoTempo();practiceVideo.play().then(()=>{api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE'}).catch(e=>failAccompanimentResume('Vidéo',e));
+     syncVideoTempo();
+     const startGeneration=++mediaStartGeneration;
+     const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
+     practiceVideo.play().then(()=>{
+      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc)return;
+      api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+     }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();
      try{
