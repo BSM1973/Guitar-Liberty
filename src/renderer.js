@@ -1783,8 +1783,19 @@ document.querySelector('#play').onclick=async()=>{
  internalPlaybackPreparing=true;
  const playbackGeneration=++internalPlaybackGeneration;
  document.querySelector('#play').textContent='■ STOP';
- ensureOutput(); if(audio.state==='suspended')await audio.resume();
- await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
+ try{
+  ensureOutput();
+  if(audio.state==='suspended')await audio.resume();
+  if(!internalPlaybackPreparing||playbackGeneration!==internalPlaybackGeneration)return;
+  await Promise.all([0,1,2,3,4,5].map(loadGuitarSample));
+ }catch(err){
+  if(playbackGeneration!==internalPlaybackGeneration)return;
+  internalPlaybackPreparing=false;
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent='Audio guitare indisponible';
+  console.error('Internal playback preparation',err);
+  return;
+ }
  if(!internalPlaybackPreparing||playbackGeneration!==internalPlaybackGeneration)return;
  internalPlaybackPreparing=false;
  if(practiceLoop){
