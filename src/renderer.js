@@ -1911,9 +1911,13 @@ function finishPracticeVideoPlayback(){
  paintSession();
 }
 if(practiceVideo)practiceVideo.addEventListener('ended',finishPracticeVideoPlayback);
+function detachWistiaPracticeHandlers(){
+ if(!wistiaPlayer)return;
+ try{wistiaPlayer.unbind('end',finishPracticeVideoPlayback)}catch(_){}
+}
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
- cancelPendingWistiaResume();
+ cancelPendingWistiaResume();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
  if(practiceVideo){practiceVideo.pause();practiceVideo.currentTime=0;}
@@ -1955,7 +1959,7 @@ function openVideo(){
 function closeVideo(){
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
- alphaTabResumePending=false;cancelPendingWistiaResume();
+ alphaTabResumePending=false;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
  videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
  if(wistiaFrame)wistiaFrame.src='';
