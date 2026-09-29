@@ -1623,7 +1623,7 @@ function noteIntervalMs(){
    const measureOffsets=[];let total=0;
    e.measures?.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
    const here=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0),there=(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0);
-   beats=Math.max(.125,there-here);
+   beats=Math.max(.001,there-here);
   }
  }
  if(e?.measures?.length&&v){
@@ -1637,7 +1637,7 @@ function noteIntervalMs(){
     ?(measureOffsets[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]||0)+(+e.measures[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]?.length||0)
     :total;
    const noteBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
-   beats=Math.max(.125,endBeat-noteBeat);
+   beats=Math.max(.001,endBeat-noteBeat);
   }
  }
  return 60000/+tempo.value*beats
@@ -3152,7 +3152,7 @@ if(importButton) importButton.onclick=async()=>{
    const absoluteOnset=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
    const next=imported[i+1];
    const nextOnset=next?(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0):accumulatedBeats;
-   note[6]=Math.max(.125,nextOnset-absoluteOnset);
+   note[6]=Math.max(.001,nextOnset-absoluteOnset);
   });
   const key='imported';
   const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),historyRows=readHistory().filter(x=>(x.exercise||x.title)===importedTitle),historySession=latestExerciseSession(historyRows),historyLastTempo=historySession?(+historySession.end||+historySession.best||0):0,historyCompleted=historyRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),historyConfirmedTempo=historyCompleted.length>=2?historyCompleted[1]:0,rememberedTempo=savedExerciseTempo(importedTitle)||historyConfirmedTempo||historyLastTempo,rememberedGoal=savedExerciseGoal(importedTitle)||(historySession&&Number.isFinite(+historySession.goal)?+historySession.goal:0);
