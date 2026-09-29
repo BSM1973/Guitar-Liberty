@@ -1881,10 +1881,10 @@ document.querySelector('#play').onclick=async()=>{
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
      practiceVideo.play().then(()=>{
-      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc)return;
+      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       document.querySelector('#play').textContent='⏸ PAUSE';
       scheduleLeadInStart(()=>{
-       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc)return;
+       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
        resumeLeadInPlayback();
       },remainingLeadIn);
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
@@ -1896,7 +1896,7 @@ document.querySelector('#play').onclick=async()=>{
       const resumeGeneration=wistiaResumeGeneration;
       const resumePlayer=wistiaPlayer;
       const resumeWistiaLeadIn=()=>{
-       if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer)return;
+       if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||window.guitarLibertyAlphaTab!==api)return;
        resumed=true;pendingWistiaResume=null;
        try{resumePlayer.unbind('play',resumeWistiaLeadIn)}catch(_){}
        document.querySelector('#play').textContent='⏸ PAUSE';
@@ -1910,8 +1910,8 @@ document.querySelector('#play').onclick=async()=>{
     }else if(backingAudio&&backingEnabled){
      const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
      const resumeBackingLeadIn=()=>{
-      if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;
-      scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;resumeLeadInPlayback()},remainingLeadIn);
+      if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;
+      scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;resumeLeadInPlayback()},remainingLeadIn);
      };
      if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
      else resumeBackingLeadIn();
