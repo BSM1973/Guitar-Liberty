@@ -1770,9 +1770,13 @@ function tick(){
    // its own tie chain from the note that actually sounded.
    let tieIndex=eventStart+eventOffset+1;
    const tieLimit=internalRange?internalRange.end:e.notes.length;
+   const tieBoundaryBeat=internalRange
+    ?(measureOffsets[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]||0)+(+e.measures[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]?.length||0)
+    :total;
    let expectedTieBeat=absoluteBeat(v)+(+v[3]||0);
    while(tieIndex<tieLimit){
     const tied=e.notes[tieIndex];
+    if(absoluteBeat(tied)>tieBoundaryBeat+1e-9)break;
     if((+tied[0]||0)!==+s){tieIndex++;continue}
     // Other polyphonic voices/staves are independent paths, even when they use
     // the same physical string. Ignore them while looking for this tie's continuation.
