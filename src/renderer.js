@@ -3080,6 +3080,7 @@ if(importButton) importButton.onclick=async()=>{
    const time=attr?.querySelector('time'),oldBeats=currentBeats,oldBeatType=currentBeatType;
    if(time){currentBeats=+(time.querySelector('beats')?.textContent||currentBeats);currentBeatType=+(time.querySelector('beat-type')?.textContent||currentBeatType);}
    const measureLength=currentBeats*(4/currentBeatType);
+   const implicitMeasure=measure.getAttribute('implicit')==='yes';
    const md={repeatStart:false,repeatEnd:false,text:'',beats:currentBeats,beatType:currentBeatType,timeChanged:measureIndex===0||oldBeats!==currentBeats||oldBeatType!==currentBeatType,length:measureLength,events:[]};
    measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')md.repeatStart=true;if(rep.getAttribute('direction')==='backward')md.repeatEnd=true;});
    md.text=[...measure.querySelectorAll(':scope > direction direction-type words')].map(w=>w.textContent.trim()).filter(Boolean).join(' • ');
@@ -3112,6 +3113,13 @@ if(importButton) importButton.onclick=async()=>{
     const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff]);
     md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop,voice,staff});
    });
+   // Pickup/implicit measures are allowed to be shorter than the current time
+   // signature. Use their actual rhythmic extent so playback and tie positions
+   // do not acquire a silent remainder that is not present in the score.
+   if(implicitMeasure){
+    const eventEnd=md.events.reduce((max,ev)=>Math.max(max,(+ev.onset||0)+(+ev.duration||0)),0);
+    md.length=Math.max(.125,eventEnd,cursor);
+   }
    importedMeasures.push(md);
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
