@@ -2062,9 +2062,15 @@ function setVideoTrack(id,practiceUrl=null){
  if(videoToggle){videoToggle.disabled=!(id||practiceUrl);videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
 }
 function syncVideoTempo(){
- if(!practiceVideo||practiceVideo.hidden)return;
  const sourceBpm=Math.max(1,+currentVideoSourceBpm||50);
- practiceVideo.playbackRate=Math.max(.5,Math.min(2,(+tempo.value||sourceBpm)/sourceBpm));
+ const rate=Math.max(.5,Math.min(2,(+tempo.value||sourceBpm)/sourceBpm));
+ if(practiceVideo&&!practiceVideo.hidden)practiceVideo.playbackRate=rate;
+ if(videoEnabled&&wistiaPlayer){
+  try{
+   if(typeof wistiaPlayer.playbackRate==='function')wistiaPlayer.playbackRate(rate);
+   else if(typeof wistiaPlayer.playbackRate!=='undefined')wistiaPlayer.playbackRate=rate;
+  }catch(e){console.error('Wistia tempo sync',e)}
+ }
 }
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
@@ -2092,6 +2098,9 @@ function openVideo(){
      return;
     }
     wistiaPlayer=video;
+    // Apply the current practice tempo as soon as Wistia becomes ready. Auto BPM
+    // and manual tempo changes use the same sync path afterwards.
+    syncVideoTempo();
     const readyGeneration=loadGeneration;
     wistiaEndHandler=()=>{
      if(readyGeneration!==wistiaLoadGeneration||!videoEnabled||wistiaPlayer!==video||currentWistiaId!==requestedWistiaId)return;
