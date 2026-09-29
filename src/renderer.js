@@ -2887,7 +2887,7 @@ if(importButton) importButton.onclick=async()=>{
    prepareManualImportContext();
    const loaded=await loadWithAlphaTab({...file,bytes});
    if(importLibraryGeneration!==libraryLoadGeneration)return;
-   if(!loaded){await restorePreviousScore();if(importLibraryGeneration!==libraryLoadGeneration)return;restorePreviousLessonContext();}
+   if(!loaded){await restorePreviousScore();if(importLibraryGeneration!==libraryLoadGeneration)return;}
   }catch(err){
    if(importLibraryGeneration!==libraryLoadGeneration)return;
    const scoreReplacementStarted=currentLessonId!==previousLessonContext.id||currentPracticeTitle!==previousLessonContext.practiceTitle;
