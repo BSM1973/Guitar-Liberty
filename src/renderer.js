@@ -1162,7 +1162,7 @@ function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
  if(stopBackingAudio)stopBacking(false);
  if(stopVideo){
   if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
-  if(videoEnabled&&wistiaPlayer){try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}}
+  if(videoEnabled&&wistiaPlayer)pauseWistiaPracticeVideo();
  }
 }
 function countInThenPlay(api,startPlayback=()=>api.play()){
@@ -1666,7 +1666,7 @@ function isWistiaPlaying(){
 }
 function pauseWistiaPracticeVideo(){
  if(!wistiaPlayer)return;
- try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+ pauseWistiaPracticeVideo()
 }
 function pauseLocalPracticeVideo(){
  mediaStartGeneration++;
@@ -1676,7 +1676,7 @@ function pauseAlphaPracticeAccompaniment(){
  stopBacking(false);
  pauseLocalPracticeVideo();
  if(videoEnabled&&wistiaPlayer){
-  try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+  pauseWistiaPracticeVideo()
  }
 }
 function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccompaniment=false}={}){
@@ -1788,7 +1788,7 @@ document.querySelector('#play').onclick=async()=>{
    }
    if(videoEnabled&&wistiaPlayer){
     if(isWistiaPlaying()){
-     try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+     pauseWistiaPracticeVideo()
      try{api.pause()}catch(_){}
      alphaTabResumePending=true;
      if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
@@ -2520,7 +2520,7 @@ if(importButton) importButton.onclick=async()=>{
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
  if(playing){playing=false;clearInternalTimer();stopAllVoices();}
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
- if(isWistiaPlaying()){try{wistiaPlayer.pause()}catch(_){}}
+ if(isWistiaPlaying())pauseWistiaPracticeVideo();
  if(importInterruptedPlayback){
   alphaTabResumePending=alphaTabMode;
   document.querySelector('#play').textContent='▶ REPRENDRE';
