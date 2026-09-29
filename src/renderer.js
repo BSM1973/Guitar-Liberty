@@ -3093,7 +3093,7 @@ if(importButton) importButton.onclick=async()=>{
     if(tag!=='note')return;
     // Preserve the exact MusicXML duration, including very short notes and
     // tuplets. The scheduler can guard zero-length events separately.
-    const duration=Math.max(.001,+(node.querySelector(':scope > duration')?.textContent||currentDivisions)/currentDivisions);
+    const duration=Math.max(0,+(node.querySelector(':scope > duration')?.textContent||0)/currentDivisions);
     const typeName=node.querySelector(':scope > type')?.textContent||''; const dots=node.querySelectorAll(':scope > dot').length;
     const voice=node.querySelector(':scope > voice')?.textContent?.trim()||'1',staff=node.querySelector(':scope > staff')?.textContent?.trim()||'1',voiceKey=staff+':'+voice;
     const chord=!!node.querySelector(':scope > chord'),onset=chord?(lastPlayableOnsetByVoice.get(voiceKey)??lastOnsetByVoice.get(voiceKey)??cursor):cursor;
