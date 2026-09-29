@@ -2027,7 +2027,13 @@ function openVideo(){
    const loadGeneration=++wistiaLoadGeneration;
    window._wq=window._wq||[];
    window._wq.push({id:requestedWistiaId,onReady:video=>{
-    if(loadGeneration!==wistiaLoadGeneration||!videoEnabled||currentWistiaId!==requestedWistiaId)return;
+    if(loadGeneration!==wistiaLoadGeneration||!videoEnabled||currentWistiaId!==requestedWistiaId){
+     // Wistia can resolve after this load was superseded. Do not let that stale
+     // player survive independently of the current video lifecycle.
+     try{video.unbind('end',finishPracticeVideoPlayback)}catch(_){}
+     try{video.pause()}catch(_){}
+     return;
+    }
     wistiaPlayer=video;
     try{video.unbind('end',finishPracticeVideoPlayback)}catch(_){}
     try{video.bind('end',finishPracticeVideoPlayback)}catch(e){console.error('Wistia end binding',e)}
