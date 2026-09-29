@@ -1642,7 +1642,9 @@ function noteIntervalMs(){
     ?(measureOffsets[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]||0)+(+e.measures[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]?.length||0)
     :total;
    const noteBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
-   beats=Math.max(.001,endBeat-noteBeat);
+   const remaining=Math.max(0,endBeat-noteBeat);
+   if(v[11]&&remaining<1e-9)return 60;
+   beats=Math.max(.001,remaining);
   }
  }
  return 60000/+tempo.value*beats
