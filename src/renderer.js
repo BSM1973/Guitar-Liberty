@@ -3084,11 +3084,11 @@ if(importButton) importButton.onclick=async()=>{
    const md={repeatStart:false,repeatEnd:false,text:'',beats:currentBeats,beatType:currentBeatType,timeChanged:measureIndex===0||oldBeats!==currentBeats||oldBeatType!==currentBeatType,length:measureLength,events:[]};
    measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')md.repeatStart=true;if(rep.getAttribute('direction')==='backward')md.repeatEnd=true;});
    md.text=[...measure.querySelectorAll(':scope > direction direction-type words')].map(w=>w.textContent.trim()).filter(Boolean).join(' • ');
-   let cursor=0;const lastOnsetByVoice=new Map(),lastPlayableOnsetByVoice=new Map();
+   let cursor=0,maxCursor=0;const lastOnsetByVoice=new Map(),lastPlayableOnsetByVoice=new Map();
    [...measure.children].forEach(node=>{
     const tag=node.tagName;
     if(tag==='backup'){cursor=Math.max(0,cursor+( -+(node.querySelector('duration')?.textContent||0)/currentDivisions));return;}
-    if(tag==='forward'){cursor+=+(node.querySelector('duration')?.textContent||0)/currentDivisions;return;}
+    if(tag==='forward'){cursor+=+(node.querySelector('duration')?.textContent||0)/currentDivisions;maxCursor=Math.max(maxCursor,cursor);return;}
     if(tag!=='note')return;
     // Preserve the exact MusicXML duration, including very short notes and
     // tuplets. The scheduler can guard zero-length events separately.
@@ -3100,7 +3100,7 @@ if(importButton) importButton.onclick=async()=>{
      // A new primary note always starts a new chord context. Only a playable
      // guitar note below is allowed to establish the next chord anchor.
      lastPlayableOnsetByVoice.delete(voiceKey);
-     lastOnsetByVoice.set(voiceKey,onset);cursor+=duration;
+     lastOnsetByVoice.set(voiceKey,onset);cursor+=duration;maxCursor=Math.max(maxCursor,cursor);
     }
     if(node.querySelector(':scope > rest')){const full=!!node.querySelector(':scope > rest[measure="yes"]');md.events.push({type:'rest',onset,duration:full?measureLength:duration,typeName,dots});return;}
     const pitch=node.querySelector(':scope > pitch');if(!pitch)return;
@@ -3123,7 +3123,7 @@ if(importButton) importButton.onclick=async()=>{
     // nominal time-signature length. Do not guess this for ordinary measures:
     // an omitted final rest can still mean the full measure duration is intended.
     const eventEnd=md.events.reduce((max,ev)=>Math.max(max,(+ev.onset||0)+(+ev.duration||0)),0);
-    md.length=Math.max(.125,eventEnd,cursor);
+    md.length=Math.max(.125,eventEnd,cursor,maxCursor);
    }
    importedMeasures.push(md);
   });
