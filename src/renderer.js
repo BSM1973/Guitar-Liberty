@@ -1689,7 +1689,7 @@ function tick(){
    internalLoopSeriesComplete=false;
    const max=Math.max(1,+loopRepeats.value||1);
    updatePracticeProgress(max);sessionSeriesCount++;paintSession();practiceIteration=0;
-   const autoStep=advanceAutoBpm({deferMetronome:true});
+   const autoStep=advanceAutoBpm({deferMetronome:Math.max(0,+countIn.value||0)>0});
    if(autoStep){
     const {next,reached}=autoStep;
     if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return}
