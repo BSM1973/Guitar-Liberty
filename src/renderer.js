@@ -2087,6 +2087,10 @@ function syncVideoTempo(){
 }
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
+ const armedVideoStart=!!(countInActive||backingStartTimer);
+ // Enabling video also changes the media configuration of an armed start.
+ // Cancel it so the next PLAY begins with one coherent accompaniment setup.
+ if(armedVideoStart)cancelPracticeTransition({stopBackingAudio:true});
  videoEnabled=true;videoStage.hidden=false;
  if(currentPracticeVideoUrl&&practiceVideo){
    wistiaFrame.hidden=true;practiceVideo.hidden=false;
@@ -2124,6 +2128,10 @@ function openVideo(){
    wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(requestedWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  }
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
+ if(armedVideoStart){
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+ }
 }
 function closeVideo(){
  const armedVideoStart=!!(countInActive||backingStartTimer);
