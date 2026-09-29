@@ -3123,7 +3123,7 @@ if(importButton) importButton.onclick=async()=>{
     // to diverge from the nominal time-signature length. Do not guess this for
     // ordinary measures: an omitted final rest can still mean full duration.
     const eventEnd=md.events.reduce((max,ev)=>Math.max(max,(+ev.onset||0)+(+ev.duration||0)),0);
-    md.length=Math.max(.125,eventEnd,cursor,maxCursor);
+    md.length=Math.max(0,eventEnd,cursor,maxCursor);
    }
    importedMeasures.push(md);
   });
