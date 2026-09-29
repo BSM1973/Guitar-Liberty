@@ -2382,8 +2382,12 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  const loadResult=new Promise((resolve,reject)=>{resolveLoad=resolve;rejectLoad=reject;alphaTabPendingResolve=resolve;});
  const cleanupFailedAlphaLoad=()=>{
   if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
-  if(window.guitarLibertyAlphaTab===api)window.guitarLibertyAlphaTab=null;
+  const ownsActiveScore=window.guitarLibertyAlphaTab===api;
+  if(ownsActiveScore)window.guitarLibertyAlphaTab=null;
   try{api.destroy()}catch(_){try{api.stop()}catch(__){}}
+  // A superseded API may fail after a newer score already owns the shared TAB
+  // container. Only the active API is allowed to clear shared renderer state.
+  if(!ownsActiveScore)return;
   alphaTabMode=false;practiceScore=null;playCursor=null;alphaPlayedBeat=null;
   if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
   tab.classList.remove('alphatab-score');tab.innerHTML='';
