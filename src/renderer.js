@@ -1693,7 +1693,8 @@ function tick(){
       if(!practiceLoop)return;
       beginPracticePassage();
       playing=true;document.querySelector('#play').textContent='■ STOP';
-      scheduleNext(tick());
+      const loopLeadIn=internalLoopLeadInMs(exercises[current],internalRange);
+      if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
      });
     }
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
