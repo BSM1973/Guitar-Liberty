@@ -3155,7 +3155,7 @@ if(importButton) importButton.onclick=async()=>{
    while(nextIndex<imported.length&&sameInternalOnset(note,imported[nextIndex]))nextIndex++;
    const next=imported[nextIndex];
    const nextOnset=next?(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0):accumulatedBeats;
-   note[6]=Math.max(.001,nextOnset-absoluteOnset);
+   note[6]=Math.max(0,nextOnset-absoluteOnset);
   });
   const key='imported';
   const importedTitle=file.name.replace(/\.(musicxml|xml)$/i,''),historyRows=readHistory().filter(x=>(x.exercise||x.title)===importedTitle),historySession=latestExerciseSession(historyRows),historyLastTempo=historySession?(+historySession.end||+historySession.best||0):0,historyCompleted=historyRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),historyConfirmedTempo=historyCompleted.length>=2?historyCompleted[1]:0,rememberedTempo=savedExerciseTempo(importedTitle)||historyConfirmedTempo||historyLastTempo,rememberedGoal=savedExerciseGoal(importedTitle)||(historySession&&Number.isFinite(+historySession.goal)?+historySession.goal:0);
