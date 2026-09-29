@@ -1664,6 +1664,10 @@ function isWistiaPlaying(){
  if(!videoEnabled||!wistiaPlayer)return false;
  try{return typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){return false}
 }
+function pauseWistiaPracticeVideo(){
+ if(!wistiaPlayer)return;
+ try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
+}
 function pauseLocalPracticeVideo(){
  mediaStartGeneration++;
  if(practiceVideo&&!practiceVideo.paused)practiceVideo.pause();
@@ -1677,7 +1681,7 @@ function pauseAlphaPracticeAccompaniment(){
 }
 function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccompaniment=false}={}){
  const failStart=(label,error)=>{
-  mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();try{api.pause()}catch(_){}
+  mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
   alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=label+' indisponible • prêt à relancer';
@@ -1807,7 +1811,7 @@ document.querySelector('#play').onclick=async()=>{
     }
    }
    const failAccompanimentResume=(label,error)=>{
-    mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();try{api.pause()}catch(_){}
+    mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
     alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
     document.querySelector('#play').textContent='▶ PLAY';
     practiceStatus.textContent=label+' indisponible • prêt à relancer';
