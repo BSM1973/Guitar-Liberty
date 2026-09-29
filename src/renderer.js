@@ -1666,7 +1666,7 @@ function isWistiaPlaying(){
 }
 function pauseWistiaPracticeVideo(){
  if(!wistiaPlayer)return;
- pauseWistiaPracticeVideo()
+ try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
 }
 function pauseLocalPracticeVideo(){
  mediaStartGeneration++;
