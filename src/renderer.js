@@ -3097,6 +3097,7 @@ if(importButton) importButton.onclick=async()=>{
     const typeName=node.querySelector(':scope > type')?.textContent||''; const dots=node.querySelectorAll(':scope > dot').length;
     const voice=node.querySelector(':scope > voice')?.textContent?.trim()||'1',staff=node.querySelector(':scope > staff')?.textContent?.trim()||'1',voiceKey=staff+':'+voice;
     const chord=!!node.querySelector(':scope > chord'),onset=chord?(lastPlayableOnsetByVoice.get(voiceKey)??lastOnsetByVoice.get(voiceKey)??cursor):cursor;
+    if(chord)maxCursor=Math.max(maxCursor,onset+duration);
     if(!chord){
      // A new primary note always starts a new chord context. Only a playable
      // guitar note below is allowed to establish the next chord anchor.
