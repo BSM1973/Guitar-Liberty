@@ -1627,7 +1627,13 @@ function noteIntervalMs(){
    const here=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0),there=(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0);
    // Grace notes do not consume MusicXML cursor time. Give a sequential grace
    // attack a short audible scheduler window without rewriting score duration.
-   if(v[11]&&Math.abs(there-here)<1e-9)return 60;
+   if(v[11]&&Math.abs(there-here)<1e-9){
+    const makeTime=+v[14],divisions=+v[18];
+    if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
+     return 60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+    }
+    return 60;
+   }
    beats=Math.max(.001,there-here);
   }
  }
@@ -1643,7 +1649,13 @@ function noteIntervalMs(){
     :total;
    const noteBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
    const remaining=Math.max(0,endBeat-noteBeat);
-   if(v[11]&&remaining<1e-9)return 60;
+   if(v[11]&&remaining<1e-9){
+    const makeTime=+v[14],divisions=+v[18];
+    if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
+     return 60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+    }
+    return 60;
+   }
    beats=Math.max(.001,remaining);
   }
  }
