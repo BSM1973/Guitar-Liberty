@@ -1547,14 +1547,15 @@ function advanceAutoBpm({deferMetronome=false}={}){
  const next=Math.min(goal,(+tempo.value||0)+inc);
  tempo.value=next;syncTempo();
  if(videoEnabled)syncVideoTempo();
+ const reached=next>=goal;
  if(metronomeEnabled){
   const scheduledThrough=metronomeNextTime;
   stopMetronome();metronomeNextTime=scheduledThrough;
-  // A count-in owns the clock between Auto BPM series and restores the
-  // free-running metronome itself. Do not briefly restart a competing clock.
-  if(!deferMetronome)startMetronome({afterScheduled:true});
+  // Defer only when another Auto BPM series will actually follow. At the goal
+  // there is no count-in to restore the clock, so keep the metronome alive.
+  if(!deferMetronome||reached)startMetronome({afterScheduled:true});
  }
- return {next,reached:next>=goal};
+ return {next,reached};
 }
 function playNote(string,fret,holdBeats=0){
  ensureOutput();
