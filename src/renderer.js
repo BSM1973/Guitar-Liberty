@@ -36,11 +36,23 @@ function stopAllVoices(){[...activeVoices.keys()].forEach(s=>stopVoice(s,.035));
 function retimeActiveVoices(newBpm){
  if(!audio)return;
  const now=audio.currentTime,bpm=Math.max(1,+newBpm||120);
- for(const voice of activeVoices.values()){
+ for(const [string,voice] of activeVoices){
   if(!voice?.holdBeats||!voice.gain)continue;
   const oldBpm=Math.max(1,voice.scheduledBpm||bpm);
   const elapsedBeats=Math.max(0,(now-(voice.startedAt||now))*oldBpm/60);
   const remainingBeats=Math.max(0,voice.holdBeats-elapsedBeats);
+  if(remainingBeats<=1e-6){
+   // A source may still be alive for its natural sample tail after its musical
+   // hold has ended. Never let a later tempo edit revive that finished note.
+   try{
+    const param=voice.gain.gain,current=Math.max(.0001,param.value);
+    param.cancelScheduledValues(now);param.setValueAtTime(current,now);
+    param.exponentialRampToValueAtTime(.0001,now+.008);
+    voice.source?.stop(now+.012);
+   }catch(_){}
+   if(activeVoices.get(string)===voice)activeVoices.delete(string);
+   continue;
+  }
   const remainingSeconds=remainingBeats*60/bpm;
   const naturalRemaining=Math.max(0,(voice.naturalEnd||now)-now);
   const releaseIn=Math.max(.018,Math.min(naturalRemaining||remainingSeconds,remainingSeconds));
