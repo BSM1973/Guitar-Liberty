@@ -3114,7 +3114,11 @@ if(importButton) importButton.onclick=async()=>{
     // Preserve the exact MusicXML duration, including very short notes and
     // tuplets. The scheduler can guard zero-length events separately.
     const duration=Math.max(0,+(node.querySelector(':scope > duration')?.textContent||0)/currentDivisions);
-    const grace=!!node.querySelector(':scope > grace');
+    const graceNode=node.querySelector(':scope > grace'),grace=!!graceNode;
+    const graceMakeTime=graceNode?.getAttribute('make-time')??null,
+          graceStealPrevious=graceNode?.getAttribute('steal-time-previous')??null,
+          graceStealFollowing=graceNode?.getAttribute('steal-time-following')??null,
+          graceSlash=graceNode?.getAttribute('slash')??null;
     const typeName=node.querySelector(':scope > type')?.textContent||''; const dots=node.querySelectorAll(':scope > dot').length;
     const voice=node.querySelector(':scope > voice')?.textContent?.trim()||'1',staff=node.querySelector(':scope > staff')?.textContent?.trim()||'1',voiceKey=staff+':'+voice;
     const chord=!!node.querySelector(':scope > chord'),onset=chord?(lastPlayableOnsetByVoice.get(voiceKey)??lastOnsetByVoice.get(voiceKey)??cursor):cursor;
@@ -3136,7 +3140,7 @@ if(importButton) importButton.onclick=async()=>{
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
     const tieStart=!!node.querySelector(':scope > tie[type="start"], :scope > notations tied[type="start"]'),tieStop=!!node.querySelector(':scope > tie[type="stop"], :scope > notations tied[type="stop"]');
     const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace,chord,noteIndex]);
-    md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop,voice,staff,grace});
+    md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop,voice,staff,grace,graceMakeTime,graceStealPrevious,graceStealFollowing,graceSlash});
    });
    // Pickup/implicit measures are allowed to be shorter than the current time
    // signature. Use their actual rhythmic extent so playback and tie positions
