@@ -2278,7 +2278,10 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       pauseAlphaPracticeAccompaniment();
       lastLoopTick=-1;
       countInThenPlay(api,()=>{
-       if(!practiceLoop)return;
+       // The next Auto BPM series belongs to this exact alphaTab instance.
+       // A score/transport replacement during count-in must not restart media
+       // or playback through the stale API that completed the previous series.
+       if(!practiceLoop||window.guitarLibertyAlphaTab!==api)return;
        startAlphaPracticePlayback(api,{restartAccompaniment:true});
       });
      }
