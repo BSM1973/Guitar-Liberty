@@ -1994,7 +1994,7 @@ function detachWistiaPracticeHandlers(){
 }
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
- wistiaLoadGeneration++;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
+ wistiaLoadGeneration++;pauseWistiaPracticeVideo();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
  if(videoStage)videoStage.hidden=true;
  if(practiceVideo){
@@ -2040,7 +2040,7 @@ function closeVideo(){
  wistiaLoadGeneration++;
  pauseLocalPracticeVideo();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
- alphaTabResumePending=false;cancelPendingWistiaResume();detachWistiaPracticeHandlers();
+ alphaTabResumePending=false;pauseWistiaPracticeVideo();detachWistiaPracticeHandlers();
  videoEnabled=false;wistiaPlayer=null;
  if(videoStage)videoStage.hidden=true;
  if(wistiaFrame)wistiaFrame.src='';
