@@ -1385,13 +1385,20 @@ loopRepeats.onchange=()=>{
     }
     lastLoopTick=-1;
     updatePracticeProgress(0);
+    practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
     if(alphaTabMode&&activeApi){
-     practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
      countInThenPlay(activeApi,()=>{
       if(!practiceLoop||window.guitarLibertyAlphaTab!==activeApi)return;
       startAlphaPracticePlayback(activeApi,{restartAccompaniment:true});
      });
-    }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM • prêt';
+    }else{
+     countInThenPlay(null,()=>{
+      if(!practiceLoop||alphaTabMode)return;
+      beginPracticePassage();
+      playing=true;document.querySelector('#play').textContent='■ STOP';
+      scheduleNext(tick());
+     });
+    }
    }
   }else{
    practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
