@@ -1978,8 +1978,12 @@ const wistiaFrame=document.querySelector('#wistiaFrame');
 const practiceVideo=document.querySelector('#practiceVideo');
 function finishPracticeVideoPlayback(){
  if(!videoEnabled)return;
- cancelPracticeTransition({stopBackingAudio:true});
  const api=window.guitarLibertyAlphaTab;
+ // During loop practice alphaTab owns repetition/series completion. A backing
+ // video ending a little early must never stop the current repetition or Auto BPM
+ // series; it simply remains ended until the next explicit accompaniment restart.
+ if(practiceLoop&&alphaTabMode&&api)return;
+ cancelPracticeTransition({stopBackingAudio:true});
  if(alphaTabMode&&api){try{api.pause()}catch(_){}}
  pausePracticeClock();
  alphaTabResumePending=false;
