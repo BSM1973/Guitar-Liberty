@@ -1560,9 +1560,8 @@ function stop(){
 }
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
- let beats=(v&&(v[6]||v[3]))||.5;
+ let beats=(v&&(v[6]||v[3]))||.5,eventEnd=index+1;
  if(v){
-  let eventEnd=index+1;
   while(eventEnd<e.notes.length&&sameInternalOnset(v,e.notes[eventEnd]))eventEnd++;
   const next=e.notes[eventEnd];
   if(next){
@@ -1574,7 +1573,7 @@ function noteIntervalMs(){
  }
  if(practiceLoop&&e?.measures?.length&&v){
   const range=internalLoopBounds(e);
-  if(range&&index===range.end-1){
+  if(range&&eventEnd>=range.end){
    const measureOffsets=[];let total=0;
    e.measures.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
    const loopEndMeasure=Math.max(+loopStart.value||1,+loopEnd.value||1);
