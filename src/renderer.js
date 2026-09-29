@@ -1614,6 +1614,24 @@ function stop(){
  }
  document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
 }
+function internalGraceGroup(e,at,onsetLimit,measureOffsets,beat){
+ let start=at;
+ while(start>0){
+  const previous=e.notes[start-1];
+  const previousBeat=(measureOffsets[(+previous[4]||1)-1]||0)+(+previous[5]||0);
+  if(Math.abs(previousBeat-beat)>1e-9||!previous[11])break;
+  start--;
+ }
+ let end=start,events=0;
+ while(end<onsetLimit){
+  const note=e.notes[end];
+  const noteBeat=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
+  if(Math.abs(noteBeat-beat)>1e-9||!note[11])break;
+  if(!note[12])events++;
+  end++;
+ }
+ return {start,end,events:Math.max(1,events)};
+}
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
  let beats=v?Math.max(.001,Number.isFinite(+v[6])?+v[6]:(Number.isFinite(+v[3])?+v[3]:0)):.5,eventEnd=index+1;
@@ -1633,47 +1651,23 @@ function noteIntervalMs(){
     // sequential grace attacks share this onset, divide that window between
     // them instead of applying the full value to every attack.
     if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
-     let makeTimeStart=index;
-     while(makeTimeStart>0){
-      const previous=e.notes[makeTimeStart-1];
-      const previousBeat=(measureOffsets[(+previous[4]||1)-1]||0)+(+previous[5]||0);
-      if(Math.abs(previousBeat-here)>1e-9||!previous[11])break;
-      makeTimeStart--;
-     }
-     let makeTimeEnd=makeTimeStart,makeTimeEvents=0;
-     while(makeTimeEnd<onsetLimit){
-      const graceNote=e.notes[makeTimeEnd];
-      const graceBeat=(measureOffsets[(+graceNote[4]||1)-1]||0)+(+graceNote[5]||0);
-      if(Math.abs(graceBeat-here)>1e-9||!graceNote[11])break;
-      if(!graceNote[12])makeTimeEvents++;
-      makeTimeEnd++;
-     }
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions)/Math.max(1,makeTimeEvents);
+     const graceGroup=internalGraceGroup(e,index,onsetLimit,measureOffsets,here);
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions)/graceGroup.events;
      return Math.max(20,Math.min(250,makeTimeMs));
     }
     // MusicXML steal-time-following is a percentage of the following
     // principal note. Treat it as one ornament window shared by all
     // sequential grace attacks at this same score onset.
-    let graceStart=index;
-    while(graceStart>0){
-     const previous=e.notes[graceStart-1];
-     const previousBeat=(measureOffsets[(+previous[4]||1)-1]||0)+(+previous[5]||0);
-     if(Math.abs(previousBeat-here)>1e-9||!previous[11])break;
-     graceStart--;
+    const graceGroup=internalGraceGroup(e,index,onsetLimit,measureOffsets,here);
+    let stealFollowing=null;
+    for(let graceIndex=graceGroup.start;graceIndex<graceGroup.end;graceIndex++){
+     const graceNote=e.notes[graceIndex];
+     if(graceNote[12])continue;
+     const candidate=+graceNote[16];
+     if(Number.isFinite(candidate)&&candidate>0){stealFollowing=candidate;break}
     }
-    let graceEnd=graceStart,graceEvents=0,stealFollowing=null;
-    while(graceEnd<onsetLimit){
-     const graceNote=e.notes[graceEnd];
-     const graceBeat=(measureOffsets[(+graceNote[4]||1)-1]||0)+(+graceNote[5]||0);
-     if(Math.abs(graceBeat-here)>1e-9||!graceNote[11])break;
-     if(!graceNote[12]){
-      graceEvents++;
-      const candidate=+graceNote[16];
-      if(stealFollowing===null&&Number.isFinite(candidate)&&candidate>0)stealFollowing=candidate;
-     }
-     graceEnd++;
-    }
-    const principal=e.notes[graceEnd];
+    const graceEvents=graceGroup.events;
+    const principal=e.notes[graceGroup.end];
     if(principal&&stealFollowing!==null&&graceEvents>0){
      const principalBeat=(measureOffsets[(+principal[4]||1)-1]||0)+(+principal[5]||0);
      if(Math.abs(principalBeat-here)<1e-9){
