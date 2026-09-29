@@ -2474,7 +2474,16 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   rejectLoad(err instanceof Error?err:new Error(msg));
  });
  importStatus.textContent='Chargement de '+file.name+'…';
- const accepted=api.load(bytes);
+ let accepted;
+ try{
+  accepted=api.load(bytes);
+ }catch(err){
+  // Some malformed/unsupported inputs can fail synchronously before alphaTab's
+  // error event owns the rejection path. Release this load's shared resolver
+  // and renderer state immediately instead of leaving a ghost active API.
+  cleanupFailedAlphaLoad();
+  throw err;
+ }
  if(!accepted){cleanupFailedAlphaLoad();throw new Error('alphaTab a refusé les données du fichier.');}
  setTimeout(()=>{if(isActiveLoad()&&!completed)importStatus.textContent='Chargement en cours… si rien ne s’affiche, ouvre la console pour le diagnostic.';},3000);
  return await loadResult;
