@@ -2038,6 +2038,13 @@ document.querySelector('#play').onclick=async()=>{
  }
  if(!internalPlaybackPreparing||playbackGeneration!==internalPlaybackGeneration)return;
  internalPlaybackPreparing=false;
+ const internalExercise=exercises[current];
+ if(!internalExercise?.notes?.length){
+  playing=false;clearInternalTimer();stopAllVoices();
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent='Aucune note à lire';
+  return;
+ }
  if(practiceLoop){
   const range=internalLoopBounds(exercises[current]);
   if(!range){practiceStatus.textContent='Boucle vide • aucune note dans les mesures '+loopStart.value+'–'+loopEnd.value;document.querySelector('#play').textContent='▶ PLAY';return;}
