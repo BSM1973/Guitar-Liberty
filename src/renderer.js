@@ -1311,6 +1311,17 @@ targetBpm.onchange=()=>{
 loopRepeats.onchange=()=>{
  loopRepeats.value=Math.max(1,+loopRepeats.value||1);
  const target=+loopRepeats.value;
+ // Changing the repetition target while a count-in/lead-in is armed changes the
+ // series contract. Cancel the old transition so it cannot start under the new
+ // target without an explicit PLAY from the user.
+ if(practiceLoop&&(countInActive||backingStartTimer)){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  const activeApi=window.guitarLibertyAlphaTab;
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  pausePracticeClock();
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent='Prêt • répétition '+(practiceIteration+1)+'/'+target;
+ }
  if(!practiceLoop&&sessionHistorySaved&&sessionStarted){
   // The previous result is already in history. Changing the repetition target
   // prepares a genuinely new series instead of leaving the UI attached to the
