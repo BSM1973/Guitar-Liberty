@@ -2454,7 +2454,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  };
  api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
-  if(!isActiveLoad())return;
+  if(!isActiveLoad()||completed)return;
   try{
    completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
@@ -2496,7 +2496,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   }
  });
  api.error.on(err=>{
-  if(!isActiveLoad())return;
+  if(!isActiveLoad()||completed)return;
   completed=true;
   const msg=err?.message||String(err);
   console.error('alphaTab import error',err);
