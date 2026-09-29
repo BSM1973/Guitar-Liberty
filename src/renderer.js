@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
@@ -1594,6 +1594,7 @@ function stop(){
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  internalVoiceGeneration++;
  stringAttackGeneration.clear();
+ internalLoopBoundaryPending=false;
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
   const range=internalLoopBounds(exercises[current]);
@@ -1677,6 +1678,12 @@ function sameInternalOnset(a,b){
 }
 function tick(){
  const e=exercises[current];
+ if(internalLoopBoundaryPending){
+  // We have now reached the musical loop boundary. End any sustain from the
+  // previous pass before the next pass attacks, rather than at its last attack.
+  internalLoopBoundaryPending=false;
+  stopAllVoices();
+ }
  if(!practiceLoop&&index>=e.notes.length){
   index=0;playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
@@ -1736,9 +1743,9 @@ function tick(){
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
  index=eventEnd;
  if(internalRange&&index>=internalRange.end){
-  // A loop boundary is a fresh practice repetition: do not let sustained
-  // samples from the previous pass mask or overlap its first attack.
-  stopAllVoices();
+  // The boundary is reached only after eventDelay has elapsed. Defer voice
+  // cleanup until then so the final event keeps its notated duration.
+  internalLoopBoundaryPending=true;
   index=internalRange.start;
   practiceIteration++;
   if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}
