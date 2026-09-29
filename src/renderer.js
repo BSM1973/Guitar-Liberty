@@ -3139,7 +3139,7 @@ if(importButton) importButton.onclick=async()=>{
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
     const tieStart=!!node.querySelector(':scope > tie[type="start"], :scope > notations tied[type="start"]'),tieStop=!!node.querySelector(':scope > tie[type="stop"], :scope > notations tied[type="stop"]');
-    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace,chord,noteIndex]);
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace,chord,noteIndex,graceMakeTime,graceStealPrevious,graceStealFollowing,graceSlash,currentDivisions]);
     md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop,voice,staff,grace,graceMakeTime,graceStealPrevious,graceStealFollowing,graceSlash});
    });
    // Pickup/implicit measures are allowed to be shorter than the current time
