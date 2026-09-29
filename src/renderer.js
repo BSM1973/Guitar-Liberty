@@ -1541,7 +1541,7 @@ function rhythmGlyph(duration,typeName,dots=0){
 }
 function rhythmRestGlyph(duration){if(duration>=2)return '𝄼';if(duration>=1)return '𝄽';if(duration>=.5)return '𝄾';if(duration>=.25)return '𝄿';return '𝅀'}
 function syncTempo(){document.querySelector('#bpm').textContent=tempo.value+' BPM';document.querySelector('#scoreTempo').textContent='♩ = '+tempo.value}
-function advanceAutoBpm(){
+function advanceAutoBpm({deferMetronome=false}={}){
  const inc=+autoBpm.value||0;if(!inc)return null;
  const goal=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||+tempo.max));
  const next=Math.min(goal,(+tempo.value||0)+inc);
@@ -1550,7 +1550,9 @@ function advanceAutoBpm(){
  if(metronomeEnabled){
   const scheduledThrough=metronomeNextTime;
   stopMetronome();metronomeNextTime=scheduledThrough;
-  startMetronome({afterScheduled:true});
+  // A count-in owns the clock between Auto BPM series and restores the
+  // free-running metronome itself. Do not briefly restart a competing clock.
+  if(!deferMetronome)startMetronome({afterScheduled:true});
  }
  return {next,reached:next>=goal};
 }
@@ -1687,7 +1689,7 @@ function tick(){
    internalLoopSeriesComplete=false;
    const max=Math.max(1,+loopRepeats.value||1);
    updatePracticeProgress(max);sessionSeriesCount++;paintSession();practiceIteration=0;
-   const autoStep=advanceAutoBpm();
+   const autoStep=advanceAutoBpm({deferMetronome:true});
    if(autoStep){
     const {next,reached}=autoStep;
     if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return}
