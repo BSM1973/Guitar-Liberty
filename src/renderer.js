@@ -1228,6 +1228,20 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
   scheduleCountBeat();
  });
 }
+countIn.onchange=()=>{
+ // The count-in duration is part of the armed start contract. If it changes
+ // while counting or waiting for accompaniment lead-in, discard that old start
+ // and require an explicit PLAY so the new OFF/1/2-measure setting is honored.
+ if(practiceLoop&&(countInActive||backingStartTimer)){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  const activeApi=window.guitarLibertyAlphaTab;
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  pausePracticeClock();
+  document.querySelector('#play').textContent='▶ PLAY';
+  const bars=Math.max(0,+countIn.value||0);
+  practiceStatus.textContent=bars?'Prêt • pré-compte '+bars+' mesure'+(bars>1?'s':''):'Prêt • pré-compte OFF';
+ }
+};
 loopToggle.onclick=()=>{
  const restartingSavedSession=!practiceLoop&&sessionHistorySaved&&sessionStarted;
  if(restartingSavedSession){resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
