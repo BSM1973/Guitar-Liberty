@@ -1621,7 +1621,6 @@ function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
   const previous=e.notes[start-1];
   const previousBeat=(measureOffsets[(+previous[4]||1)-1]||0)+(+previous[5]||0);
   if(Math.abs(previousBeat-beat)>1e-9||!previous[11])break;
-  if(String(previous[9]||'1')!==voice||String(previous[10]||'1')!==staff)break;
   start--;
  }
  let end=start,events=0;
@@ -1629,11 +1628,10 @@ function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
   const note=e.notes[end];
   const noteBeat=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
   if(Math.abs(noteBeat-beat)>1e-9||!note[11])break;
-  if(String(note[9]||'1')!==voice||String(note[10]||'1')!==staff)break;
-  if(!note[12])events++;
+  if(String(note[9]||'1')===voice&&String(note[10]||'1')===staff&&!note[12])events++;
   end++;
  }
- return {start,end,events:Math.max(1,events)};
+ return {start,end,events:Math.max(1,events),voice,staff};
 }
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
@@ -1665,7 +1663,7 @@ function noteIntervalMs(){
     let stealFollowing=null;
     for(let graceIndex=graceGroup.start;graceIndex<graceGroup.end;graceIndex++){
      const graceNote=e.notes[graceIndex];
-     if(graceNote[12])continue;
+     if(graceNote[12]||String(graceNote[9]||'1')!==graceGroup.voice||String(graceNote[10]||'1')!==graceGroup.staff)continue;
      const candidate=+graceNote[16];
      if(Number.isFinite(candidate)&&candidate>0){stealFollowing=candidate;break}
     }
