@@ -3150,7 +3150,9 @@ if(importButton) importButton.onclick=async()=>{
   importedMeasures.forEach((md,i)=>{measureOffsets[i]=accumulatedBeats;accumulatedBeats+=+md.length||0});
   imported.forEach((note,i)=>{
    const absoluteOnset=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
-   const next=imported[i+1];
+   let nextIndex=i+1;
+   while(nextIndex<imported.length&&sameInternalOnset(note,imported[nextIndex]))nextIndex++;
+   const next=imported[nextIndex];
    const nextOnset=next?(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0):accumulatedBeats;
    note[6]=Math.max(.001,nextOnset-absoluteOnset);
   });
