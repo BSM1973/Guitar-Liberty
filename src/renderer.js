@@ -2459,9 +2459,6 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
    completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
   if(!restoring&&sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
-  // Keep only a source that alphaTab has actually parsed successfully. This
-  // gives failed future imports a trustworthy score to restore from.
-  currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
   if(!restoring)document.querySelector('#play').textContent='▶ PLAY';
   // A successfully parsed Guitar Pro score supersedes any unresolved MXL/MIDI
   // selection left by the placeholder import path.
@@ -2483,6 +2480,10 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
+   // Publish the restoration source only after the score and all dependent
+   // practice UI state have initialized successfully. A partially initialized
+   // score must never become the fallback for a later failed import.
+   currentAlphaTabSource={name:file.name,ext:file.ext||'.gp',bytes:new Uint8Array(bytes)};
    if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
    resolveLoad(true);
   }catch(err){
