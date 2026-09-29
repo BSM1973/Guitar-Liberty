@@ -2525,6 +2525,9 @@ async function loadBundledScore(button){
   console.error(err);
   if(previousLibraryState.alphaSource){
    try{await loadWithAlphaTab(previousLibraryState.alphaSource,{restoring:true})}catch(restoreErr){console.error('Unable to restore previous library score',restoreErr)}
+   // A newer library click may have taken ownership while the old score was
+   // being rebuilt. Never let this stale recovery repaint that newer lesson.
+   if(!isCurrentLibraryLoad())return;
   }else if(previousLibraryState.internalExerciseKey&&exercises[previousLibraryState.internalExerciseKey]){
    invalidateAlphaTabLoad();
    const failedApi=window.guitarLibertyAlphaTab;
