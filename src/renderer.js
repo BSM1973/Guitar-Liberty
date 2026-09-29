@@ -1571,15 +1571,18 @@ function noteIntervalMs(){
    beats=Math.max(.125,there-here);
   }
  }
- if(practiceLoop&&e?.measures?.length&&v){
-  const range=internalLoopBounds(e);
-  if(range&&eventEnd>=range.end){
+ if(e?.measures?.length&&v){
+  const range=practiceLoop?internalLoopBounds(e):null;
+  const atLoopEnd=!!(range&&eventEnd>=range.end);
+  const atScoreEnd=!practiceLoop&&eventEnd>=e.notes.length;
+  if(atLoopEnd||atScoreEnd){
    const measureOffsets=[];let total=0;
    e.measures.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
-   const loopEndMeasure=Math.max(+loopStart.value||1,+loopEnd.value||1);
-   const loopEndBeat=(measureOffsets[loopEndMeasure-1]||0)+(+e.measures[loopEndMeasure-1]?.length||0);
+   const endBeat=atLoopEnd
+    ?(measureOffsets[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]||0)+(+e.measures[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]?.length||0)
+    :total;
    const noteBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
-   beats=Math.max(.125,loopEndBeat-noteBeat);
+   beats=Math.max(.125,endBeat-noteBeat);
   }
  }
  return 60000/+tempo.value*beats
@@ -1631,6 +1634,13 @@ function sameInternalOnset(a,b){
 }
 function tick(){
  const e=exercises[current];
+ if(!practiceLoop&&index>=e.notes.length){
+  index=0;playing=false;clearInternalTimer();stopAllVoices();
+  document.querySelector('#play').textContent='▶ PLAY';
+  document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
+  const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'});
+  return;
+ }
  const internalRange=internalLoopBounds(e);
  if(internalRange&&(index<internalRange.start||index>=internalRange.end))index=internalRange.start;
  // The delay belongs to the event that will actually be played. Normalize the
@@ -1716,12 +1726,10 @@ function tick(){
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
  }else if(index>=e.notes.length){
-  // Natural end outside LOOP: return to an idle, replayable transport instead
-  // of scheduling the score again from index 0.
-  index=0;playing=false;clearInternalTimer();stopAllVoices();
-  document.querySelector('#play').textContent='▶ PLAY';
-  document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
-  const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'});
+  // The last attack is not necessarily the musical end of the score. Keep the
+  // transport alive through the remaining duration/rests, then settle to idle.
+  index=e.notes.length;
+  return eventDelay;
  }
  // When another pass of the same internal loop follows, append its leading
  // silence after the current pass's trailing silence. This keeps every
