@@ -1616,7 +1616,7 @@ function stop(){
 }
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
- let beats=(v&&(v[6]||v[3]))||.5,eventEnd=index+1;
+ let beats=v?Math.max(.001,Number.isFinite(+v[6])?+v[6]:(Number.isFinite(+v[3])?+v[3]:0)):.5,eventEnd=index+1;
  if(v){
   while(eventEnd<e.notes.length&&sameInternalOnset(v,e.notes[eventEnd]))eventEnd++;
   const next=e.notes[eventEnd];
