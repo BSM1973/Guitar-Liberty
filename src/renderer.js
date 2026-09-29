@@ -1753,7 +1753,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==startVideoSrc)return;
     startSession();document.querySelector('#play').textContent='⏸ PAUSE';
     scheduleLeadInStart(()=>{
-     if(startGeneration!==mediaStartGeneration||!practiceLoop||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==startVideoSrc)return;
+     if(startGeneration!==mediaStartGeneration||!practiceLoop||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==startVideoSrc||window.guitarLibertyAlphaTab!==api)return;
      beginPracticePassage();api.play();
     },currentVideoLeadBeats*(60000/bpm));
    }).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Vidéo',e)});
@@ -1799,13 +1799,13 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   backingAudio.playbackRate=sourceRate;
   if(resumeAccompaniment){
    const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
-   if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused)return;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
-   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused){beginPracticePassage();api.play()}
+   if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
+   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){beginPracticePassage();api.play()}
    return;
   }
   backingAudio.currentTime=0;
   const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
-  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||backingAudio!==startBacking||startBacking.paused)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
+  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
   const backingPromise=startBacking.play();
   if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused)startBackingLeadIn();
