@@ -3103,7 +3103,7 @@ if(importButton) importButton.onclick=async()=>{
      lastPlayableOnsetByVoice.delete(voiceKey);
      lastOnsetByVoice.set(voiceKey,onset);cursor+=duration;maxCursor=Math.max(maxCursor,cursor);
     }
-    if(node.querySelector(':scope > rest')){const full=!!node.querySelector(':scope > rest[measure="yes"]');md.events.push({type:'rest',onset,duration:full?measureLength:duration,typeName,dots});return;}
+    if(node.querySelector(':scope > rest')){const full=!!node.querySelector(':scope > rest[measure="yes"]'),restDuration=full&&!implicitMeasure&&!nonControllingMeasure?measureLength:duration;md.events.push({type:'rest',onset,duration:restDuration,typeName,dots});return;}
     const pitch=node.querySelector(':scope > pitch');if(!pitch)return;
     const step=pitch.querySelector('step')?.textContent||'C',alter=+(pitch.querySelector('alter')?.textContent||0),octave=+(pitch.querySelector('octave')?.textContent||4),midi=(octave+1)*12+stepSemis[step]+alter;
     const tech=node.querySelector('notations technical');let stringNo=+(tech?.querySelector('string')?.textContent||0),fret=+(tech?.querySelector('fret')?.textContent||-1),s=-1;
