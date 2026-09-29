@@ -1629,8 +1629,26 @@ function noteIntervalMs(){
    // attack a short audible scheduler window without rewriting score duration.
    if(v[11]&&Math.abs(there-here)<1e-9){
     const makeTime=+v[14],divisions=+v[18];
+    // MusicXML make-time describes the ornament's explicit time. When several
+    // sequential grace attacks share this onset, divide that window between
+    // them instead of applying the full value to every attack.
     if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+     let makeTimeStart=index;
+     while(makeTimeStart>0){
+      const previous=e.notes[makeTimeStart-1];
+      const previousBeat=(measureOffsets[(+previous[4]||1)-1]||0)+(+previous[5]||0);
+      if(Math.abs(previousBeat-here)>1e-9||!previous[11])break;
+      makeTimeStart--;
+     }
+     let makeTimeEnd=makeTimeStart,makeTimeEvents=0;
+     while(makeTimeEnd<onsetLimit){
+      const graceNote=e.notes[makeTimeEnd];
+      const graceBeat=(measureOffsets[(+graceNote[4]||1)-1]||0)+(+graceNote[5]||0);
+      if(Math.abs(graceBeat-here)>1e-9||!graceNote[11])break;
+      if(!graceNote[12])makeTimeEvents++;
+      makeTimeEnd++;
+     }
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions)/Math.max(1,makeTimeEvents);
      return Math.max(20,Math.min(250,makeTimeMs));
     }
     // MusicXML steal-time-following is a percentage of the following
