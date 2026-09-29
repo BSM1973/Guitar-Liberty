@@ -1688,6 +1688,9 @@ function internalScoreLeadInMs(e){
 }
 function sameInternalOnset(a,b,e=exercises[current]){
  if(!a||!b)return false;
+ // Consecutive MusicXML grace notes share the principal note's onset but are
+ // ornamental attacks, not a chord, unless the following note has <chord/>.
+ if((a[11]||b[11])&&!b[12])return false;
  if(e?.measures?.length){
   let aBeat=+a[5]||0,bBeat=+b[5]||0;
   for(let m=1;m<(+a[4]||1);m++)aBeat+=+e.measures[m-1]?.length||0;
@@ -3127,7 +3130,7 @@ if(importButton) importButton.onclick=async()=>{
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
     const tieStart=!!node.querySelector(':scope > tie[type="start"], :scope > notations tied[type="start"]'),tieStop=!!node.querySelector(':scope > tie[type="stop"], :scope > notations tied[type="stop"]');
-    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace]);
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace,chord]);
     md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop,voice,staff,grace});
    });
    // Pickup/implicit measures are allowed to be shorter than the current time
