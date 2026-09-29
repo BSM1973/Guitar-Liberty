@@ -1665,6 +1665,10 @@ function isWistiaPlaying(){
  try{return typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){return false}
 }
 function pauseWistiaPracticeVideo(){
+ // A pause is also a cancellation barrier for any Wistia start/resume whose
+ // asynchronous "play" event has not arrived yet. Otherwise a late event could
+ // resume alphaTab or arm its lead-in after the user already paused/stopped.
+ cancelPendingWistiaResume();
  if(!wistiaPlayer)return;
  try{wistiaPlayer.pause()}catch(e){console.error('Wistia pause',e)}
 }
