@@ -2822,10 +2822,13 @@ if(importButton) importButton.onclick=async()=>{
    if(!bytes.length)throw new Error('Le fichier Guitar Pro est vide.');
    prepareManualImportContext();
    const loaded=await loadWithAlphaTab({...file,bytes});
-   if(!loaded){await restorePreviousScore();restorePreviousLessonContext();}
+   if(importLibraryGeneration!==libraryLoadGeneration)return;
+   if(!loaded){await restorePreviousScore();if(importLibraryGeneration!==libraryLoadGeneration)return;restorePreviousLessonContext();}
   }catch(err){
+   if(importLibraryGeneration!==libraryLoadGeneration)return;
    const scoreReplacementStarted=currentLessonId!==previousLessonContext.id||currentPracticeTitle!==previousLessonContext.practiceTitle;
    await restorePreviousScore();
+   if(importLibraryGeneration!==libraryLoadGeneration)return;
    if(!scoreReplacementStarted)resumeUnchangedPracticeClock();
    console.error(err);importStatus.textContent='Erreur Guitar Pro : '+err.message;alert('Impossible de charger cette tablature Guitar Pro : '+err.message);
   }
@@ -2965,8 +2968,10 @@ if(importButton) importButton.onclick=async()=>{
   // Parsing can still fail after the validated XML has started replacing the
   // current lesson. Recover the last authoritative score just like a failed GP
   // import, rather than leaving a half-switched MusicXML context on screen.
+  if(importLibraryGeneration!==libraryLoadGeneration)return;
   const scoreReplacementStarted=currentLessonId!==previousLessonContext.id||currentPracticeTitle!==previousLessonContext.practiceTitle;
   await restorePreviousScore();
+  if(importLibraryGeneration!==libraryLoadGeneration)return;
   if(!scoreReplacementStarted)resumeUnchangedPracticeClock();
   console.error('MusicXML import failed',err);
   importStatus.textContent='Erreur import : '+err.message;
