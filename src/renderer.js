@@ -9,8 +9,8 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map();
@@ -1589,9 +1589,9 @@ function scheduleNext(delayMs){
  clearInternalTimer();
  if(playing&&Number.isFinite(delayMs)){
   const schedulerGeneration=internalSchedulerGeneration;
-  timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);
+  timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);timerScheduledBpm=Math.max(1,+tempo.value||120);
   timer=setTimeout(()=>{
-   timer=null;timerStartedAt=0;timerDelayMs=0;
+   timer=null;timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;
    if(!playing||schedulerGeneration!==internalSchedulerGeneration)return;
    scheduleNext(tick());
   },timerDelayMs)
@@ -1733,8 +1733,10 @@ tempo.oninput=()=>{
  }
  if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){
   const elapsed=timerStartedAt?Math.max(0,performance.now()-timerStartedAt):0;
-  const remainingRatio=timerDelayMs>0?Math.max(0,Math.min(1,1-elapsed/timerDelayMs)):1;
-  scheduleNext(noteIntervalMs()*remainingRatio);
+  const remainingMs=timerDelayMs>0?Math.max(0,timerDelayMs-elapsed):0;
+  const scheduledBpm=Math.max(1,timerScheduledBpm||+tempo.value||120);
+  const remainingBeats=remainingMs*scheduledBpm/60000;
+  scheduleNext(remainingBeats*60000/Math.max(1,+tempo.value||120));
  }
  if(videoEnabled)syncVideoTempo();
  if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}
