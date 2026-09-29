@@ -13,7 +13,7 @@ let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPl
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
-const sampleCache=new Map();
+const sampleCache=new Map(),stringAttackGeneration=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
 let masterGain=null,masterComp=null;
@@ -1557,11 +1557,13 @@ function advanceAutoBpm(){
 function playNote(string,fret,holdBeats=0){
  ensureOutput();
  const voiceGeneration=internalVoiceGeneration;
+ const attackGeneration=(stringAttackGeneration.get(string)||0)+1;
+ stringAttackGeneration.set(string,attackGeneration);
  loadGuitarSample(string).then(buffer=>{
    // Sample loading is asynchronous on first use. A STOP/score transition that
    // happened while it was loading owns the newer generation and must not let
    // this stale attack create a ghost note afterwards.
-   if(!buffer||voiceGeneration!==internalVoiceGeneration||!playing)return;
+   if(!buffer||voiceGeneration!==internalVoiceGeneration||stringAttackGeneration.get(string)!==attackGeneration||!playing)return;
    stopVoice(string,.018);
    const now=audio.currentTime,rate=2**(fret/12);
    const source=audio.createBufferSource(),gain=audio.createGain(),tone=audio.createBiquadFilter();
@@ -1591,6 +1593,7 @@ function stop(){
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  internalVoiceGeneration++;
+ stringAttackGeneration.clear();
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
   const range=internalLoopBounds(exercises[current]);
