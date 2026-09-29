@@ -1761,9 +1761,11 @@ function tick(){
    while(tieIndex<tieLimit){
     const tied=e.notes[tieIndex];
     if((+tied[0]||0)!==+s){tieIndex++;continue}
-    // A MusicXML tie belongs to one exact voice/staff path. Same-string,
-    // same-fret notes from another polyphonic voice must never extend it.
-    if((+tied[1]||0)!==+f||String(tied[9]||'1')!==String(v[9]||'1')||String(tied[10]||'1')!==String(v[10]||'1')||!tied[7])break;
+    // Other polyphonic voices/staves are independent paths, even when they use
+    // the same physical string. Ignore them while looking for this tie's continuation.
+    if(String(tied[9]||'1')!==String(v[9]||'1')||String(tied[10]||'1')!==String(v[10]||'1')){tieIndex++;continue}
+    // Only a different attack in this exact voice/staff path ends the chain.
+    if((+tied[1]||0)!==+f||!tied[7])break;
     holdBeats+=+tied[3]||0;
     if(!tied[8])break;
     tieIndex++;
