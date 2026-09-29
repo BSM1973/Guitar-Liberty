@@ -1667,7 +1667,18 @@ function noteIntervalMs(){
      if(Number.isFinite(candidate)&&candidate>0){stealFollowing=candidate;break}
     }
     const graceEvents=graceGroup.events;
-    const principal=e.notes[graceGroup.end];
+    // In polyphonic MusicXML the first note after the grace cluster can belong
+    // to another staff/voice. Bind steal-time-following to the principal note
+    // of the same musical path as the grace anchor.
+    const graceVoice=String(v[9]||'1'),graceStaff=String(v[10]||'1');
+    let principal=null;
+    for(let principalIndex=graceGroup.end;principalIndex<onsetLimit;principalIndex++){
+     const candidate=e.notes[principalIndex];
+     const candidateBeat=(measureOffsets[(+candidate[4]||1)-1]||0)+(+candidate[5]||0);
+     if(Math.abs(candidateBeat-here)>1e-9)break;
+     if(candidate[11])continue;
+     if(String(candidate[9]||'1')===graceVoice&&String(candidate[10]||'1')===graceStaff){principal=candidate;break}
+    }
     if(principal&&stealFollowing!==null&&graceEvents>0){
      const principalBeat=(measureOffsets[(+principal[4]||1)-1]||0)+(+principal[5]||0);
      if(Math.abs(principalBeat-here)<1e-9){
