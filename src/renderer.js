@@ -1141,7 +1141,22 @@ metronomeToggle.onclick=async()=>{
  if(metronomeEnabled)await startMetronome();else stopMetronome();
 };
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
-metronomeSignature.onchange=()=>{metronomeBeatIndex=0;if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}};
+metronomeSignature.onchange=()=>{
+ metronomeBeatIndex=0;
+ // The signature can define the fallback count-in plan when the score has no
+ // usable meter metadata. Do not let an already armed count finish with the
+ // previous signature while the UI displays the new one.
+ if(countInActive||backingStartTimer){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  const activeApi=window.guitarLibertyAlphaTab;
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  pausePracticeClock();
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+  return;
+ }
+ if(metronomeEnabled){stopMetronome();startMetronome()}
+};
 function cancelPendingWistiaResume(){
  wistiaResumeGeneration++;
  if(!pendingWistiaResume)return;
