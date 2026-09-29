@@ -2126,6 +2126,11 @@ function openVideo(){
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
 }
 function closeVideo(){
+ const armedVideoStart=!!(countInActive||backingStartTimer);
+ // Closing the practice video invalidates any start/count-in that was armed
+ // around that video. Otherwise a delayed callback can still start the score
+ // after the user explicitly switched the video off.
+ if(armedVideoStart)cancelPracticeTransition();
  wistiaLoadGeneration++;
  pauseLocalPracticeVideo();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
@@ -2134,6 +2139,10 @@ function closeVideo(){
  if(videoStage)videoStage.hidden=true;
  if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
+ if(armedVideoStart){
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+ }
 }
 if(videoToggle)videoToggle.onclick=()=>{if(videoEnabled)closeVideo();else openVideo();};
 function cancelDelayedPlayback(){
