@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
@@ -1594,7 +1594,7 @@ function stop(){
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  internalVoiceGeneration++;
  stringAttackGeneration.clear();
- internalLoopBoundaryPending=false;
+ internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
   const range=internalLoopBounds(exercises[current]);
@@ -1683,6 +1683,26 @@ function tick(){
   // previous pass before the next pass attacks, rather than at its last attack.
   internalLoopBoundaryPending=false;
   stopAllVoices();
+  if(internalLoopSeriesComplete){
+   internalLoopSeriesComplete=false;
+   const max=Math.max(1,+loopRepeats.value||1);
+   updatePracticeProgress(max);sessionSeriesCount++;paintSession();practiceIteration=0;
+   const autoStep=advanceAutoBpm();
+   if(autoStep){
+    const {next,reached}=autoStep;
+    if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return}
+    playing=false;clearInternalTimer();index=internalLoopBounds(e)?.start??index;
+    countInThenPlay(null,()=>{
+     if(!practiceLoop)return;
+     beginPracticePassage();playing=true;document.querySelector('#play').textContent='■ STOP';
+     const range=internalLoopBounds(exercises[current]);
+     const loopLeadIn=internalLoopLeadInMs(exercises[current],range);
+     if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
+    });
+    return;
+   }
+   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return;
+  }
  }
  if(!practiceLoop&&index>=e.notes.length){
   index=0;playing=false;clearInternalTimer();stopAllVoices();
@@ -1752,28 +1772,9 @@ function tick(){
   sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
   const max=Math.max(1,+loopRepeats.value||1);
   if(practiceIteration>=max){
-   updatePracticeProgress(max);sessionSeriesCount++;paintSession();practiceIteration=0;
-   const autoStep=advanceAutoBpm();
-   if(autoStep){
-    const {next,reached}=autoStep;
-    if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
-    else{
-     // Do not let the internal scheduler fall straight into the next Auto BPM
-     // series. Stop this scheduling chain, count in at the new tempo, then
-     // restart exactly at the loop boundary.
-     playing=false;clearInternalTimer();index=internalRange.start;
-     countInThenPlay(null,()=>{
-      if(!practiceLoop)return;
-      beginPracticePassage();
-      playing=true;document.querySelector('#play').textContent='■ STOP';
-      const loopLeadIn=internalLoopLeadInMs(exercises[current],internalRange);
-      if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
-     });
-     // This branch owns the next schedule. With count-in OFF the callback above
-     // runs synchronously, so returning the old event delay would overwrite it.
-     return;
-    }
-   }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
+   // The series completes at the musical boundary, not at the final attack.
+   // Let eventDelay elapse before changing tempo, starting count-in or stopping.
+   internalLoopSeriesComplete=true;
   }
  }else if(index>=e.notes.length){
   // The last attack is not necessarily the musical end of the score. Keep the
