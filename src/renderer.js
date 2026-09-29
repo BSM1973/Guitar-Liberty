@@ -3080,7 +3080,7 @@ if(importButton) importButton.onclick=async()=>{
    const time=attr?.querySelector('time'),oldBeats=currentBeats,oldBeatType=currentBeatType;
    if(time){currentBeats=+(time.querySelector('beats')?.textContent||currentBeats);currentBeatType=+(time.querySelector('beat-type')?.textContent||currentBeatType);}
    const measureLength=currentBeats*(4/currentBeatType);
-   const implicitMeasure=measure.getAttribute('implicit')==='yes';
+   const implicitMeasure=measure.getAttribute('implicit')==='yes',nonControllingMeasure=measure.getAttribute('non-controlling')==='yes';
    const md={repeatStart:false,repeatEnd:false,text:'',beats:currentBeats,beatType:currentBeatType,timeChanged:measureIndex===0||oldBeats!==currentBeats||oldBeatType!==currentBeatType,length:measureLength,events:[]};
    measure.querySelectorAll('barline repeat').forEach(rep=>{if(rep.getAttribute('direction')==='forward')md.repeatStart=true;if(rep.getAttribute('direction')==='backward')md.repeatEnd=true;});
    md.text=[...measure.querySelectorAll(':scope > direction direction-type words')].map(w=>w.textContent.trim()).filter(Boolean).join(' • ');
@@ -3118,10 +3118,10 @@ if(importButton) importButton.onclick=async()=>{
    // Pickup/implicit measures are allowed to be shorter than the current time
    // signature. Use their actual rhythmic extent so playback and tie positions
    // do not acquire a silent remainder that is not present in the score.
-   if(implicitMeasure){
-    // MusicXML explicitly marks pickup/implicit measures as exempt from the
-    // nominal time-signature length. Do not guess this for ordinary measures:
-    // an omitted final rest can still mean the full measure duration is intended.
+   if(implicitMeasure||nonControllingMeasure){
+    // MusicXML explicitly marks implicit and non-controlling measures as able
+    // to diverge from the nominal time-signature length. Do not guess this for
+    // ordinary measures: an omitted final rest can still mean full duration.
     const eventEnd=md.events.reduce((max,ev)=>Math.max(max,(+ev.onset||0)+(+ev.duration||0)),0);
     md.length=Math.max(.125,eventEnd,cursor,maxCursor);
    }
