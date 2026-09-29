@@ -33,6 +33,25 @@ function stopVoice(string,fade=.025){
  activeVoices.delete(string);
 }
 function stopAllVoices(){[...activeVoices.keys()].forEach(s=>stopVoice(s,.035));}
+function retimeActiveVoices(newBpm){
+ if(!audio)return;
+ const now=audio.currentTime,bpm=Math.max(1,+newBpm||120);
+ for(const voice of activeVoices.values()){
+  if(!voice?.holdBeats||!voice.gain)continue;
+  const oldBpm=Math.max(1,voice.scheduledBpm||bpm);
+  const elapsedBeats=Math.max(0,(now-(voice.startedAt||now))*oldBpm/60);
+  const remainingBeats=Math.max(0,voice.holdBeats-elapsedBeats);
+  const remainingSeconds=remainingBeats*60/bpm;
+  const naturalRemaining=Math.max(0,(voice.naturalEnd||now)-now);
+  const releaseIn=Math.max(.018,Math.min(naturalRemaining||remainingSeconds,remainingSeconds));
+  try{
+   const param=voice.gain.gain,current=Math.max(.0001,param.value);
+   param.cancelScheduledValues(now);param.setValueAtTime(current,now);
+   param.exponentialRampToValueAtTime(.0001,now+releaseIn);
+  }catch(_){}
+  voice.startedAt=now;voice.holdBeats=remainingBeats;voice.scheduledBpm=bpm;
+ }
+}
 const SAMPLE_ROOT='../assets/guitar/clean';
 const GUITAR_SAMPLES=['E aigue0.aiff','B0.aiff','G0.aiff','D0.aiff','A0.aiff','E0.aiff'];
 const openMidi=[64,59,55,50,45,40];
@@ -1542,7 +1561,7 @@ function playNote(string,fret,holdBeats=0){
    gain.gain.setValueAtTime(velocity,now+Math.min(.06,releaseAt*.15));
    gain.gain.exponentialRampToValueAtTime(.0001,now+releaseAt);
    source.connect(tone).connect(gain).connect(masterGain);
-   activeVoices.set(string,{source,gain});
+   activeVoices.set(string,{source,gain,startedAt:now,holdBeats:Math.max(0,holdBeats),scheduledBpm:Math.max(1,+tempo.value||120),naturalEnd:now+natural});
    source.onended=()=>{if(activeVoices.get(string)?.source===source)activeVoices.delete(string)};
    source.start(now); source.stop(now+releaseAt+.02);
  }).catch(err=>console.error('Guitar note playback unavailable:',GUITAR_SAMPLES[string],err));
@@ -1756,6 +1775,7 @@ tempo.oninput=()=>{
   practiceStatus.textContent='Prêt • '+tempo.value+' BPM';
  }
  if(alphaTabMode&&window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);else if(playing){
+  retimeActiveVoices(+tempo.value);
   const elapsed=timerStartedAt?Math.max(0,performance.now()-timerStartedAt):0;
   const remainingMs=timerDelayMs>0?Math.max(0,timerDelayMs-elapsed):0;
   const scheduledBpm=Math.max(1,timerScheduledBpm||+tempo.value||120);
