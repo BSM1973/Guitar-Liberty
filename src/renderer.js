@@ -1826,7 +1826,7 @@ function tick(){
  // When another pass of the same internal loop follows, append its leading
  // silence after the current pass's trailing silence. This keeps every
  // repetition aligned to the selected measure boundary, not just the first.
- if(internalRange&&playing&&practiceLoop&&index===internalRange.start){
+ if(internalRange&&playing&&practiceLoop&&index===internalRange.start&&!internalLoopSeriesComplete){
   return eventDelay+internalLoopLeadInMs(e,internalRange);
  }
  return eventDelay;
