@@ -1661,7 +1661,10 @@ function noteIntervalMs(){
       const principalDuration=Math.max(0,+principal[3]||0);
       if(principalDuration>0){
        const ornamentBeats=principalDuration*Math.min(100,stealFollowing)/100;
-       return 60000/Math.max(1,+tempo.value||120)*(ornamentBeats/graceEvents);
+       // Keep metadata-driven grace timing audible but bounded. A malformed or
+       // unusually long principal note must not stall the internal scheduler.
+       const perGraceMs=60000/Math.max(1,+tempo.value||120)*(ornamentBeats/graceEvents);
+       return Math.max(20,Math.min(250,perGraceMs));
       }
      }
     }
