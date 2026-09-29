@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0}
+function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
@@ -1632,7 +1632,7 @@ function noteIntervalMs(){
  return 60000/+tempo.value*beats
 }
 function scheduleNext(delayMs){
- clearInternalTimer();
+ clearInternalTimer({preserveBoundary:true});
  if(playing&&Number.isFinite(delayMs)){
   const schedulerGeneration=internalSchedulerGeneration;
   timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);timerScheduledBpm=Math.max(1,+tempo.value||120);
