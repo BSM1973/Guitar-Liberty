@@ -1625,6 +1625,9 @@ function noteIntervalMs(){
    const measureOffsets=[];let total=0;
    e.measures?.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
    const here=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0),there=(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0);
+   // Grace notes do not consume MusicXML cursor time. Give a sequential grace
+   // attack a short audible scheduler window without rewriting score duration.
+   if(v[11]&&Math.abs(there-here)<1e-9)return 60;
    beats=Math.max(.001,there-here);
   }
  }
