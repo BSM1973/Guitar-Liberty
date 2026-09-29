@@ -1384,8 +1384,14 @@ loopRepeats.onchange=()=>{
      if(internalRange)index=internalRange.start;
     }
     lastLoopTick=-1;
-    practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM • prêt';
     updatePracticeProgress(0);
+    if(alphaTabMode&&activeApi){
+     practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM';
+     countInThenPlay(activeApi,()=>{
+      if(!practiceLoop||window.guitarLibertyAlphaTab!==activeApi)return;
+      startAlphaPracticePlayback(activeApi,{restartAccompaniment:true});
+     });
+    }else practiceStatus.textContent='Série terminée • nouveau tempo '+next+' BPM • prêt';
    }
   }else{
    practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
