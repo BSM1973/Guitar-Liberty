@@ -1618,6 +1618,14 @@ function internalLoopLeadInMs(e,range){
  beats+=+first[5]||0;
  return Math.max(0,60000/Math.max(1,+tempo.value||120)*beats);
 }
+function internalScoreLeadInMs(e){
+ if(!e?.notes?.length||!e?.measures?.length)return 0;
+ const first=e.notes[0],firstMeasure=Math.max(1,+first[4]||1);
+ let beats=0;
+ for(let m=1;m<firstMeasure;m++)beats+=+e.measures[m-1]?.length||0;
+ beats+=+first[5]||0;
+ return Math.max(0,60000/Math.max(1,+tempo.value||120)*beats);
+}
 function sameInternalOnset(a,b){
  return !!(a&&b&&(+a[4]||1)===(+b[4]||1)&&Math.abs((+a[5]||0)-(+b[5]||0))<1e-9);
 }
@@ -2060,7 +2068,9 @@ document.querySelector('#play').onclick=async()=>{
  }
  document.querySelector('#play').textContent='■ STOP';
  countInThenPlay(null,()=>{
-  beginPracticePassage();playing=true;scheduleNext(tick());
+  beginPracticePassage();playing=true;
+  const scoreLeadIn=internalScoreLeadInMs(internalExercise);
+  if(scoreLeadIn>0)scheduleNext(scoreLeadIn);else scheduleNext(tick());
  });
 };
 // L'application démarre désormais sur l'accueil, sans charger l'ancien exercice de démonstration.
