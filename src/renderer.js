@@ -1276,6 +1276,14 @@ loopToggle.onclick=()=>{
 };
 autoBpm.onchange=()=>{
  autoBpm.value=Math.max(0,+autoBpm.value||0);
+ if(practiceLoop&&(countInActive||backingStartTimer)){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  const activeApi=window.guitarLibertyAlphaTab;
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  pausePracticeClock();
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent='Prêt • Auto BPM '+(+autoBpm.value>0?'+'+autoBpm.value:'désactivé');
+ }
  if(sessionStarted&&sessionFirstPracticeAt){
   if(+autoBpm.value>0&&(+tempo.value||0)>=(+targetBpm.value||0)){
    practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
@@ -1295,6 +1303,14 @@ autoBpm.onchange=()=>{
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
  saveExerciseGoal(currentPracticeTitle,+targetBpm.value);
+ if(practiceLoop&&(countInActive||backingStartTimer)){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  const activeApi=window.guitarLibertyAlphaTab;
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  pausePracticeClock();
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent='Prêt • objectif '+targetBpm.value+' BPM';
+ }
  const currentTempo=+tempo.value||0,target=+targetBpm.value||0,autoStep=+autoBpm.value||0;
  if(sessionStarted&&sessionFirstPracticeAt&&autoStep>0&&target<=currentTempo){
   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');
