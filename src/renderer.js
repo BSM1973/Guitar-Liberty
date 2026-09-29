@@ -3015,6 +3015,10 @@ if(importButton) importButton.onclick=async()=>{
   if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
   if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}}
   alphaPlayedBeat=null;playCursor=null;
+  // A renderer switch starts a fresh repetition cursor even when no timed
+  // training session was active. Never inherit alphaTab's previous loop pass
+  // into the newly imported internal MusicXML score.
+  practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);
   alphaTabMode=false;practiceScore=null;if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;tab.classList.remove('alphatab-score');
   // MusicXML is now the authoritative score. Never let a later recovery path
   // resurrect a Guitar Pro score that belonged to an older exercise.
