@@ -55,7 +55,14 @@ function retimeActiveVoices(newBpm){
   }
   const remainingSeconds=remainingBeats*60/bpm;
   const naturalRemaining=Math.max(0,(voice.naturalEnd||now)-now);
-  const releaseIn=Math.max(.018,Math.min(naturalRemaining||remainingSeconds,remainingSeconds));
+  if(naturalRemaining<=1e-6){
+   // The underlying sample has ended. A later tempo slowdown cannot extend a
+   // source beyond its real audio lifetime or revive it through gain automation.
+   try{voice.source?.stop()}catch(_){}
+   if(activeVoices.get(string)===voice)activeVoices.delete(string);
+   continue;
+  }
+  const releaseIn=Math.max(.018,Math.min(naturalRemaining,remainingSeconds));
   try{
    const param=voice.gain.gain,current=Math.max(.0001,param.value);
    param.cancelScheduledValues(now);param.setValueAtTime(current,now);
