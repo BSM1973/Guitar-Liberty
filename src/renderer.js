@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
@@ -1556,8 +1556,12 @@ function advanceAutoBpm(){
 }
 function playNote(string,fret,holdBeats=0){
  ensureOutput();
+ const voiceGeneration=internalVoiceGeneration;
  loadGuitarSample(string).then(buffer=>{
-   if(!buffer) return;
+   // Sample loading is asynchronous on first use. A STOP/score transition that
+   // happened while it was loading owns the newer generation and must not let
+   // this stale attack create a ghost note afterwards.
+   if(!buffer||voiceGeneration!==internalVoiceGeneration||!playing)return;
    stopVoice(string,.018);
    const now=audio.currentTime,rate=2**(fret/12);
    const source=audio.createBufferSource(),gain=audio.createGain(),tone=audio.createBiquadFilter();
@@ -1586,6 +1590,7 @@ function stop(){
  alphaTabResumePending=false;
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+ internalVoiceGeneration++;
  playing=false;clearInternalTimer();stopAllVoices();
  if(!alphaTabMode){
   const range=internalLoopBounds(exercises[current]);
