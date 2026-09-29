@@ -1592,7 +1592,10 @@ function scheduleNext(delayMs){
   timer=setTimeout(()=>{
    timer=null;timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;
    if(!playing||schedulerGeneration!==internalSchedulerGeneration)return;
-   scheduleNext(tick());
+   const nextDelay=tick();
+   // tick() can take ownership of scheduling (notably an Auto BPM restart
+   // with count-in OFF). Do not clear that newly armed timer afterwards.
+   if(Number.isFinite(nextDelay))scheduleNext(nextDelay);
   },timerDelayMs)
  }
 }
@@ -1698,6 +1701,9 @@ function tick(){
       const loopLeadIn=internalLoopLeadInMs(exercises[current],internalRange);
       if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
      });
+     // This branch owns the next schedule. With count-in OFF the callback above
+     // runs synchronously, so returning the old event delay would overwrite it.
+     return;
     }
    }else{practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();stopAllVoices();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}
   }
