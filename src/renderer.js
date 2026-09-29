@@ -1630,7 +1630,8 @@ function noteIntervalMs(){
    if(v[11]&&Math.abs(there-here)<1e-9){
     const makeTime=+v[14],divisions=+v[18];
     if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
-     return 60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+     return Math.max(20,Math.min(250,makeTimeMs));
     }
     // MusicXML steal-time-following is a percentage of the following
     // principal note. Treat it as one ornament window shared by all
@@ -1688,7 +1689,8 @@ function noteIntervalMs(){
    if(v[11]&&remaining<1e-9){
     const makeTime=+v[14],divisions=+v[18];
     if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
-     return 60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions);
+     return Math.max(20,Math.min(250,makeTimeMs));
     }
     return 60;
    }
