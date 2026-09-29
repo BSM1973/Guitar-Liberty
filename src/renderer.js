@@ -1823,7 +1823,7 @@ document.querySelector('#play').onclick=async()=>{
    };
    if(resumeLeadIn){
     const remainingLeadIn=leadInRemainingMs;
-    const resumeLeadInPlayback=()=>{if(!practiceLoop)return;beginPracticePassage();api.play();};
+    const resumeLeadInPlayback=()=>{if(!practiceLoop||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();};
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();
      const startGeneration=++mediaStartGeneration;
@@ -1870,7 +1870,7 @@ document.querySelector('#play').onclick=async()=>{
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
      practiceVideo.play().then(()=>{
-      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc)return;
+      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&wistiaPlayer){
@@ -1881,7 +1881,7 @@ document.querySelector('#play').onclick=async()=>{
       const resumeGeneration=wistiaResumeGeneration;
       const resumePlayer=wistiaPlayer;
       const resumeAlphaTab=()=>{
-       if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer)return;
+       if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||window.guitarLibertyAlphaTab!==api)return;
        resumed=true;pendingWistiaResume=null;
        try{resumePlayer.unbind('play',resumeAlphaTab)}catch(_){}
        api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
