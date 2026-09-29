@@ -1769,6 +1769,17 @@ function tick(){
     tieIndex++;
    }
   }
+  if(e?.measures?.length){
+   // Imported MusicXML can contain irregular nominal durations. Never let a
+   // tied sustain outlive the real score/LOOP boundary derived from positions.
+   const measureOffsets=[];let total=0;
+   e.measures.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
+   const attackBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
+   const boundaryBeat=internalRange
+    ?(measureOffsets[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]||0)+(+e.measures[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]?.length||0)
+    :total;
+   holdBeats=Math.min(holdBeats,Math.max(0,boundaryBeat-attackBeat));
+  }
   playNote(s,f,holdBeats);
  });
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
