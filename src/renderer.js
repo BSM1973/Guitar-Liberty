@@ -1752,21 +1752,27 @@ function tick(){
   const loopBoundaryAttack=!!(practiceLoop&&internalRange&&eventStart===internalRange.start);
   if(v[7]&&!loopBoundaryAttack)return;
   const [s,f]=v;let holdBeats=+v[3]||0;
+  const measureOffsets=[];let total=0;
+  if(e?.measures?.length)e.measures.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
+  const absoluteBeat=n=>(measureOffsets[(+n[4]||1)-1]||0)+(+n[5]||0);
   if(v[8]){
    // Use the exact score position rather than Array.indexOf(): polyphonic
    // chords may contain equivalent note arrays and every string must extend
    // its own tie chain from the note that actually sounded.
    let tieIndex=eventStart+eventOffset+1;
    const tieLimit=internalRange?internalRange.end:e.notes.length;
+   let expectedTieBeat=absoluteBeat(v)+(+v[3]||0);
    while(tieIndex<tieLimit){
     const tied=e.notes[tieIndex];
     if((+tied[0]||0)!==+s){tieIndex++;continue}
     // Other polyphonic voices/staves are independent paths, even when they use
     // the same physical string. Ignore them while looking for this tie's continuation.
     if(String(tied[9]||'1')!==String(v[9]||'1')||String(tied[10]||'1')!==String(v[10]||'1')){tieIndex++;continue}
-    // Only a different attack in this exact voice/staff path ends the chain.
-    if((+tied[1]||0)!==+f||!tied[7])break;
+    // A valid tie continuation must begin where the preceding segment ends.
+    // Never sustain across a rest/gap just because a later note has tie-stop.
+    if((+tied[1]||0)!==+f||!tied[7]||Math.abs(absoluteBeat(tied)-expectedTieBeat)>.02)break;
     holdBeats+=+tied[3]||0;
+    expectedTieBeat=absoluteBeat(tied)+(+tied[3]||0);
     if(!tied[8])break;
     tieIndex++;
    }
@@ -1774,9 +1780,7 @@ function tick(){
   if(e?.measures?.length){
    // Imported MusicXML can contain irregular nominal durations. Never let a
    // tied sustain outlive the real score/LOOP boundary derived from positions.
-   const measureOffsets=[];let total=0;
-   e.measures.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
-   const attackBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
+   const attackBeat=absoluteBeat(v);
    const boundaryBeat=internalRange
     ?(measureOffsets[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]||0)+(+e.measures[Math.max(+loopStart.value||1,+loopEnd.value||1)-1]?.length||0)
     :total;
