@@ -1521,11 +1521,12 @@ function render(){
     if(md.repeatStart)html+='<div class="repeat-mark repeat-start-mark" style="left:calc('+left+'% + 2px)"><b></b><i>:</i></div>';
     if(md.repeatEnd)html+='<div class="repeat-mark repeat-end-mark" style="left:calc('+right+'% - 10px)"><i>:</i><b></b></div>';
     if(md.text)html+='<div class="score-text" style="left:calc('+left+'% + 20px)">'+md.text+'</div>';
+    const visualMeasureLength=Math.max(.001,+md.length||0);
     md.events.forEach(ev=>{
-      const x=left+width*(ev.onset/md.length);
+      const x=left+width*(ev.onset/visualMeasureLength);
       if(ev.type==='rest'){
-       const whole=Math.abs(ev.duration-md.length)<.02;
-       html+='<span class="measure-rest '+(whole?'whole-rest':'timed-rest')+'" style="left:calc('+x+'% + '+(width*(ev.duration/md.length)/2)+'%)">'+(whole?'𝄻':rhythmRestGlyph(ev.duration))+'</span>';return;
+       const whole=md.length>0&&Math.abs(ev.duration-md.length)<.02;
+       html+='<span class="measure-rest '+(whole?'whole-rest':'timed-rest')+'" style="left:calc('+x+'% + '+(width*(ev.duration/visualMeasureLength)/2)+'%)">'+(whole?'𝄻':rhythmRestGlyph(ev.duration))+'</span>';return;
       }
       const y=ev.string*22,rg=rhythmGlyph(ev.duration,ev.typeName,ev.dots);
       html+='<span class="rhythm-glyph '+rg.cls+'" style="left:'+x+'%">'+rg.symbol+'</span><span class="pick" style="left:'+x+'%">'+(ev.pick||'')+'</span><span class="note" data-i="'+ev.noteIndex+'" style="left:'+x+'%;top:'+y+'px">'+ev.fret+'</span><span class="finger" style="left:'+x+'%">'+ev.finger+'</span>';
