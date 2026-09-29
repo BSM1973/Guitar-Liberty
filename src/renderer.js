@@ -3133,13 +3133,13 @@ if(importButton) importButton.onclick=async()=>{
   imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true}));
   const noteQueues=new Map();
   imported.forEach((note,i)=>{
-   const key=[+note[4]||1,+note[5]||0,+note[0]||0,+note[1]||0].join(':');
+   const key=[+note[4]||1,+note[5]||0,+note[0]||0,+note[1]||0,String(note[9]||'1'),String(note[10]||'1')].join(':');
    if(!noteQueues.has(key))noteQueues.set(key,[]);
    noteQueues.get(key).push(i);
   });
   importedMeasures.forEach((md,measureIndex)=>md.events.forEach(ev=>{
    if(ev.type!=='note')return;
-   const key=[measureIndex+1,+ev.onset||0,+ev.string||0,+ev.fret||0].join(':');
+   const key=[measureIndex+1,+ev.onset||0,+ev.string||0,+ev.fret||0,String(ev.voice||'1'),String(ev.staff||'1')].join(':');
    const queue=noteQueues.get(key);
    if(queue?.length)ev.noteIndex=queue.shift();
   }));
