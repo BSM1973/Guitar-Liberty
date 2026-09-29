@@ -3074,8 +3074,7 @@ if(importButton) importButton.onclick=async()=>{
   let importedTempo=90,currentDivisions=1,currentBeats=4,currentBeatType=4;
   const soundTempo=doc.querySelector('sound[tempo]');
   if(soundTempo) importedTempo=Math.round(+soundTempo.getAttribute('tempo'))||90;
-  const sourceMeasures=[...part.querySelectorAll('measure')];
-  sourceMeasures.forEach((measure,measureIndex)=>{
+  part.querySelectorAll('measure').forEach((measure,measureIndex)=>{
    const attr=measure.querySelector(':scope > attributes');
    const newDiv=+(attr?.querySelector('divisions')?.textContent||currentDivisions); if(newDiv)currentDivisions=newDiv;
    const time=attr?.querySelector('time'),oldBeats=currentBeats,oldBeatType=currentBeatType;
@@ -3117,12 +3116,12 @@ if(importButton) importButton.onclick=async()=>{
    // Pickup/implicit measures are allowed to be shorter than the current time
    // signature. Use their actual rhythmic extent so playback and tie positions
    // do not acquire a silent remainder that is not present in the score.
-   const eventEnd=md.events.reduce((max,ev)=>Math.max(max,(+ev.onset||0)+(+ev.duration||0)),0);
-   const actualExtent=Math.max(eventEnd,cursor);
-   if(implicitMeasure||(measureIndex===sourceMeasures.length-1&&actualExtent>0&&actualExtent<measureLength-.02)){
-    // Pickup measures and genuinely shortened final measures have no implicit
-    // silent remainder. Preserve full nominal length for ordinary measures.
-    md.length=Math.max(.125,actualExtent);
+   if(implicitMeasure){
+    // MusicXML explicitly marks pickup/implicit measures as exempt from the
+    // nominal time-signature length. Do not guess this for ordinary measures:
+    // an omitted final rest can still mean the full measure duration is intended.
+    const eventEnd=md.events.reduce((max,ev)=>Math.max(max,(+ev.onset||0)+(+ev.duration||0)),0);
+    md.length=Math.max(.125,eventEnd,cursor);
    }
    importedMeasures.push(md);
   });
