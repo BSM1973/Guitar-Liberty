@@ -1563,7 +1563,11 @@ function playNote(string,fret,holdBeats=0){
    source.connect(tone).connect(gain).connect(masterGain);
    activeVoices.set(string,{source,gain,startedAt:now,holdBeats:Math.max(0,holdBeats),scheduledBpm:Math.max(1,+tempo.value||120),naturalEnd:now+natural});
    source.onended=()=>{if(activeVoices.get(string)?.source===source)activeVoices.delete(string)};
-   source.start(now); source.stop(now+releaseAt+.02);
+   source.start(now);
+   // Keep the source available for its natural lifetime. The gain envelope owns
+   // the musical release, so a live tempo slowdown can extend a sustained note
+   // without fighting an earlier irreversible source.stop() deadline.
+   source.stop(now+natural+.02);
  }).catch(err=>console.error('Guitar note playback unavailable:',GUITAR_SAMPLES[string],err));
 }
 function stop(){
