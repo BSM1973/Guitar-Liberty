@@ -2453,6 +2453,10 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ // A library selection immediately invalidates the previous transport. Do this
+ // before staging backing/video/tempo for the new lesson so an armed count-in,
+ // lead-in or playback callback from the old score cannot start in the new context.
+ stop();
  // Listening is tied to the score being analysed. Stop it before another
  // library score can become authoritative; audio device preferences remain.
  if(listening)stopListening();
