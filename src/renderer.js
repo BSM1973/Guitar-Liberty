@@ -1411,7 +1411,8 @@ loopRepeats.onchange=()=>{
       if(!practiceLoop||alphaTabMode)return;
       beginPracticePassage();
       playing=true;document.querySelector('#play').textContent='■ STOP';
-      scheduleNext(tick());
+      const loopLeadIn=internalLoopLeadInMs(exercises[current],internalRange);
+      if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
      });
     }
    }
@@ -1704,6 +1705,12 @@ function tick(){
   document.querySelector('#play').textContent='▶ PLAY';
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
   const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'});
+ }
+ // When another pass of the same internal loop follows, append its leading
+ // silence after the current pass's trailing silence. This keeps every
+ // repetition aligned to the selected measure boundary, not just the first.
+ if(internalRange&&playing&&practiceLoop&&index===internalRange.start){
+  return eventDelay+internalLoopLeadInMs(e,internalRange);
  }
  return eventDelay;
 }
