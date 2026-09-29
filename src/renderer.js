@@ -3135,7 +3135,7 @@ if(importButton) importButton.onclick=async()=>{
     const finger=+(tech?.querySelector('fingering')?.textContent||0)||Math.min(4,Math.max(1,fret%4||4));
     const pickDown=!!node.querySelector('notations technical down-bow'),pickUp=!!node.querySelector('notations technical up-bow');
     const tieStart=!!node.querySelector(':scope > tie[type="start"], :scope > notations tied[type="start"]'),tieStop=!!node.querySelector(':scope > tie[type="stop"], :scope > notations tied[type="stop"]');
-    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace,chord]);
+    const noteIndex=imported.length; imported.push([s,fret,finger,duration,measureIndex+1,onset,null,tieStop,tieStart,voice,staff,grace,chord,noteIndex]);
     md.events.push({type:'note',onset,duration,typeName,dots,string:s,fret,finger,noteIndex,pick:pickDown?'∨':pickUp?'∧':'',tieStart,tieStop,voice,staff,grace});
    });
    // Pickup/implicit measures are allowed to be shorter than the current time
@@ -3153,7 +3153,7 @@ if(importButton) importButton.onclick=async()=>{
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
   // MusicXML voices can rewind the cursor with <backup>. Normalize playback
   // order by musical position, then repair each rendered event's noteIndex.
-  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true}));
+  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||((a[11]||b[11])?((+a[13]||0)-(+b[13]||0)):0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true})||((+a[13]||0)-(+b[13]||0)));
   const noteQueues=new Map();
   imported.forEach((note,i)=>{
    const key=[+note[4]||1,+note[5]||0,+note[0]||0,+note[1]||0,String(note[9]||'1'),String(note[10]||'1')].join(':');
