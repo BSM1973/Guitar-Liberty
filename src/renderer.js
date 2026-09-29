@@ -1790,13 +1790,13 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     else if(typeof startPlayer.currentTime==='function')startPlayer.currentTime(0);
    }
    const startWistiaPractice=()=>{
-    if(started||startGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==startPlayer)return;
+    if(started||startGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==startPlayer||window.guitarLibertyAlphaTab!==api)return;
     started=true;pendingWistiaResume=null;
     try{startPlayer.unbind('play',startWistiaPractice)}catch(_){}
     startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();document.querySelector('#play').textContent='⏸ PAUSE';
     const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
     scheduleLeadInStart(()=>{
-     if(startGeneration!==wistiaResumeGeneration||!practiceLoop||!videoEnabled||wistiaPlayer!==startPlayer||!isWistiaPlaying())return;
+     if(startGeneration!==wistiaResumeGeneration||!practiceLoop||!videoEnabled||wistiaPlayer!==startPlayer||!isWistiaPlaying()||window.guitarLibertyAlphaTab!==api)return;
      beginPracticePassage();api.play();
     },currentVideoLeadBeats*(60000/bpm));
    };
