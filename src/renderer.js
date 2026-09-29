@@ -2455,7 +2455,8 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
  api.scoreLoaded.on(score=>{
   if(!isActiveLoad())return;
-  completed=true;
+  try{
+   completed=true;
   const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
   if(!restoring&&sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   // Keep only a source that alphaTab has actually parsed successfully. This
@@ -2482,8 +2483,16 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
   importStatus.textContent=file.name+' — import réussi';
-  if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
-  resolveLoad(true);
+   if(alphaTabPendingResolve===resolveLoad)alphaTabPendingResolve=null;
+   resolveLoad(true);
+  }catch(err){
+   if(!isActiveLoad())return;
+   completed=true;
+   console.error('alphaTab score initialization error',err);
+   importStatus.textContent='Erreur initialisation Guitar Pro : '+(err?.message||String(err));
+   cleanupFailedAlphaLoad();
+   rejectLoad(err instanceof Error?err:new Error(String(err)));
+  }
  });
  api.error.on(err=>{
   if(!isActiveLoad())return;
