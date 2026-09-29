@@ -1577,18 +1577,19 @@ function playNote(string,fret,holdBeats=0){
    const velocity=.72+(Math.random()*.10-.05);
    gain.gain.setValueAtTime(.0001,now);
    gain.gain.linearRampToValueAtTime(velocity,now+.004);
-   // Keep the recorded decay instead of imposing the old synthetic 2.2 s envelope.
-   const natural=Math.min(buffer.duration/rate,4.8),requestedHold=holdBeats>0?holdBeats*60000/Math.max(1,+tempo.value)/1000:0,releaseAt=Math.min(natural,Math.max(.08,requestedHold||natural));
+   // Ordinary notes keep the compact recorded decay, but an explicit tied hold
+   // may use the full pitched sample lifetime instead of being cut at 4.8 s.
+   const sourceLifetime=buffer.duration/rate,natural=Math.min(sourceLifetime,4.8),requestedHold=holdBeats>0?holdBeats*60000/Math.max(1,+tempo.value)/1000:0,releaseAt=Math.min(sourceLifetime,Math.max(.08,requestedHold||natural));
    gain.gain.setValueAtTime(velocity,now+Math.min(.06,releaseAt*.15));
    gain.gain.exponentialRampToValueAtTime(.0001,now+releaseAt);
    source.connect(tone).connect(gain).connect(masterGain);
-   activeVoices.set(string,{source,gain,startedAt:now,holdBeats:Math.max(0,holdBeats),scheduledBpm:Math.max(1,+tempo.value||120),naturalEnd:now+natural});
+   activeVoices.set(string,{source,gain,startedAt:now,holdBeats:Math.max(0,holdBeats),scheduledBpm:Math.max(1,+tempo.value||120),naturalEnd:now+sourceLifetime});
    source.onended=()=>{if(activeVoices.get(string)?.source===source)activeVoices.delete(string)};
    source.start(now);
-   // Keep the source available for its natural lifetime. The gain envelope owns
-   // the musical release, so a live tempo slowdown can extend a sustained note
-   // without fighting an earlier irreversible source.stop() deadline.
-   source.stop(now+natural+.02);
+   // Keep the source available for its real lifetime. The gain envelope owns
+   // the musical release, so a live tempo slowdown can extend a tied note as
+   // far as the underlying sample actually allows.
+   source.stop(now+sourceLifetime+.02);
  }).catch(err=>console.error('Guitar note playback unavailable:',GUITAR_SAMPLES[string],err));
 }
 function stop(){
