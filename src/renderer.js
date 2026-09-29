@@ -1685,8 +1685,15 @@ function internalScoreLeadInMs(e){
  beats+=+first[5]||0;
  return Math.max(0,60000/Math.max(1,+tempo.value||120)*beats);
 }
-function sameInternalOnset(a,b){
- return !!(a&&b&&(+a[4]||1)===(+b[4]||1)&&Math.abs((+a[5]||0)-(+b[5]||0))<1e-9);
+function sameInternalOnset(a,b,e=exercises[current]){
+ if(!a||!b)return false;
+ if(e?.measures?.length){
+  let aBeat=+a[5]||0,bBeat=+b[5]||0;
+  for(let m=1;m<(+a[4]||1);m++)aBeat+=+e.measures[m-1]?.length||0;
+  for(let m=1;m<(+b[4]||1);m++)bBeat+=+e.measures[m-1]?.length||0;
+  return Math.abs(aBeat-bBeat)<1e-9;
+ }
+ return (+a[4]||1)===(+b[4]||1)&&Math.abs((+a[5]||0)-(+b[5]||0))<1e-9;
 }
 function tick(){
  const e=exercises[current];
@@ -3153,7 +3160,7 @@ if(importButton) importButton.onclick=async()=>{
   imported.forEach((note,i)=>{
    const absoluteOnset=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
    let nextIndex=i+1;
-   while(nextIndex<imported.length&&sameInternalOnset(note,imported[nextIndex]))nextIndex++;
+   while(nextIndex<imported.length&&sameInternalOnset(note,imported[nextIndex],{measures:importedMeasures}))nextIndex++;
    const next=imported[nextIndex];
    const nextOnset=next?(measureOffsets[(+next[4]||1)-1]||0)+(+next[5]||0):accumulatedBeats;
    note[6]=Math.max(0,nextOnset-absoluteOnset);
