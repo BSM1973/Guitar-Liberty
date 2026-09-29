@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,timer=null,timerStartedAt=0,timerDelayMs=0,audio,index=0,alphaTabMode=false;
 function clearInternalTimer(){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
@@ -1989,8 +1989,9 @@ function finishPracticeVideoPlayback(){
 }
 if(practiceVideo)practiceVideo.addEventListener('ended',finishPracticeVideoPlayback);
 function detachWistiaPracticeHandlers(){
- if(!wistiaPlayer)return;
- try{wistiaPlayer.unbind('end',finishPracticeVideoPlayback)}catch(_){}
+ if(!wistiaPlayer||!wistiaEndHandler){wistiaEndHandler=null;return}
+ try{wistiaPlayer.unbind('end',wistiaEndHandler)}catch(_){}
+ wistiaEndHandler=null;
 }
 function setVideoTrack(id,practiceUrl=null){
  currentPracticeVideoUrl=practiceUrl||null;
@@ -2035,8 +2036,12 @@ function openVideo(){
      return;
     }
     wistiaPlayer=video;
-    try{video.unbind('end',finishPracticeVideoPlayback)}catch(_){}
-    try{video.bind('end',finishPracticeVideoPlayback)}catch(e){console.error('Wistia end binding',e)}
+    const readyGeneration=loadGeneration;
+    wistiaEndHandler=()=>{
+     if(readyGeneration!==wistiaLoadGeneration||!videoEnabled||wistiaPlayer!==video||currentWistiaId!==requestedWistiaId)return;
+     finishPracticeVideoPlayback();
+    };
+    try{video.bind('end',wistiaEndHandler)}catch(e){wistiaEndHandler=null;console.error('Wistia end binding',e)}
    }});
    wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(requestedWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  }
