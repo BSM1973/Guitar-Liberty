@@ -2734,7 +2734,9 @@ if(importButton) importButton.onclick=async()=>{
   pendingImportedScore:window.pendingImportedScore||null,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
+ const importStillCurrent=()=>importLibraryGeneration===libraryLoadGeneration;
  const restorePreviousLessonContext=()=>{
+  if(!importStillCurrent())return false;
   currentLessonId=previousLessonContext.id;
   lessonObjective.textContent=previousLessonContext.objective;
   lessonPrereq.textContent=previousLessonContext.prereq;
@@ -2807,17 +2809,22 @@ if(importButton) importButton.onclick=async()=>{
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
   renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
+  return true;
  };
  const restorePreviousScore=async()=>{
+  if(!importStillCurrent())return false;
   if(previousAlphaTabSource){
    try{
     const restored=await loadWithAlphaTab(previousAlphaTabSource,{restoring:true});
+    if(!importStillCurrent())return false;
     restorePreviousLessonContext();
     return !!restored;
    }catch(restoreErr){
+    if(!importStillCurrent())return false;
     console.error('Unable to restore previous alphaTab score',restoreErr);
    }
   }
+  if(!importStillCurrent())return false;
   if(previousInternalExerciseKey&&exercises[previousInternalExerciseKey]){
    invalidateAlphaTabLoad();
    const failedApi=window.guitarLibertyAlphaTab;
@@ -2833,9 +2840,11 @@ if(importButton) importButton.onclick=async()=>{
    tab.classList.remove('alphatab-score');
    current=previousInternalExerciseKey;
    render();
+   if(!importStillCurrent())return false;
    restorePreviousLessonContext();
    return true;
   }
+  if(!importStillCurrent())return false;
   restorePreviousLessonContext();
   return false;
  };
