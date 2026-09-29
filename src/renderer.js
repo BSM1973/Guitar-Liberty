@@ -3025,6 +3025,10 @@ if(importButton) importButton.onclick=async()=>{
   currentAlphaTabSource=null;
   document.querySelector('#play').textContent='▶ PLAY';
   current=key; render();
+  // Clamp LOOP controls immediately to the imported score. Waiting until the
+  // first internal playback would leave stale bounds from the previous score
+  // visible and could describe measures that do not exist in this MusicXML.
+  syncPracticeRange();
   if(rememberedTempo){tempo.value=rememberedTempo;syncTempo()}
   targetBpm.value=Math.max(rememberedGoal,+tempo.value||importedTempo);
   renderHistory();refreshDashboard();paintMeasureMemory();if(!sessionStarted)paintSessionInsight();
