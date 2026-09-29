@@ -62,7 +62,7 @@ function retimeActiveVoices(newBpm){
    if(activeVoices.get(string)===voice)activeVoices.delete(string);
    continue;
   }
-  const releaseIn=Math.max(.018,Math.min(naturalRemaining,remainingSeconds));
+  const releaseIn=Math.min(naturalRemaining,Math.max(.018,Math.min(naturalRemaining,remainingSeconds)));
   try{
    const param=voice.gain.gain,current=Math.max(.0001,param.value);
    param.cancelScheduledValues(now);param.setValueAtTime(current,now);
