@@ -1618,8 +1618,9 @@ function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
  let beats=v?Math.max(.001,Number.isFinite(+v[6])?+v[6]:(Number.isFinite(+v[3])?+v[3]:0)):.5,eventEnd=index+1;
  if(v){
-  while(eventEnd<e.notes.length&&sameInternalOnset(v,e.notes[eventEnd]))eventEnd++;
-  const next=e.notes[eventEnd];
+  const onsetRange=practiceLoop?internalLoopBounds(e):null,onsetLimit=onsetRange?onsetRange.end:e.notes.length;
+  while(eventEnd<onsetLimit&&sameInternalOnset(v,e.notes[eventEnd]))eventEnd++;
+  const next=eventEnd<onsetLimit?e.notes[eventEnd]:null;
   if(next){
    const measureOffsets=[];let total=0;
    e.measures?.forEach((md,i)=>{measureOffsets[i]=total;total+=+md.length||0});
