@@ -1620,9 +1620,12 @@ function sameInternalOnset(a,b){
 }
 function tick(){
  const e=exercises[current];
- const eventDelay=noteIntervalMs();
  const internalRange=internalLoopBounds(e);
  if(internalRange&&(index<internalRange.start||index>=internalRange.end))index=internalRange.start;
+ // The delay belongs to the event that will actually be played. Normalize the
+ // loop cursor first so a stale/out-of-range index cannot donate its timing to
+ // the first event of the selected loop.
+ const eventDelay=noteIntervalMs();
  const eventStart=index,eventNotes=[e.notes[eventStart]];
  let eventEnd=eventStart+1;
  while(eventEnd<e.notes.length&&(!internalRange||eventEnd<internalRange.end)&&sameInternalOnset(e.notes[eventStart],e.notes[eventEnd])){eventNotes.push(e.notes[eventEnd]);eventEnd++}
