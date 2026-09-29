@@ -2179,11 +2179,17 @@ if(backingToggle)backingToggle.onclick=()=>{
   backingToggle.textContent='♫ BACKING OFF';backingToggle.classList.remove('active');
   return;
  }
+ const armedBackingStart=!!(countInActive||backingStartTimer);
+ if(armedBackingStart)cancelPracticeTransition({stopBackingAudio:true});
  backingEnabled=!backingEnabled;
  const backingActive=backingEnabled&&!!currentBackingUrl;
  backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
  backingToggle.classList.toggle('active',backingActive);
  if(!backingEnabled)stopBacking(false);
+ if(armedBackingStart){
+  document.querySelector('#play').textContent='▶ PLAY';
+  practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+ }
 };
 if(backingVolume)backingVolume.oninput=syncBackingVolume;
 syncBackingVolume();
