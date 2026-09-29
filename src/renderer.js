@@ -1606,6 +1606,15 @@ function internalLoopBounds(e){
  if(end<0)end=e.notes.length;
  return {start,end};
 }
+function internalLoopLeadInMs(e,range){
+ if(!range||!e?.measures?.length)return 0;
+ const first=e.notes[range.start];if(!first)return 0;
+ const startMeasure=Math.max(1,+loopStart.value||1),firstMeasure=Math.max(startMeasure,+first[4]||startMeasure);
+ let beats=0;
+ for(let m=startMeasure;m<firstMeasure;m++)beats+=+e.measures[m-1]?.length||0;
+ beats+=+first[5]||0;
+ return Math.max(0,60000/Math.max(1,+tempo.value||120)*beats);
+}
 function sameInternalOnset(a,b){
  return !!(a&&b&&(+a[4]||1)===(+b[4]||1)&&Math.abs((+a[5]||0)-(+b[5]||0))<1e-9);
 }
@@ -2018,7 +2027,9 @@ document.querySelector('#play').onclick=async()=>{
   document.querySelector('#play').textContent='■ STOP';
   countInThenPlay(null,()=>{
    if(!practiceLoop)return;
-   beginPracticePassage();playing=true;scheduleNext(tick());
+   beginPracticePassage();playing=true;
+   const loopLeadIn=internalLoopLeadInMs(exercises[current],range);
+   if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
   });
   return;
  }
