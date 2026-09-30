@@ -1765,7 +1765,7 @@ function noteIntervalMs(){
       if(previousWindow&&previousWindow.previousIndex>=index&&previousWindow.previousIndex<eventEnd){
        const appliedBeats=Math.min(previousWindow.beats,Math.max(0,beats-.001));
        if(appliedBeats>0){
-        internalGracePreviousState={perGraceBeats:appliedBeats/nextGroup.events,voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
+        internalGracePreviousState={perGraceBeats:appliedBeats/internalGraceTimingEvents(e,nextGroup,nextTiming),voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
         beats-=appliedBeats;
        }
       }
