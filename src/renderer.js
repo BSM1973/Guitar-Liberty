@@ -1714,7 +1714,10 @@ function noteIntervalMs(){
       const group=internalGraceGroup(e,graceIndex,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
       const timing=internalGraceTiming(e,group,graceIndex,true);
       const hasLocalTiming=timing.sourceIndex===graceIndex;
-      if(hasLocalTiming&&timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
+      if(hasLocalTiming){
+       internalGraceForwardStates.delete(pathKey);
+       if(timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
+      }
       const forward=internalGraceForwardStates.get(pathKey);
       const previous=internalGracePreviousStates.get(pathKey);
       let branchMs=60;
@@ -1770,8 +1773,11 @@ function noteIntervalMs(){
     // make-time and both steal-time attributes on the same source-order rule.
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
-    if(hasLocalTiming&&graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(internalGraceStateKey(graceGroup.voice,graceGroup.staff,here));
     const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,here);
+    if(hasLocalTiming){
+     internalGraceForwardStates.delete(graceStateKey);
+     if(graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(graceStateKey);
+    }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
     const previousState=internalGracePreviousStates.get(graceStateKey);
     if(!hasLocalTiming&&forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9){
@@ -1914,7 +1920,10 @@ function noteIntervalMs(){
      const group=internalGraceGroup(e,graceIndex,range?range.start:0,terminalLimit,measureOffsets,noteBeat);
      const timing=internalGraceTiming(e,group,graceIndex,true);
      const hasLocalTiming=timing.sourceIndex===graceIndex;
-      if(hasLocalTiming&&timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
+      if(hasLocalTiming){
+       internalGraceForwardStates.delete(pathKey);
+       if(timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
+      }
      const forward=internalGraceForwardStates.get(pathKey);
      const previous=internalGracePreviousStates.get(pathKey);
      let branchMs=60;
@@ -1942,8 +1951,11 @@ function noteIntervalMs(){
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
-    if(hasLocalTiming&&graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(internalGraceStateKey(graceGroup.voice,graceGroup.staff,noteBeat));
     const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,noteBeat);
+    if(hasLocalTiming){
+     internalGraceForwardStates.delete(graceStateKey);
+     if(graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(graceStateKey);
+    }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
     if(!hasLocalTiming&&forwardState&&
        forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&
