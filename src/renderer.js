@@ -2683,7 +2683,7 @@ function syncVideoTempo(){
 }
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
- const armedVideoStart=!!(countInActive||backingStartTimer);
+ const armedVideoStart=!!(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing));
  // Enabling video also changes the media configuration of an armed start.
  // Cancel it so the next PLAY begins with one coherent accompaniment setup.
  if(armedVideoStart)cancelPracticeTransition({stopBackingAudio:true});
@@ -2730,7 +2730,7 @@ function openVideo(){
  }
 }
 function closeVideo(){
- const armedVideoStart=!!(countInActive||backingStartTimer);
+ const armedVideoStart=!!(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing));
  // Closing the practice video invalidates any start/count-in that was armed
  // around that video. Otherwise a delayed callback can still start the score
  // after the user explicitly switched the video off.
