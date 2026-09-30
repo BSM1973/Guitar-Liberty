@@ -1699,11 +1699,12 @@ function noteIntervalMs(){
     // Resolve grace timing once for the whole voice/staff group. This keeps
     // make-time and both steal-time attributes on the same source-order rule.
     const graceTiming=internalGraceTiming(e,graceGroup,index);
+    const hasLocalTiming=graceTiming.sourceIndex===index;
     const forwardState=internalGraceForwardState;
-    if(forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9)
-     return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
     const previousState=internalGracePreviousState;
-    if(previousState&&
+    if(!hasLocalTiming&&forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9)
+     return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
+    if(!hasLocalTiming&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
