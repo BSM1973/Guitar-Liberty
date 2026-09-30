@@ -1638,6 +1638,10 @@ function internalConsumeGracePreviousState(key,state){
  const queue=internalGracePreviousQueue(key).filter(item=>item!==state&&item.remainingEvents>0);
  if(queue.length)internalGracePreviousStates.set(key,queue);else internalGracePreviousStates.delete(key);
 }
+function internalResetGracePreviousBefore(key,sourceIndex){
+ const queue=internalGracePreviousQueue(key).filter(state=>state.remainingEvents>0&&state.sourceIndex>sourceIndex);
+ if(queue.length)internalGracePreviousStates.set(key,queue);else internalGracePreviousStates.delete(key);
+}
 function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
  const anchor=e.notes[at],voice=String(anchor?.[9]||'1'),staff=String(anchor?.[10]||'1');
  let start=at;
@@ -1742,7 +1746,7 @@ function noteIntervalMs(){
       const ownsPreviousState=hasLocalTiming&&timing.stealPrevious!==null&&previous?.sourceIndex===graceIndex;
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
-       if(!ownsPreviousState)internalGracePreviousStates.delete(pathKey);
+       if(!ownsPreviousState)internalResetGracePreviousBefore(pathKey,graceIndex);
        internalGraceFollowingDebts.delete(pathKey);
       }
       const forward=internalGraceForwardStates.get(pathKey);
@@ -1803,7 +1807,7 @@ function noteIntervalMs(){
     const ownsPreviousState=hasLocalTiming&&graceTiming.stealPrevious!==null&&previousState?.sourceIndex===index;
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
-     if(!ownsPreviousState)internalGracePreviousStates.delete(graceStateKey);
+     if(!ownsPreviousState)internalResetGracePreviousBefore(graceStateKey,index);
      internalGraceFollowingDebts.delete(graceStateKey);
     }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
@@ -1957,7 +1961,7 @@ function noteIntervalMs(){
      const ownsPreviousState=hasLocalTiming&&timing.stealPrevious!==null&&previous?.sourceIndex===graceIndex;
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
-       if(!ownsPreviousState)internalGracePreviousStates.delete(pathKey);
+       if(!ownsPreviousState)internalResetGracePreviousBefore(pathKey,graceIndex);
        internalGraceFollowingDebts.delete(pathKey);
       }
      const forward=internalGraceForwardStates.get(pathKey);
@@ -1990,7 +1994,7 @@ function noteIntervalMs(){
     const ownsPreviousState=hasLocalTiming&&graceTiming.stealPrevious!==null&&previousState?.sourceIndex===index;
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
-     if(!ownsPreviousState)internalGracePreviousStates.delete(graceStateKey);
+     if(!ownsPreviousState)internalResetGracePreviousBefore(graceStateKey,index);
      internalGraceFollowingDebts.delete(graceStateKey);
     }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
