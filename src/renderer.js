@@ -1716,6 +1716,7 @@ function noteIntervalMs(){
       const hasLocalTiming=timing.sourceIndex===graceIndex;
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
+       internalGracePreviousStates.delete(pathKey);
        if(timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
       }
       const forward=internalGraceForwardStates.get(pathKey);
@@ -1776,6 +1777,7 @@ function noteIntervalMs(){
     const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,here);
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
+     internalGracePreviousStates.delete(graceStateKey);
      if(graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(graceStateKey);
     }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
@@ -1922,6 +1924,7 @@ function noteIntervalMs(){
      const hasLocalTiming=timing.sourceIndex===graceIndex;
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
+       internalGracePreviousStates.delete(pathKey);
        if(timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
       }
      const forward=internalGraceForwardStates.get(pathKey);
@@ -1954,6 +1957,7 @@ function noteIntervalMs(){
     const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,noteBeat);
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
+     internalGracePreviousStates.delete(graceStateKey);
      if(graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(graceStateKey);
     }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
