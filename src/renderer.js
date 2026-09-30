@@ -2486,11 +2486,12 @@ document.querySelector('#play').onclick=async()=>{
     const resumeLeadInPlayback=()=>{if(!practiceLoop||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();};
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();
+     alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
      practiceVideo.play().then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
-      document.querySelector('#play').textContent='⏸ PAUSE';
+      alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
       scheduleLeadInStart(()=>{
        if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
        resumeLeadInPlayback();
@@ -2498,6 +2499,7 @@ document.querySelector('#play').onclick=async()=>{
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();
+     alphaTabMediaPreparing=true;
      try{
       let resumed=false;
       cancelPendingWistiaResume();
@@ -2505,9 +2507,9 @@ document.querySelector('#play').onclick=async()=>{
       const resumePlayer=wistiaPlayer;
       const resumeWistiaLeadIn=()=>{
        if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||window.guitarLibertyAlphaTab!==api)return;
-       resumed=true;pendingWistiaResume=null;
+       resumed=true;alphaTabMediaPreparing=false;pendingWistiaResume=null;
        try{resumePlayer.unbind('play',resumeWistiaLeadIn)}catch(_){}
-       document.querySelector('#play').textContent='⏸ PAUSE';
+       alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
        scheduleLeadInStart(()=>{if(resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||!isWistiaPlaying())return;resumeLeadInPlayback()},remainingLeadIn);
       };
       pendingWistiaResume={player:resumePlayer,handler:resumeWistiaLeadIn};
@@ -2516,10 +2518,11 @@ document.querySelector('#play').onclick=async()=>{
       if(isWistiaPlaying())resumeWistiaLeadIn();
      }catch(e){failAccompanimentResume('Wistia',e)}
     }else if(backingAudio&&backingEnabled){
+     alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
      const resumeBackingLeadIn=()=>{
       if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;
-      scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;resumeLeadInPlayback()},remainingLeadIn);
+      alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;resumeLeadInPlayback()},remainingLeadIn);
      };
      if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
      else resumeBackingLeadIn();
@@ -2527,14 +2530,16 @@ document.querySelector('#play').onclick=async()=>{
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();
+     alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
      practiceVideo.play().then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
-      api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+      api.play();startSession();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&wistiaPlayer){
      syncVideoTempo();
+     alphaTabMediaPreparing=true;
      try{
       let resumed=false;
       cancelPendingWistiaResume();
@@ -2542,9 +2547,9 @@ document.querySelector('#play').onclick=async()=>{
       const resumePlayer=wistiaPlayer;
       const resumeAlphaTab=()=>{
        if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||window.guitarLibertyAlphaTab!==api)return;
-       resumed=true;pendingWistiaResume=null;
+       resumed=true;alphaTabMediaPreparing=false;pendingWistiaResume=null;
        try{resumePlayer.unbind('play',resumeAlphaTab)}catch(_){}
-       api.play();startSession();document.querySelector('#play').textContent='⏸ PAUSE';
+       api.play();startSession();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
       };
       pendingWistiaResume={player:resumePlayer,handler:resumeAlphaTab};
       try{resumePlayer.bind('play',resumeAlphaTab)}catch(e){pendingWistiaResume=null;failAccompanimentResume('Wistia',e);return}
