@@ -1653,11 +1653,20 @@ function internalGraceTiming(e,group,at=group.start){
         stealPrevious=musicXmlGracePercent(note[15]),
         stealFollowing=musicXmlGracePercent(note[16]);
   if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(makeTimeDivisions)&&makeTimeDivisions>0)
-   return {makeTime,makeTimeDivisions,stealPrevious:null,stealFollowing:null};
+   return {makeTime,makeTimeDivisions,stealPrevious:null,stealFollowing:null,sourceIndex:graceIndex};
   if(stealPrevious!==null||stealFollowing!==null)
-   return {makeTime:null,makeTimeDivisions:null,stealPrevious,stealFollowing};
+   return {makeTime:null,makeTimeDivisions:null,stealPrevious,stealFollowing,sourceIndex:graceIndex};
  }
- return {makeTime:null,makeTimeDivisions:null,stealPrevious:null,stealFollowing:null};
+ return {makeTime:null,makeTimeDivisions:null,stealPrevious:null,stealFollowing:null,sourceIndex:null};
+}
+function internalGraceTimingEvents(e,group,timing){
+ if(timing.sourceIndex===null)return group.events;
+ let events=0;
+ for(let i=timing.sourceIndex;i<group.end;i++){
+  const note=e.notes[i];
+  if(String(note[9]||'1')===group.voice&&String(note[10]||'1')===group.staff&&!note[12])events++;
+ }
+ return Math.max(1,events);
 }
 function internalGracePreviousWindow(e,group,timing,onsetStart,measureOffsets,beat){
  if(timing.stealPrevious===null)return null;
@@ -1697,14 +1706,14 @@ function noteIntervalMs(){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
     }
     if(graceTiming.makeTime!==null){
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceGroup.events;
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
      return Math.max(20,Math.min(250,makeTimeMs));
     }
     // MusicXML steal-time-following is a percentage of the following
     // principal note. Treat it as one ornament window shared by all
     // sequential grace attacks at this same score onset.
     const stealFollowing=graceTiming.stealFollowing;
-    const graceEvents=graceGroup.events;
+    const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
     // In polyphonic MusicXML the first note after the grace cluster can belong
     // to another staff/voice. Bind steal-time-following to the principal note
     // of the same musical path as the grace anchor.
@@ -1787,7 +1796,7 @@ function noteIntervalMs(){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
     }
     if(graceTiming.makeTime!==null){
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceGroup.events;
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
      return Math.max(20,Math.min(250,makeTimeMs));
     }
     return 60;
