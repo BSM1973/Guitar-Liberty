@@ -1713,7 +1713,10 @@ function noteIntervalMs(){
     if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
-     return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
+     const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
+     previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
+     if(previousState.remainingEvents<=0)internalGracePreviousState=null;
+     return previousMs;
     }
     if(graceTiming.makeTime!==null){
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
@@ -1779,7 +1782,8 @@ function noteIntervalMs(){
       if(previousWindow&&previousWindow.previousIndex>=index&&previousWindow.previousIndex<eventEnd){
        const appliedBeats=Math.min(previousWindow.beats,Math.max(0,beats-.001));
        if(appliedBeats>0){
-        internalGracePreviousState={perGraceBeats:appliedBeats/internalGraceTimingEvents(e,nextGroup,nextTiming),voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
+        const graceEvents=internalGraceTimingEvents(e,nextGroup,nextTiming);
+        internalGracePreviousState={perGraceBeats:appliedBeats/graceEvents,remainingEvents:graceEvents,voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
         beats-=appliedBeats;
        }
       }
@@ -1813,7 +1817,10 @@ function noteIntervalMs(){
     if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
-     return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
+     const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
+     previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
+     if(previousState.remainingEvents<=0)internalGracePreviousState=null;
+     return previousMs;
     }
     if(graceTiming.makeTime!==null){
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
