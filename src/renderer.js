@@ -1349,7 +1349,7 @@ loopToggle.onclick=()=>{
 };
 autoBpm.onchange=()=>{
  autoBpm.value=Math.max(0,+autoBpm.value||0);
- if(practiceLoop&&(countInActive||backingStartTimer)){
+ if(practiceLoop&&(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -1376,7 +1376,7 @@ autoBpm.onchange=()=>{
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
  saveExerciseGoal(currentPracticeTitle,+targetBpm.value);
- if(practiceLoop&&(countInActive||backingStartTimer)){
+ if(practiceLoop&&(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
