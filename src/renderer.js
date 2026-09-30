@@ -1711,6 +1711,7 @@ function noteIntervalMs(){
     }
     if(graceTiming.makeTime!==null){
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
+     internalGracePreviousState=null;
      internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
@@ -1740,7 +1741,8 @@ function noteIntervalMs(){
        // Keep metadata-driven grace timing audible but bounded. A malformed or
        // unusually long principal note must not stall the internal scheduler.
        const perGraceBeats=ornamentBeats/graceEvents;
-       internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
+       internalGracePreviousState=null;
+     internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
        return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
       }
      }
