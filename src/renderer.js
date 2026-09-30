@@ -1614,6 +1614,10 @@ function stop(){
  }
  document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))
 }
+function musicXmlGracePercent(value){
+ const percent=+value;
+ return Number.isFinite(percent)&&percent>0?Math.min(100,percent):null;
+}
 function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
  const anchor=e.notes[at],voice=String(anchor?.[9]||'1'),staff=String(anchor?.[10]||'1');
  let start=at;
@@ -1670,8 +1674,8 @@ function noteIntervalMs(){
     for(let graceIndex=graceGroup.start;graceIndex<graceGroup.end;graceIndex++){
      const graceNote=e.notes[graceIndex];
      if(graceNote[12]||String(graceNote[9]||'1')!==graceGroup.voice||String(graceNote[10]||'1')!==graceGroup.staff)continue;
-     const candidate=+graceNote[16];
-     if(Number.isFinite(candidate)&&candidate>0){stealFollowing=candidate;break}
+     const candidate=musicXmlGracePercent(graceNote[16]);
+     if(candidate!==null){stealFollowing=candidate;break}
     }
     const graceEvents=graceGroup.events;
     // In polyphonic MusicXML the first note after the grace cluster can belong
@@ -1691,7 +1695,7 @@ function noteIntervalMs(){
      if(Math.abs(principalBeat-here)<1e-9){
       const principalDuration=Math.max(0,+principal[3]||0);
       if(principalDuration>0){
-       const ornamentBeats=principalDuration*Math.min(100,stealFollowing)/100;
+       const ornamentBeats=principalDuration*stealFollowing/100;
        // Keep metadata-driven grace timing audible but bounded. A malformed or
        // unusually long principal note must not stall the internal scheduler.
        const perGraceMs=60000/Math.max(1,+tempo.value||120)*(ornamentBeats/graceEvents);
