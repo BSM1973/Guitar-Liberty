@@ -10,7 +10,7 @@ const exercises={
  ]}
 };
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
-function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
+function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
@@ -1733,7 +1733,7 @@ function noteIntervalMs(){
    // attack a short audible scheduler window without rewriting score duration.
    if(v[11]&&Math.abs(there-here)<1e-9){
     const parallelGracePaths=new Set();
-    let parallelGraceDelay=0;
+    let parallelGraceDelay=0,parallelGraceWallClock=false;
     if(eventEnd>index+1){
      for(let graceIndex=index;graceIndex<eventEnd;graceIndex++){
       const graceNote=e.notes[graceIndex];
@@ -1752,13 +1752,14 @@ function noteIntervalMs(){
        internalGraceFollowingDebts.delete(pathKey);
       }
       const forward=internalGraceForwardStates.get(pathKey);
-      let branchMs=60;
+      let branchMs=60,branchWallClock=true;
       if(!hasLocalTiming&&forward&&forward.voice===group.voice&&forward.staff===group.staff&&Math.abs(forward.beat-here)<1e-9){
        branchMs=Math.max(forward.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forward.perGraceBeats));
        forward.remainingEvents=Math.max(0,(+forward.remainingEvents||1)-1);
        if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
       }else if((!hasLocalTiming||ownsPreviousState)&&previous&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-here)<1e-9){
        branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
+       branchWallClock=false;
        internalConsumeGracePreviousState(pathKey,previous);
       }else if(timing.makeTime!==null){
        const graceEvents=internalGraceTimingEvents(e,group,timing);
@@ -1795,9 +1796,9 @@ function noteIntervalMs(){
         }
        }
       }
-      parallelGraceDelay=Math.max(parallelGraceDelay,branchMs);
+      if(branchMs>parallelGraceDelay||branchMs===parallelGraceDelay&&branchWallClock){parallelGraceDelay=branchMs;parallelGraceWallClock=branchWallClock;}
      }
-     if(parallelGracePaths.size>1)return parallelGraceDelay;
+     if(parallelGracePaths.size>1)return parallelGraceWallClock?wallClockGraceDelay(parallelGraceDelay):parallelGraceDelay;
     }
     const graceGroup=internalGraceGroup(e,index,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
     // Resolve grace timing once for the whole voice/staff group. This keeps
@@ -1945,7 +1946,7 @@ function noteIntervalMs(){
     // Terminal grace attacks from different voice/staff paths are parallel.
     // Resolve each path independently, then let the shared scheduler wait for
     // the longest branch instead of letting array order choose the boundary.
-    let terminalGraceDelay=0;
+    let terminalGraceDelay=0,terminalGraceWallClock=false;
     const terminalGracePaths=new Set();
     const terminalLimit=range?range.end:e.notes.length;
     for(let graceIndex=index;graceIndex<terminalLimit;graceIndex++){
@@ -1967,13 +1968,14 @@ function noteIntervalMs(){
        internalGraceFollowingDebts.delete(pathKey);
       }
      const forward=internalGraceForwardStates.get(pathKey);
-     let branchMs=60;
+     let branchMs=60,branchWallClock=true;
      if(!hasLocalTiming&&forward&&forward.voice===group.voice&&forward.staff===group.staff&&Math.abs(forward.beat-noteBeat)<1e-9){
       branchMs=Math.max(forward.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forward.perGraceBeats));
       forward.remainingEvents=Math.max(0,(+forward.remainingEvents||1)-1);
       if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
      }else if((!hasLocalTiming||ownsPreviousState)&&previous&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-noteBeat)<1e-9){
       branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
+      branchWallClock=false;
       internalConsumeGracePreviousState(pathKey,previous);
      }else if(timing.makeTime!==null){
       const graceEvents=internalGraceTimingEvents(e,group,timing);
@@ -1985,9 +1987,9 @@ function noteIntervalMs(){
       internalGraceFollowingDebts.delete(pathKey);
       if(graceEvents>1)internalGraceForwardStates.set(pathKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:group.voice,staff:group.staff,beat:noteBeat,minMs:20});else internalGraceForwardStates.delete(pathKey);
      }
-     terminalGraceDelay=Math.max(terminalGraceDelay,branchMs);
+     if(branchMs>terminalGraceDelay||branchMs===terminalGraceDelay&&branchWallClock){terminalGraceDelay=branchMs;terminalGraceWallClock=branchWallClock;}
     }
-    if(terminalGracePaths.size>1)return terminalGraceDelay;
+    if(terminalGracePaths.size>1)return terminalGraceWallClock?wallClockGraceDelay(terminalGraceDelay):terminalGraceDelay;
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
