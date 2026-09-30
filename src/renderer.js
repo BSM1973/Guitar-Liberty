@@ -9,7 +9,7 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
 function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
@@ -1716,7 +1716,9 @@ function internalGracePreviousWindow(e,group,timing,onsetStart,measureOffsets,be
  if(stolenBeats<=0)return null;
  return {previousIndex:previous.index,beats:stolenBeats};
 }
+function wallClockGraceDelay(ms){nextDelayWallClock=true;return ms}
 function noteIntervalMs(){
+ nextDelayWallClock=false;
  const e=exercises[current],v=e.notes[index];
  let beats=v?Math.max(.001,Number.isFinite(+v[6])?+v[6]:(Number.isFinite(+v[3])?+v[3]:0)):.5,eventEnd=index+1;
  if(v){
@@ -1815,7 +1817,7 @@ function noteIntervalMs(){
      const forwardMs=Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
      forwardState.remainingEvents=Math.max(0,(+forwardState.remainingEvents||1)-1);
      if(forwardState.remainingEvents<=0)internalGraceForwardStates.delete(graceStateKey);
-     return forwardMs;
+     return wallClockGraceDelay(forwardMs);
     }
     if((!hasLocalTiming||ownsPreviousState)&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
@@ -1836,7 +1838,7 @@ function noteIntervalMs(){
      // principal after make-time has taken priority at the same onset.
      internalGraceFollowingDebts.delete(graceStateKey);
      if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
-     return scheduledPerGraceMs;
+     return wallClockGraceDelay(scheduledPerGraceMs);
     }
     // MusicXML steal-time-following is a percentage of the following
     // principal note. Treat it as one ornament window shared by all
@@ -1878,11 +1880,11 @@ function noteIntervalMs(){
         beat:here
        });
        if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats:scheduledOrnamentBeats/graceEvents,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
-       return scheduledPerGraceMs;
+       return wallClockGraceDelay(scheduledPerGraceMs);
       }
      }
     }
-    return 60;
+    return wallClockGraceDelay(60);
    }
    beats=Math.max(.001,there-here);
    // Several voices may own independent grace groups at this same onset.
@@ -2004,7 +2006,7 @@ function noteIntervalMs(){
      const forwardMs=Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
      forwardState.remainingEvents=Math.max(0,(+forwardState.remainingEvents||1)-1);
      if(forwardState.remainingEvents<=0)internalGraceForwardStates.delete(graceStateKey);
-     return forwardMs;
+     return wallClockGraceDelay(forwardMs);
     }
     if((!hasLocalTiming||ownsPreviousState)&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
@@ -2025,9 +2027,9 @@ function noteIntervalMs(){
      // principal after make-time has taken priority at the same onset.
      internalGraceFollowingDebts.delete(graceStateKey);
      if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
-     return scheduledPerGraceMs;
+     return wallClockGraceDelay(scheduledPerGraceMs);
     }
-    return 60;
+    return wallClockGraceDelay(60);
    }
    beats=Math.max(.001,remaining);
   }
@@ -2035,12 +2037,14 @@ function noteIntervalMs(){
  return 60000/+tempo.value*beats
 }
 function scheduleNext(delayMs){
+ const wallClock=nextDelayWallClock;
+ nextDelayWallClock=false;
  clearInternalTimer({preserveBoundary:true});
  if(playing&&Number.isFinite(delayMs)){
   const schedulerGeneration=internalSchedulerGeneration;
-  timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);timerScheduledBpm=Math.max(1,+tempo.value||120);
+  timerStartedAt=performance.now();timerDelayMs=Math.max(0,delayMs);timerScheduledBpm=Math.max(1,+tempo.value||120);timerWallClock=wallClock;
   timer=setTimeout(()=>{
-   timer=null;timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;
+   timer=null;timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;
    if(!playing||schedulerGeneration!==internalSchedulerGeneration)return;
    const nextDelay=tick();
    // tick() can take ownership of scheduling (notably an Auto BPM restart
@@ -2271,9 +2275,11 @@ tempo.oninput=()=>{
   retimeActiveVoices(+tempo.value);
   const elapsed=timerStartedAt?Math.max(0,performance.now()-timerStartedAt):0;
   const remainingMs=timerDelayMs>0?Math.max(0,timerDelayMs-elapsed):0;
+  const wallClock=timerWallClock;
   const scheduledBpm=Math.max(1,timerScheduledBpm||+tempo.value||120);
   const remainingBeats=remainingMs*scheduledBpm/60000;
-  scheduleNext(remainingBeats*60000/Math.max(1,+tempo.value||120));
+  nextDelayWallClock=wallClock;
+  scheduleNext(wallClock?remainingMs:remainingBeats*60000/Math.max(1,+tempo.value||120));
  }
  if(videoEnabled)syncVideoTempo();
  if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}
