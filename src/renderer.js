@@ -1762,7 +1762,13 @@ function noteIntervalMs(){
        // unusually long principal note must not stall the internal scheduler.
        const perGraceBeats=ornamentBeats/graceEvents;
        internalGracePreviousStates.delete(graceStateKey);
-       internalGraceFollowingDebts.set(graceStateKey,{beats:ornamentBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here});
+       const existingFollowingDebt=internalGraceFollowingDebts.get(graceStateKey);
+       internalGraceFollowingDebts.set(graceStateKey,{
+        beats:Math.min(principalDuration,(existingFollowingDebt?.beats||0)+ornamentBeats),
+        voice:graceGroup.voice,
+        staff:graceGroup.staff,
+        beat:here
+       });
        if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
        return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
       }
