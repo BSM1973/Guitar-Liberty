@@ -1702,6 +1702,43 @@ function noteIntervalMs(){
    // Grace notes do not consume MusicXML cursor time. Give a sequential grace
    // attack a short audible scheduler window without rewriting score duration.
    if(v[11]&&Math.abs(there-here)<1e-9){
+    const parallelGracePaths=new Set();
+    let parallelGraceDelay=0;
+    if(eventEnd>index+1){
+     for(let graceIndex=index;graceIndex<eventEnd;graceIndex++){
+      const graceNote=e.notes[graceIndex];
+      if(!graceNote[11]||graceNote[12])continue;
+      const pathKey=internalGraceStateKey(String(graceNote[9]||'1'),String(graceNote[10]||'1'),here);
+      if(parallelGracePaths.has(pathKey))continue;
+      parallelGracePaths.add(pathKey);
+      const group=internalGraceGroup(e,graceIndex,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
+      const timing=internalGraceTiming(e,group,graceIndex,true);
+      const hasLocalTiming=timing.sourceIndex===graceIndex;
+      const forward=internalGraceForwardStates.get(pathKey);
+      const previous=internalGracePreviousStates.get(pathKey);
+      let branchMs=60;
+      if(!hasLocalTiming&&forward&&forward.voice===group.voice&&forward.staff===group.staff&&Math.abs(forward.beat-here)<1e-9){
+       branchMs=Math.max(forward.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forward.perGraceBeats));
+       forward.remainingEvents=Math.max(0,(+forward.remainingEvents||1)-1);
+       if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
+      }else if(previous&&timing.makeTime===null&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-here)<1e-9){
+       branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
+       previous.remainingEvents=Math.max(0,(+previous.remainingEvents||1)-1);
+       if(previous.remainingEvents<=0)internalGracePreviousStates.delete(pathKey);
+      }else if(timing.makeTime!==null){
+       const graceEvents=internalGraceTimingEvents(e,group,timing);
+       const perGraceBeats=(timing.makeTime/timing.makeTimeDivisions)/graceEvents;
+       const currentBpm=Math.max(1,+tempo.value||120);
+       branchMs=Math.max(20,Math.min(250,60000/currentBpm*perGraceBeats));
+       const scheduledPerGraceBeats=branchMs*currentBpm/60000;
+       internalGracePreviousStates.delete(pathKey);
+       internalGraceFollowingDebts.delete(pathKey);
+       if(graceEvents>1)internalGraceForwardStates.set(pathKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:group.voice,staff:group.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(pathKey);
+      }
+      parallelGraceDelay=Math.max(parallelGraceDelay,branchMs);
+     }
+     if(parallelGracePaths.size>1)return parallelGraceDelay;
+    }
     const graceGroup=internalGraceGroup(e,index,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
     // Resolve grace timing once for the whole voice/staff group. This keeps
     // make-time and both steal-time attributes on the same source-order rule.
