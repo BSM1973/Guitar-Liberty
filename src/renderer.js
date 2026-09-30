@@ -1645,8 +1645,8 @@ function internalPreviousVoiceNote(e,before,onsetStart,voice,staff){
  }
  return null;
 }
-function internalGraceTiming(e,group){
- for(let graceIndex=group.start;graceIndex<group.end;graceIndex++){
+function internalGraceTiming(e,group,at=group.start){
+ for(let graceIndex=Math.max(group.start,at);graceIndex<group.end;graceIndex++){
   const note=e.notes[graceIndex];
   if(note[12]||String(note[9]||'1')!==group.voice||String(note[10]||'1')!==group.staff)continue;
   const makeTime=+note[14],makeTimeDivisions=+note[18],
@@ -1689,7 +1689,7 @@ function noteIntervalMs(){
     const graceGroup=internalGraceGroup(e,index,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
     // Resolve grace timing once for the whole voice/staff group. This keeps
     // make-time and both steal-time attributes on the same source-order rule.
-    const graceTiming=internalGraceTiming(e,graceGroup);
+    const graceTiming=internalGraceTiming(e,graceGroup,index);
     const previousState=internalGracePreviousState;
     if(graceTiming.makeTime===null&&graceTiming.stealPrevious!==null&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
@@ -1779,7 +1779,7 @@ function noteIntervalMs(){
    const remaining=Math.max(0,endBeat-noteBeat);
    if(v[11]&&remaining<1e-9){
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
-    const graceTiming=internalGraceTiming(e,graceGroup);
+    const graceTiming=internalGraceTiming(e,graceGroup,index);
     const previousState=internalGracePreviousState;
     if(graceTiming.makeTime===null&&graceTiming.stealPrevious!==null&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
