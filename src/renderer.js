@@ -1758,19 +1758,24 @@ function noteIntervalMs(){
       const principalDuration=Math.max(0,+principal[3]||0);
       if(principalDuration>0){
        const ornamentBeats=principalDuration*stealFollowing/100;
-       // Keep metadata-driven grace timing audible but bounded. A malformed or
-       // unusually long principal note must not stall the internal scheduler.
+       // Keep metadata-driven grace timing audible but bounded. Store the
+       // effective scheduled window as the sustain debt too, so the 250 ms
+       // scheduler cap cannot shorten the principal by more time than the
+       // grace attacks actually consumed.
        const perGraceBeats=ornamentBeats/graceEvents;
+       const currentBpm=Math.max(1,+tempo.value||120);
+       const scheduledPerGraceMs=Math.max(20,Math.min(250,60000/currentBpm*perGraceBeats));
+       const scheduledOrnamentBeats=scheduledPerGraceMs*currentBpm/60000*graceEvents;
        internalGracePreviousStates.delete(graceStateKey);
        const existingFollowingDebt=internalGraceFollowingDebts.get(graceStateKey);
        internalGraceFollowingDebts.set(graceStateKey,{
-        beats:Math.min(principalDuration,(existingFollowingDebt?.beats||0)+ornamentBeats),
+        beats:Math.min(principalDuration,(existingFollowingDebt?.beats||0)+scheduledOrnamentBeats),
         voice:graceGroup.voice,
         staff:graceGroup.staff,
         beat:here
        });
-       if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
-       return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
+       if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats:scheduledOrnamentBeats/graceEvents,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
+       return scheduledPerGraceMs;
       }
      }
     }
