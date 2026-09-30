@@ -1647,19 +1647,25 @@ function noteIntervalMs(){
    // Grace notes do not consume MusicXML cursor time. Give a sequential grace
    // attack a short audible scheduler window without rewriting score duration.
    if(v[11]&&Math.abs(there-here)<1e-9){
-    const makeTime=+v[14],divisions=+v[18];
-    // MusicXML make-time describes the ornament's explicit time. When several
-    // sequential grace attacks share this onset, divide that window between
-    // them instead of applying the full value to every attack.
-    if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(divisions)&&divisions>0){
-     const graceGroup=internalGraceGroup(e,index,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/divisions)/graceGroup.events;
+    const graceGroup=internalGraceGroup(e,index,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
+    // MusicXML may attach make-time only to the grace anchor. Resolve it over
+    // the whole voice/staff group so every sequential attack shares one window.
+    let makeTime=null,makeTimeDivisions=null;
+    for(let graceIndex=graceGroup.start;graceIndex<graceGroup.end;graceIndex++){
+     const graceNote=e.notes[graceIndex];
+     if(graceNote[12]||String(graceNote[9]||'1')!==graceGroup.voice||String(graceNote[10]||'1')!==graceGroup.staff)continue;
+     const candidate=+graceNote[14],candidateDivisions=+graceNote[18];
+     if(Number.isFinite(candidate)&&candidate>0&&Number.isFinite(candidateDivisions)&&candidateDivisions>0){
+      makeTime=candidate;makeTimeDivisions=candidateDivisions;break;
+     }
+    }
+    if(makeTime!==null){
+     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(makeTime/makeTimeDivisions)/graceGroup.events;
      return Math.max(20,Math.min(250,makeTimeMs));
     }
     // MusicXML steal-time-following is a percentage of the following
     // principal note. Treat it as one ornament window shared by all
     // sequential grace attacks at this same score onset.
-    const graceGroup=internalGraceGroup(e,index,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
     let stealFollowing=null;
     for(let graceIndex=graceGroup.start;graceIndex<graceGroup.end;graceIndex++){
      const graceNote=e.notes[graceIndex];
