@@ -1797,15 +1797,23 @@ function noteIntervalMs(){
    if(v[11]&&remaining<1e-9){
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup,index);
+    const hasLocalTiming=graceTiming.sourceIndex===index;
+    const forwardState=internalGraceForwardState;
+    if(!hasLocalTiming&&forwardState&&
+       forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&
+       Math.abs(forwardState.beat-noteBeat)<1e-9)
+     return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
     const previousState=internalGracePreviousState;
-    if(previousState&&
+    if(!hasLocalTiming&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
     }
     if(graceTiming.makeTime!==null){
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
-     return Math.max(20,Math.min(250,makeTimeMs));
+     const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
+     internalGracePreviousState=null;
+     internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20};
+     return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
     return 60;
    }
