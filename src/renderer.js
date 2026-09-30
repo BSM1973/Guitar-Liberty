@@ -1728,6 +1728,10 @@ function noteIntervalMs(){
      const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceEvents;
      internalGracePreviousStates.delete(graceStateKey);
+     // A local make-time segment owns this path's grace timing. Do not let a
+     // steal-time-following debt armed by an earlier segment shorten the
+     // principal after make-time has taken priority at the same onset.
+     internalGraceFollowingDebts.delete(graceStateKey);
      if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
@@ -1841,6 +1845,10 @@ function noteIntervalMs(){
      const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceEvents;
      internalGracePreviousStates.delete(graceStateKey);
+     // A local make-time segment owns this path's grace timing. Do not let a
+     // steal-time-following debt armed by an earlier segment shorten the
+     // principal after make-time has taken priority at the same onset.
+     internalGraceFollowingDebts.delete(graceStateKey);
      if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
