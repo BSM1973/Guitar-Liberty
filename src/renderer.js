@@ -2271,7 +2271,7 @@ tempo.oninput=()=>{
  // A manual tempo edit changes the timing contract of an armed count-in/lead-in.
  // Cancel that pending start instead of letting old delays launch the new tempo
  // out of sync. Live playback can still change tempo in place below.
- if(practiceLoop&&(countInActive||backingStartTimer)){
+ if(practiceLoop&&(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
