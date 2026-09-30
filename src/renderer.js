@@ -1719,7 +1719,7 @@ function noteIntervalMs(){
     if(previousState&&graceTiming.makeTime===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
-     const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
+     const previousMs=60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats;
      previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
      if(previousState.remainingEvents<=0)internalGracePreviousStates.delete(graceStateKey);
      return previousMs;
@@ -1850,7 +1850,7 @@ function noteIntervalMs(){
     if(previousState&&graceTiming.makeTime===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
-     const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
+     const previousMs=60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats;
      previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
      if(previousState.remainingEvents<=0)internalGracePreviousStates.delete(graceStateKey);
      return previousMs;
