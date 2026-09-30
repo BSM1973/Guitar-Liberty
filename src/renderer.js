@@ -1833,6 +1833,37 @@ function noteIntervalMs(){
    const noteBeat=(measureOffsets[(+v[4]||1)-1]||0)+(+v[5]||0);
    const remaining=Math.max(0,endBeat-noteBeat);
    if(v[11]&&remaining<1e-9){
+    // Terminal grace attacks from different voice/staff paths are parallel.
+    // Resolve each path independently, then let the shared scheduler wait for
+    // the longest branch instead of letting array order choose the boundary.
+    let terminalGraceDelay=0;
+    const terminalGracePaths=new Set();
+    const terminalLimit=range?range.end:e.notes.length;
+    for(let graceIndex=index;graceIndex<terminalLimit;graceIndex++){
+     const graceNote=e.notes[graceIndex];
+     const graceBeat=(measureOffsets[(+graceNote[4]||1)-1]||0)+(+graceNote[5]||0);
+     if(Math.abs(graceBeat-noteBeat)>1e-9)break;
+     if(!graceNote[11]||graceNote[12])continue;
+     const pathKey=internalGraceStateKey(String(graceNote[9]||'1'),String(graceNote[10]||'1'),noteBeat);
+     if(terminalGracePaths.has(pathKey))continue;
+     terminalGracePaths.add(pathKey);
+     const group=internalGraceGroup(e,graceIndex,range?range.start:0,terminalLimit,measureOffsets,noteBeat);
+     const timing=internalGraceTiming(e,group,graceIndex,true);
+     const forward=internalGraceForwardStates.get(pathKey);
+     const previous=internalGracePreviousStates.get(pathKey);
+     let branchMs=60;
+     if(timing.sourceIndex!==graceIndex&&forward&&forward.voice===group.voice&&forward.staff===group.staff&&Math.abs(forward.beat-noteBeat)<1e-9){
+      branchMs=Math.max(forward.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forward.perGraceBeats));
+     }else if(previous&&timing.makeTime===null&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-noteBeat)<1e-9){
+      branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
+     }else if(timing.makeTime!==null){
+      const graceEvents=internalGraceTimingEvents(e,group,timing);
+      const perGraceBeats=(timing.makeTime/timing.makeTimeDivisions)/graceEvents;
+      branchMs=Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
+     }
+     terminalGraceDelay=Math.max(terminalGraceDelay,branchMs);
+    }
+    if(terminalGracePaths.size>1)return terminalGraceDelay;
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
