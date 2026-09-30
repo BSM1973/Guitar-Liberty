@@ -1714,7 +1714,7 @@ function noteIntervalMs(){
      if(forwardState.remainingEvents<=0)internalGraceForwardState=null;
      return forwardMs;
     }
-    if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
+    if(previousState&&graceTiming.makeTime===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
      const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
@@ -1824,7 +1824,7 @@ function noteIntervalMs(){
      return forwardMs;
     }
     const previousState=internalGracePreviousState;
-    if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
+    if(previousState&&graceTiming.makeTime===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
