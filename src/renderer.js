@@ -1701,9 +1701,14 @@ function internalGracePreviousWindow(e,group,timing,onsetStart,measureOffsets,be
  const note=previous.note;
  const previousBeat=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
  const intervalBeats=Math.max(0,beat-previousBeat);
- const durationBeats=Math.max(0,+note[3]||0);
- if(intervalBeats<=0||durationBeats<=0)return null;
- const stolenBeats=Math.min(intervalBeats,durationBeats*timing.stealPrevious/100);
+ // steal-time-previous is anchored to the immediately preceding musical
+ // interval on this voice/staff. A tie-stop may be only the final segment of
+ // a longer sounding tie, but the grace can steal only from the time actually
+ // available between that segment's onset and this grace onset. Using that
+ // real interval also prevents nominal MusicXML duration from crossing gaps.
+ const availableBeats=Math.min(intervalBeats,Math.max(0,+note[3]||0));
+ if(availableBeats<=0)return null;
+ const stolenBeats=availableBeats*timing.stealPrevious/100;
  if(stolenBeats<=0)return null;
  return {previousIndex:previous.index,beats:stolenBeats};
 }
