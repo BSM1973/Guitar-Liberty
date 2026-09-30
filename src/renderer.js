@@ -1184,7 +1184,7 @@ metronomeSignature.onchange=()=>{
  // The signature can define the fallback count-in plan when the score has no
  // usable meter metadata. Do not let an already armed count finish with the
  // previous signature while the UI displays the new one.
- if(countInActive||backingStartTimer){
+ if(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing)){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -2783,7 +2783,7 @@ if(backingToggle)backingToggle.onclick=()=>{
   backingToggle.textContent='♫ BACKING OFF';backingToggle.classList.remove('active');
   return;
  }
- const armedBackingStart=!!(countInActive||backingStartTimer);
+ const armedBackingStart=!!(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing));
  if(armedBackingStart)cancelPracticeTransition({stopBackingAudio:true});
  backingEnabled=!backingEnabled;
  const backingActive=backingEnabled&&!!currentBackingUrl;
