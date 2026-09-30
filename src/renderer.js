@@ -1961,9 +1961,15 @@ function internalScoreLeadInMs(e){
 }
 function sameInternalOnset(a,b,e=exercises[current]){
  if(!a||!b)return false;
- // Consecutive MusicXML grace notes share the principal note's onset but are
- // ornamental attacks, not a chord, unless the following note has <chord/>.
- if((a[11]||b[11])&&!b[12])return false;
+ // Consecutive grace notes on one voice/staff are sequential. Grace notes on
+ // different paths may form a parallel layer when import assigned the same
+ // per-path grace rank in slot 19.
+ if(a[11]||b[11]){
+  if(!(a[11]&&b[11]))return false;
+  const differentPath=String(a[9]||'1')!==String(b[9]||'1')||String(a[10]||'1')!==String(b[10]||'1');
+  const sameGraceLayer=differentPath&&Number.isFinite(+a[19])&&Number.isFinite(+b[19])&&+a[19]===+b[19];
+  if(!b[12]&&!sameGraceLayer)return false;
+ }
  if(e?.measures?.length){
   let aBeat=+a[5]||0,bBeat=+b[5]||0;
   for(let m=1;m<(+a[4]||1);m++)aBeat+=+e.measures[m-1]?.length||0;
@@ -3444,9 +3450,25 @@ if(importButton) importButton.onclick=async()=>{
    importedMeasures.push(md);
   });
   if(!imported.length) throw new Error('Aucune note de tablature exploitable trouvée');
-  // MusicXML voices can rewind the cursor with <backup>. Normalize playback
-  // order by musical position, then repair each rendered event's noteIndex.
-  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||((a[11]||b[11])?((+a[13]||0)-(+b[13]||0)):0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true})||((+a[13]||0)-(+b[13]||0)));
+  // MusicXML voices can rewind the cursor with <backup>. Give every grace
+  // attack a rank inside its own voice/staff at this score onset. Sorting by
+  // that rank creates parallel layers (A1+B1, A2+B2, ...) without collapsing
+  // sequential ornaments on one path into a chord.
+  const graceRanks=new Map();
+  imported.forEach(note=>{
+   if(!note[11])return;
+   const key=[+note[4]||1,+note[5]||0,String(note[10]||'1'),String(note[9]||'1')].join(':');
+   if(note[12]){
+    note[19]=Math.max(0,(graceRanks.get(key)||1)-1);
+   }else{
+    const rank=graceRanks.get(key)||0;
+    note[19]=rank;
+    graceRanks.set(key,rank+1);
+   }
+  });
+  // Normalize playback order by musical position and grace layer, then repair
+  // each rendered event's noteIndex.
+  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||((a[11]||b[11])?((+a[19]||0)-(+b[19]||0)):0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true})||((+a[13]||0)-(+b[13]||0)));
   const noteQueues=new Map();
   imported.forEach((note,i)=>{
    const key=[+note[4]||1,+note[5]||0,+note[0]||0,+note[1]||0,String(note[9]||'1'),String(note[10]||'1')].join(':');
