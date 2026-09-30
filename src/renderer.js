@@ -1780,6 +1780,13 @@ function noteIntervalMs(){
    if(v[11]&&remaining<1e-9){
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup);
+    const previousState=internalGracePreviousState;
+    if(graceTiming.makeTime===null&&graceTiming.stealPrevious!==null&&previousState&&
+       previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
+       Math.abs(previousState.beat-noteBeat)<1e-9){
+     const perGraceBeats=previousState.beats/graceGroup.events;
+     return Math.max(1,60000/Math.max(1,+tempo.value||120)*perGraceBeats);
+    }
     if(graceTiming.makeTime!==null){
      const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceGroup.events;
      return Math.max(20,Math.min(250,makeTimeMs));
