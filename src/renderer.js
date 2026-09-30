@@ -1734,6 +1734,31 @@ function noteIntervalMs(){
        internalGracePreviousStates.delete(pathKey);
        internalGraceFollowingDebts.delete(pathKey);
        if(graceEvents>1)internalGraceForwardStates.set(pathKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:group.voice,staff:group.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(pathKey);
+      }else if(timing.stealFollowing!==null){
+       const graceEvents=internalGraceTimingEvents(e,group,timing);
+       let principal=null;
+       for(let principalIndex=group.end;principalIndex<onsetLimit;principalIndex++){
+        const candidate=e.notes[principalIndex];
+        const candidateBeat=(measureOffsets[(+candidate[4]||1)-1]||0)+(+candidate[5]||0);
+        if(Math.abs(candidateBeat-here)>1e-9)break;
+        if(candidate[11])continue;
+        if(String(candidate[9]||'1')===group.voice&&String(candidate[10]||'1')===group.staff){principal=candidate;break}
+       }
+       if(principal&&graceEvents>0){
+        const principalDuration=Math.max(0,+principal[3]||0);
+        if(principalDuration>0){
+         const ornamentBeats=principalDuration*timing.stealFollowing/100;
+         const perGraceBeats=ornamentBeats/graceEvents;
+         const currentBpm=Math.max(1,+tempo.value||120);
+         branchMs=Math.max(20,Math.min(250,60000/currentBpm*perGraceBeats));
+         const scheduledPerGraceBeats=branchMs*currentBpm/60000;
+         const scheduledOrnamentBeats=scheduledPerGraceBeats*graceEvents;
+         internalGracePreviousStates.delete(pathKey);
+         const existingFollowingDebt=internalGraceFollowingDebts.get(pathKey);
+         internalGraceFollowingDebts.set(pathKey,{beats:Math.min(principalDuration,(existingFollowingDebt?.beats||0)+scheduledOrnamentBeats),voice:group.voice,staff:group.staff,beat:here});
+         if(graceEvents>1)internalGraceForwardStates.set(pathKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:group.voice,staff:group.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(pathKey);
+        }
+       }
       }
       parallelGraceDelay=Math.max(parallelGraceDelay,branchMs);
      }
