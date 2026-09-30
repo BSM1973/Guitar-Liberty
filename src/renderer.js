@@ -1744,10 +1744,22 @@ function noteIntervalMs(){
     const nextGroup=internalGraceGroup(e,eventEnd,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,there);
     const nextTiming=internalGraceTiming(e,nextGroup);
     if(nextTiming.makeTime===null&&nextTiming.stealPrevious!==null){
-     const previousWindow=internalGracePreviousWindow(e,nextGroup,nextTiming,onsetRange?onsetRange.start:0,measureOffsets,there);
-     if(previousWindow&&previousWindow.previousIndex===index){
-      internalGracePreviousState={beats:previousWindow.beats,voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
-      beats=Math.max(.001,beats-previousWindow.beats);
+     // A single global scheduler cannot safely pre-roll two independent grace
+     // paths interleaved at the same onset. Only anticipate when this complete
+     // grace block belongs to one voice/staff; otherwise keep score timing exact.
+     let singleGracePath=true;
+     for(let graceIndex=nextGroup.start;graceIndex<nextGroup.end;graceIndex++){
+      const graceNote=e.notes[graceIndex];
+      if(String(graceNote[9]||'1')!==nextGroup.voice||String(graceNote[10]||'1')!==nextGroup.staff){
+       singleGracePath=false;break;
+      }
+     }
+     if(singleGracePath){
+      const previousWindow=internalGracePreviousWindow(e,nextGroup,nextTiming,onsetRange?onsetRange.start:0,measureOffsets,there);
+      if(previousWindow&&previousWindow.previousIndex===index){
+       internalGracePreviousState={beats:previousWindow.beats,voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
+       beats=Math.max(.001,beats-previousWindow.beats);
+      }
      }
     }
    }
