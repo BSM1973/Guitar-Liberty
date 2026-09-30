@@ -3468,7 +3468,7 @@ if(importButton) importButton.onclick=async()=>{
   });
   // Normalize playback order by musical position and grace layer, then repair
   // each rendered event's noteIndex.
-  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||((a[11]||b[11])?((+a[19]||0)-(+b[19]||0)):0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true})||((+a[13]||0)-(+b[13]||0)));
+  imported.sort((a,b)=>(+a[4]||1)-(+b[4]||1)||(+a[5]||0)-(+b[5]||0)||(a[11]===b[11]?0:(a[11]?-1:1))||((a[11]&&b[11])?((+a[19]||0)-(+b[19]||0)):0)||String(a[10]||'1').localeCompare(String(b[10]||'1'),undefined,{numeric:true})||String(a[9]||'1').localeCompare(String(b[9]||'1'),undefined,{numeric:true})||((+a[13]||0)-(+b[13]||0)));
   const noteQueues=new Map();
   imported.forEach((note,i)=>{
    const key=[+note[4]||1,+note[5]||0,+note[0]||0,+note[1]||0,String(note[9]||'1'),String(note[10]||'1')].join(':');
