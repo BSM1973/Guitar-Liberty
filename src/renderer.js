@@ -1285,7 +1285,7 @@ countIn.onchange=()=>{
  // The count-in duration is part of the armed start contract. If it changes
  // while counting or waiting for accompaniment lead-in, discard that old start
  // and require an explicit PLAY so the new OFF/1/2-measure setting is honored.
- if(practiceLoop&&(countInActive||backingStartTimer)){
+ if(practiceLoop&&(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
