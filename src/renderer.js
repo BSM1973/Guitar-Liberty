@@ -9,8 +9,8 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousState=null,internalGraceForwardState=null,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousState=null;internalGraceForwardState=null}}
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousState=null,internalGraceForwardState=null,internalGraceFollowingDebt=null,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousState=null;internalGraceForwardState=null;internalGraceFollowingDebt=null}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
@@ -1756,6 +1756,7 @@ function noteIntervalMs(){
        // unusually long principal note must not stall the internal scheduler.
        const perGraceBeats=ornamentBeats/graceEvents;
        internalGracePreviousState=null;
+       internalGraceFollowingDebt={beats:ornamentBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here};
      internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20}:null;
        return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
       }
@@ -1908,6 +1909,7 @@ function tick(){
   internalLoopBoundaryPending=false;
   internalGracePreviousState=null;
   internalGraceForwardState=null;
+  internalGraceFollowingDebt=null;
   stopAllVoices();
   if(internalLoopSeriesComplete){
    internalLoopSeriesComplete=false;
@@ -2008,8 +2010,12 @@ function tick(){
     :total;
    holdBeats=Math.min(holdBeats,Math.max(0,boundaryBeat-attackBeat));
   }
+  const followingDebt=internalGraceFollowingDebt;
+  if(!v[11]&&followingDebt&&String(v[9]||'1')===followingDebt.voice&&String(v[10]||'1')===followingDebt.staff&&Math.abs(absoluteBeat(v)-followingDebt.beat)<1e-9)
+   holdBeats=Math.max(0,holdBeats-followingDebt.beats);
   playNote(s,f,holdBeats);
  });
+ if(!e.notes[eventStart]?.[11])internalGraceFollowingDebt=null;
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
  index=eventEnd;
  if(internalRange&&index>=internalRange.end){
