@@ -1403,7 +1403,7 @@ loopRepeats.onchange=()=>{
  // Changing the repetition target while a count-in/lead-in is armed changes the
  // series contract. Cancel the old transition so it cannot start under the new
  // target without an explicit PLAY from the user.
- if(practiceLoop&&(countInActive||backingStartTimer)){
+ if(practiceLoop&&(countInActive||backingStartTimer||(!alphaTabMode&&internalPlaybackPreparing))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
