@@ -9,8 +9,8 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false}}
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousBeats=0,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousBeats=0}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
@@ -1692,6 +1692,10 @@ function noteIntervalMs(){
     // Resolve grace timing once for the whole voice/staff group. This keeps
     // make-time and both steal-time attributes on the same source-order rule.
     const graceTiming=internalGraceTiming(e,graceGroup);
+    if(graceTiming.makeTime===null&&graceTiming.stealPrevious!==null&&internalGracePreviousBeats>0){
+     const perGraceBeats=internalGracePreviousBeats/graceGroup.events;
+     return Math.max(1,60000/Math.max(1,+tempo.value||120)*perGraceBeats);
+    }
     if(graceTiming.makeTime!==null){
      const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceGroup.events;
      return Math.max(20,Math.min(250,makeTimeMs));
@@ -1729,6 +1733,21 @@ function noteIntervalMs(){
     return 60;
    }
    beats=Math.max(.001,there-here);
+   // If the next score event is a grace group stealing from this same
+   // voice/staff, start that group early and remember exactly the stolen
+   // beat window. The grace attacks will consume this debt before the
+   // principal note, preserving its original score time.
+   if(!v[11]&&next[11]){
+    const nextGroup=internalGraceGroup(e,eventEnd,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,there);
+    const nextTiming=internalGraceTiming(e,nextGroup);
+    if(nextTiming.makeTime===null&&nextTiming.stealPrevious!==null){
+     const previousWindow=internalGracePreviousWindow(e,nextGroup,nextTiming,onsetRange?onsetRange.start:0,measureOffsets,there);
+     if(previousWindow&&previousWindow.previousIndex===index){
+      internalGracePreviousBeats=previousWindow.beats;
+      beats=Math.max(.001,beats-previousWindow.beats);
+     }
+    }
+   }
   }
  }
  if(e?.measures?.length&&v){
@@ -1853,6 +1872,9 @@ function tick(){
  // the first event of the selected loop.
  const eventDelay=noteIntervalMs();
  const eventStart=index,eventNotes=[e.notes[eventStart]];
+ // Once the first non-grace event is reached, the anticipated window has
+ // been fully consumed and must not leak into later ornaments.
+ if(!e.notes[eventStart]?.[11])internalGracePreviousBeats=0;
  let eventEnd=eventStart+1;
  while(eventEnd<e.notes.length&&(!internalRange||eventEnd<internalRange.end)&&sameInternalOnset(e.notes[eventStart],e.notes[eventEnd])){eventNotes.push(e.notes[eventEnd]);eventEnd++}
  const notes=document.querySelectorAll('.note');
