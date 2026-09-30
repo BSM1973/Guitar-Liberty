@@ -1619,6 +1619,25 @@ function musicXmlGracePercent(value){
  return Number.isFinite(percent)&&percent>0?Math.min(100,percent):null;
 }
 function internalGraceStateKey(voice,staff,beat){return String(staff||'1')+'|'+String(voice||'1')+'|'+Number(beat).toPrecision(15)}
+function internalGracePreviousQueue(key){
+ const value=internalGracePreviousStates.get(key);
+ return Array.isArray(value)?value:(value?[value]:[]);
+}
+function internalGracePreviousState(key,sourceIndex=null){
+ const queue=internalGracePreviousQueue(key);
+ if(sourceIndex!==null){
+  const owned=queue.find(state=>state.sourceIndex===sourceIndex&&state.remainingEvents>0);
+  if(owned)return owned;
+ }
+ return queue.find(state=>state.started&&state.remainingEvents>0)||null;
+}
+function internalConsumeGracePreviousState(key,state){
+ state.started=true;
+ state.remainingEvents=Math.max(0,(+state.remainingEvents||1)-1);
+ if(state.remainingEvents>0)return;
+ const queue=internalGracePreviousQueue(key).filter(item=>item!==state&&item.remainingEvents>0);
+ if(queue.length)internalGracePreviousStates.set(key,queue);else internalGracePreviousStates.delete(key);
+}
 function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
  const anchor=e.notes[at],voice=String(anchor?.[9]||'1'),staff=String(anchor?.[10]||'1');
  let start=at;
@@ -1714,7 +1733,7 @@ function noteIntervalMs(){
       const group=internalGraceGroup(e,graceIndex,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,here);
       const timing=internalGraceTiming(e,group,graceIndex,true);
       const hasLocalTiming=timing.sourceIndex===graceIndex;
-      const previous=internalGracePreviousStates.get(pathKey);
+      const previous=internalGracePreviousState(pathKey,hasLocalTiming?graceIndex:null);
       const ownsPreviousState=hasLocalTiming&&timing.stealPrevious!==null&&previous?.sourceIndex===graceIndex;
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
@@ -1729,8 +1748,7 @@ function noteIntervalMs(){
        if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
       }else if((!hasLocalTiming||ownsPreviousState)&&previous&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-here)<1e-9){
        branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
-       previous.remainingEvents=Math.max(0,(+previous.remainingEvents||1)-1);
-       if(previous.remainingEvents<=0)internalGracePreviousStates.delete(pathKey);
+       internalConsumeGracePreviousState(pathKey,previous);
       }else if(timing.makeTime!==null){
        const graceEvents=internalGraceTimingEvents(e,group,timing);
        const perGraceBeats=(timing.makeTime/timing.makeTimeDivisions)/graceEvents;
@@ -1776,7 +1794,7 @@ function noteIntervalMs(){
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
     const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,here);
-    const previousState=internalGracePreviousStates.get(graceStateKey);
+    const previousState=internalGracePreviousState(graceStateKey,hasLocalTiming?index:null);
     const ownsPreviousState=hasLocalTiming&&graceTiming.stealPrevious!==null&&previousState?.sourceIndex===index;
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
@@ -1794,8 +1812,7 @@ function noteIntervalMs(){
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
      const previousMs=60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats;
-     previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
-     if(previousState.remainingEvents<=0)internalGracePreviousStates.delete(graceStateKey);
+     internalConsumeGracePreviousState(graceStateKey,previousState);
      return previousMs;
     }
     if(graceTiming.makeTime!==null){
@@ -1864,31 +1881,38 @@ function noteIntervalMs(){
    // scheduler only by the largest requested window rather than summing them.
    if(!v[11]&&next[11]){
     const graceBlock=internalGraceGroup(e,eventEnd,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,there);
-    const armedGracePaths=new Set();
     const pendingPreviousStates=[];
+    const previousBeatsByPath=new Map();
     let sharedPreRollBeats=0;
     for(let graceIndex=graceBlock.start;graceIndex<graceBlock.end;graceIndex++){
      const graceNote=e.notes[graceIndex];
      if(!graceNote[11]||graceNote[12])continue;
      const graceVoice=String(graceNote[9]||'1'),graceStaff=String(graceNote[10]||'1');
      const pathKey=internalGraceStateKey(graceVoice,graceStaff,there);
-     if(armedGracePaths.has(pathKey))continue;
      const nextGroup=internalGraceGroup(e,graceIndex,onsetRange?onsetRange.start:0,onsetLimit,measureOffsets,there);
      const nextTiming=internalGraceTiming(e,nextGroup,graceIndex,true);
      if(nextTiming.sourceIndex!==graceIndex||nextTiming.stealPrevious===null)continue;
-     armedGracePaths.add(pathKey);
      const previousWindow=internalGracePreviousWindow(e,nextGroup,nextTiming,onsetRange?onsetRange.start:0,measureOffsets,there);
      if(!previousWindow||previousWindow.previousIndex<index||previousWindow.previousIndex>=eventEnd)continue;
      const requestedBeats=Math.min(previousWindow.beats,Math.max(0,beats-.001));
      if(requestedBeats<=0)continue;
      const graceEvents=internalGraceTimingEvents(e,nextGroup,nextTiming);
      pendingPreviousStates.push({key:pathKey,beats:requestedBeats,graceEvents,voice:nextGroup.voice,staff:nextGroup.staff,sourceIndex:nextTiming.sourceIndex});
-     sharedPreRollBeats=Math.max(sharedPreRollBeats,requestedBeats);
+     previousBeatsByPath.set(pathKey,(previousBeatsByPath.get(pathKey)||0)+requestedBeats);
     }
+    previousBeatsByPath.forEach(pathBeats=>{sharedPreRollBeats=Math.max(sharedPreRollBeats,Math.min(pathBeats,Math.max(0,beats-.001)))});
     if(sharedPreRollBeats>0){
+     const queues=new Map();
      pendingPreviousStates.forEach(state=>{
-      internalGracePreviousStates.set(state.key,{perGraceBeats:state.beats/state.graceEvents,remainingEvents:state.graceEvents,voice:state.voice,staff:state.staff,beat:there,sourceIndex:state.sourceIndex});
+      const pathTotal=previousBeatsByPath.get(state.key)||state.beats;
+      const pathBudget=Math.min(pathTotal,Math.max(0,beats-.001));
+      const scaledBeats=pathTotal>0?state.beats*pathBudget/pathTotal:0;
+      if(scaledBeats<=0)return;
+      const queue=queues.get(state.key)||[];
+      queue.push({perGraceBeats:scaledBeats/state.graceEvents,remainingEvents:state.graceEvents,voice:state.voice,staff:state.staff,beat:there,sourceIndex:state.sourceIndex,started:false});
+      queues.set(state.key,queue);
      });
+     queues.forEach((queue,key)=>internalGracePreviousStates.set(key,queue.sort((a,b)=>a.sourceIndex-b.sourceIndex)));
      beats-=sharedPreRollBeats;
     }
    }
@@ -1924,7 +1948,7 @@ function noteIntervalMs(){
      const group=internalGraceGroup(e,graceIndex,range?range.start:0,terminalLimit,measureOffsets,noteBeat);
      const timing=internalGraceTiming(e,group,graceIndex,true);
      const hasLocalTiming=timing.sourceIndex===graceIndex;
-     const previous=internalGracePreviousStates.get(pathKey);
+     const previous=internalGracePreviousState(pathKey,hasLocalTiming?graceIndex:null);
      const ownsPreviousState=hasLocalTiming&&timing.stealPrevious!==null&&previous?.sourceIndex===graceIndex;
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
@@ -1939,8 +1963,7 @@ function noteIntervalMs(){
       if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
      }else if((!hasLocalTiming||ownsPreviousState)&&previous&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-noteBeat)<1e-9){
       branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
-      previous.remainingEvents=Math.max(0,(+previous.remainingEvents||1)-1);
-      if(previous.remainingEvents<=0)internalGracePreviousStates.delete(pathKey);
+      internalConsumeGracePreviousState(pathKey,previous);
      }else if(timing.makeTime!==null){
       const graceEvents=internalGraceTimingEvents(e,group,timing);
       const perGraceBeats=(timing.makeTime/timing.makeTimeDivisions)/graceEvents;
@@ -1958,7 +1981,7 @@ function noteIntervalMs(){
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
     const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,noteBeat);
-    const previousState=internalGracePreviousStates.get(graceStateKey);
+    const previousState=internalGracePreviousState(graceStateKey,hasLocalTiming?index:null);
     const ownsPreviousState=hasLocalTiming&&graceTiming.stealPrevious!==null&&previousState?.sourceIndex===index;
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
@@ -1978,8 +2001,7 @@ function noteIntervalMs(){
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      const previousMs=60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats;
-     previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
-     if(previousState.remainingEvents<=0)internalGracePreviousStates.delete(graceStateKey);
+     internalConsumeGracePreviousState(graceStateKey,previousState);
      return previousMs;
     }
     if(graceTiming.makeTime!==null){
