@@ -2335,8 +2335,8 @@ function pauseAlphaPracticeAccompaniment(){
 }
 function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccompaniment=false}={}){
  const failStart=(label,error)=>{
-  mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
-  alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
+  mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
+  alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;pausePracticeClock();
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=label+' indisponible • prêt à relancer';
   if(error)console.error(label+' playback',error);
@@ -2465,8 +2465,8 @@ document.querySelector('#play').onclick=async()=>{
     }
    }
    const failAccompanimentResume=(label,error)=>{
-    mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
-    alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;
+    mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
+    alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;pausePracticeClock();
     document.querySelector('#play').textContent='▶ PLAY';
     practiceStatus.textContent=label+' indisponible • prêt à relancer';
     if(error)console.error(label+' resume',error);
