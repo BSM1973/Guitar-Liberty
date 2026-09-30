@@ -1708,8 +1708,12 @@ function noteIntervalMs(){
     const hasLocalTiming=graceTiming.sourceIndex===index;
     const forwardState=internalGraceForwardState;
     const previousState=internalGracePreviousState;
-    if(!hasLocalTiming&&forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9)
-     return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
+    if(!hasLocalTiming&&forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9){
+     const forwardMs=Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
+     forwardState.remainingEvents=Math.max(0,(+forwardState.remainingEvents||1)-1);
+     if(forwardState.remainingEvents<=0)internalGraceForwardState=null;
+     return forwardMs;
+    }
     if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
@@ -1719,9 +1723,10 @@ function noteIntervalMs(){
      return previousMs;
     }
     if(graceTiming.makeTime!==null){
-     const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
+     const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
+     const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceEvents;
      internalGracePreviousState=null;
-     internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
+     internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20}:null;
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
     // MusicXML steal-time-following is a percentage of the following
@@ -1751,7 +1756,7 @@ function noteIntervalMs(){
        // unusually long principal note must not stall the internal scheduler.
        const perGraceBeats=ornamentBeats/graceEvents;
        internalGracePreviousState=null;
-     internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
+     internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20}:null;
        return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
       }
      }
@@ -1811,8 +1816,12 @@ function noteIntervalMs(){
     const forwardState=internalGraceForwardState;
     if(!hasLocalTiming&&forwardState&&
        forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&
-       Math.abs(forwardState.beat-noteBeat)<1e-9)
-     return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
+       Math.abs(forwardState.beat-noteBeat)<1e-9){
+     const forwardMs=Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
+     forwardState.remainingEvents=Math.max(0,(+forwardState.remainingEvents||1)-1);
+     if(forwardState.remainingEvents<=0)internalGraceForwardState=null;
+     return forwardMs;
+    }
     const previousState=internalGracePreviousState;
     if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
@@ -1823,9 +1832,10 @@ function noteIntervalMs(){
      return previousMs;
     }
     if(graceTiming.makeTime!==null){
-     const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
+     const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
+     const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceEvents;
      internalGracePreviousState=null;
-     internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20};
+     internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20}:null;
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
     return 60;
