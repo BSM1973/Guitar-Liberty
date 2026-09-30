@@ -1637,6 +1637,14 @@ function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
  }
  return {start,end,events:Math.max(1,events),voice,staff};
 }
+function internalPreviousVoiceNote(e,before,onsetStart,voice,staff){
+ for(let i=before-1;i>=onsetStart;i--){
+  const note=e.notes[i];
+  if(note[11])continue;
+  if(String(note[9]||'1')===voice&&String(note[10]||'1')===staff)return {note,index:i};
+ }
+ return null;
+}
 function internalGraceTiming(e,group){
  let makeTime=null,makeTimeDivisions=null,stealPrevious=null,stealFollowing=null;
  for(let graceIndex=group.start;graceIndex<group.end;graceIndex++){
