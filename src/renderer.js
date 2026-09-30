@@ -1646,20 +1646,18 @@ function internalPreviousVoiceNote(e,before,onsetStart,voice,staff){
  return null;
 }
 function internalGraceTiming(e,group){
- let makeTime=null,makeTimeDivisions=null,stealPrevious=null,stealFollowing=null;
  for(let graceIndex=group.start;graceIndex<group.end;graceIndex++){
   const note=e.notes[graceIndex];
   if(note[12]||String(note[9]||'1')!==group.voice||String(note[10]||'1')!==group.staff)continue;
-  if(makeTime===null){
-   const candidate=+note[14],divisions=+note[18];
-   if(Number.isFinite(candidate)&&candidate>0&&Number.isFinite(divisions)&&divisions>0){
-    makeTime=candidate;makeTimeDivisions=divisions;
-   }
-  }
-  if(stealPrevious===null)stealPrevious=musicXmlGracePercent(note[15]);
-  if(stealFollowing===null)stealFollowing=musicXmlGracePercent(note[16]);
+  const makeTime=+note[14],makeTimeDivisions=+note[18],
+        stealPrevious=musicXmlGracePercent(note[15]),
+        stealFollowing=musicXmlGracePercent(note[16]);
+  if(Number.isFinite(makeTime)&&makeTime>0&&Number.isFinite(makeTimeDivisions)&&makeTimeDivisions>0)
+   return {makeTime,makeTimeDivisions,stealPrevious:null,stealFollowing:null};
+  if(stealPrevious!==null||stealFollowing!==null)
+   return {makeTime:null,makeTimeDivisions:null,stealPrevious,stealFollowing};
  }
- return {makeTime,makeTimeDivisions,stealPrevious,stealFollowing};
+ return {makeTime:null,makeTimeDivisions:null,stealPrevious:null,stealFollowing:null};
 }
 function internalGracePreviousWindow(e,group,timing,onsetStart,measureOffsets,beat){
  if(timing.stealPrevious===null)return null;
