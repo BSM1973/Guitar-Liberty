@@ -1665,7 +1665,12 @@ function internalGraceTimingEvents(e,group,timing){
  let events=0;
  for(let i=timing.sourceIndex;i<group.end;i++){
   const note=e.notes[i];
-  if(String(note[9]||'1')===group.voice&&String(note[10]||'1')===group.staff&&!note[12])events++;
+  if(String(note[9]||'1')!==group.voice||String(note[10]||'1')!==group.staff||note[12])continue;
+  if(i>timing.sourceIndex){
+   const localTiming=internalGraceTiming(e,group,i,true);
+   if(localTiming.sourceIndex===i)break;
+  }
+  events++;
  }
  return Math.max(1,events);
 }
