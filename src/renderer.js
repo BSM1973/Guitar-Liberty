@@ -9,8 +9,8 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousState=null,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousState=null}}
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousState=null,internalGraceForwardState=null,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousState=null;internalGraceForwardState=null}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
@@ -1699,6 +1699,9 @@ function noteIntervalMs(){
     // Resolve grace timing once for the whole voice/staff group. This keeps
     // make-time and both steal-time attributes on the same source-order rule.
     const graceTiming=internalGraceTiming(e,graceGroup,index);
+    const forwardState=internalGraceForwardState;
+    if(forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9)
+     return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
     const previousState=internalGracePreviousState;
     if(previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
@@ -1706,8 +1709,9 @@ function noteIntervalMs(){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
     }
     if(graceTiming.makeTime!==null){
-     const makeTimeMs=60000/Math.max(1,+tempo.value||120)*(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
-     return Math.max(20,Math.min(250,makeTimeMs));
+     const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/internalGraceTimingEvents(e,graceGroup,graceTiming);
+     internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
+     return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
     // MusicXML steal-time-following is a percentage of the following
     // principal note. Treat it as one ornament window shared by all
@@ -1734,8 +1738,9 @@ function noteIntervalMs(){
        const ornamentBeats=principalDuration*stealFollowing/100;
        // Keep metadata-driven grace timing audible but bounded. A malformed or
        // unusually long principal note must not stall the internal scheduler.
-       const perGraceMs=60000/Math.max(1,+tempo.value||120)*(ornamentBeats/graceEvents);
-       return Math.max(20,Math.min(250,perGraceMs));
+       const perGraceBeats=ornamentBeats/graceEvents;
+       internalGraceForwardState={perGraceBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20};
+       return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
       }
      }
     }
@@ -1868,6 +1873,7 @@ function tick(){
   // grace pre-roll debt from the previous pass before the next pass attacks.
   internalLoopBoundaryPending=false;
   internalGracePreviousState=null;
+  internalGraceForwardState=null;
   stopAllVoices();
   if(internalLoopSeriesComplete){
    internalLoopSeriesComplete=false;
@@ -1906,7 +1912,7 @@ function tick(){
  const eventStart=index,eventNotes=[e.notes[eventStart]];
  // Once the first non-grace event is reached, the anticipated window has
  // been fully consumed and must not leak into later ornaments.
- if(!e.notes[eventStart]?.[11])internalGracePreviousState=null;
+ if(!e.notes[eventStart]?.[11]){internalGracePreviousState=null;internalGraceForwardState=null;}
  let eventEnd=eventStart+1;
  while(eventEnd<e.notes.length&&(!internalRange||eventEnd<internalRange.end)&&sameInternalOnset(e.notes[eventStart],e.notes[eventEnd])){eventNotes.push(e.notes[eventEnd]);eventEnd++}
  const notes=document.querySelectorAll('.note');
