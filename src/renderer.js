@@ -1721,7 +1721,7 @@ function noteIntervalMs(){
        branchMs=Math.max(forward.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forward.perGraceBeats));
        forward.remainingEvents=Math.max(0,(+forward.remainingEvents||1)-1);
        if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
-      }else if(previous&&timing.makeTime===null&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-here)<1e-9){
+      }else if(!hasLocalTiming&&previous&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-here)<1e-9){
        branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
        previous.remainingEvents=Math.max(0,(+previous.remainingEvents||1)-1);
        if(previous.remainingEvents<=0)internalGracePreviousStates.delete(pathKey);
@@ -1778,7 +1778,7 @@ function noteIntervalMs(){
      if(forwardState.remainingEvents<=0)internalGraceForwardStates.delete(graceStateKey);
      return forwardMs;
     }
-    if(previousState&&graceTiming.makeTime===null&&
+    if(!hasLocalTiming&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
      const previousMs=60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats;
@@ -1950,7 +1950,7 @@ function noteIntervalMs(){
      return forwardMs;
     }
     const previousState=internalGracePreviousStates.get(graceStateKey);
-    if(previousState&&graceTiming.makeTime===null&&
+    if(!hasLocalTiming&&previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      const previousMs=60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats;
