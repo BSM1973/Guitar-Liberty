@@ -2786,7 +2786,19 @@ function syncBackingVolume(){
 function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
  backingAudio=url?new Audio(encodeURI(url)):null;
- if(backingAudio)backingAudio.preload='auto';
+ if(backingAudio){
+  backingAudio.preload='auto';
+  backingAudio.addEventListener('ended',()=>{
+   if(!backingStartTimer&&!alphaTabMediaPreparing)return;
+   const api=window.guitarLibertyAlphaTab;
+   cancelPracticeTransition({stopBackingAudio:true});
+   if(alphaTabMode&&api){try{api.pause()}catch(_){}}
+   pausePracticeClock();
+   document.querySelector('#play').textContent='▶ PLAY';
+   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
+   paintSession();
+  });
+ }
  syncBackingVolume();
  backingToggle.disabled=!url;
  const backingActive=backingEnabled&&!!url;
