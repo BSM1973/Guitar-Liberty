@@ -1849,17 +1849,27 @@ function noteIntervalMs(){
      terminalGracePaths.add(pathKey);
      const group=internalGraceGroup(e,graceIndex,range?range.start:0,terminalLimit,measureOffsets,noteBeat);
      const timing=internalGraceTiming(e,group,graceIndex,true);
+     const hasLocalTiming=timing.sourceIndex===graceIndex;
      const forward=internalGraceForwardStates.get(pathKey);
      const previous=internalGracePreviousStates.get(pathKey);
      let branchMs=60;
-     if(timing.sourceIndex!==graceIndex&&forward&&forward.voice===group.voice&&forward.staff===group.staff&&Math.abs(forward.beat-noteBeat)<1e-9){
+     if(!hasLocalTiming&&forward&&forward.voice===group.voice&&forward.staff===group.staff&&Math.abs(forward.beat-noteBeat)<1e-9){
       branchMs=Math.max(forward.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forward.perGraceBeats));
+      forward.remainingEvents=Math.max(0,(+forward.remainingEvents||1)-1);
+      if(forward.remainingEvents<=0)internalGraceForwardStates.delete(pathKey);
      }else if(previous&&timing.makeTime===null&&previous.voice===group.voice&&previous.staff===group.staff&&Math.abs(previous.beat-noteBeat)<1e-9){
       branchMs=60000/Math.max(1,+tempo.value||120)*previous.perGraceBeats;
+      previous.remainingEvents=Math.max(0,(+previous.remainingEvents||1)-1);
+      if(previous.remainingEvents<=0)internalGracePreviousStates.delete(pathKey);
      }else if(timing.makeTime!==null){
       const graceEvents=internalGraceTimingEvents(e,group,timing);
       const perGraceBeats=(timing.makeTime/timing.makeTimeDivisions)/graceEvents;
-      branchMs=Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
+      const currentBpm=Math.max(1,+tempo.value||120);
+      branchMs=Math.max(20,Math.min(250,60000/currentBpm*perGraceBeats));
+      const scheduledPerGraceBeats=branchMs*currentBpm/60000;
+      internalGracePreviousStates.delete(pathKey);
+      internalGraceFollowingDebts.delete(pathKey);
+      if(graceEvents>1)internalGraceForwardStates.set(pathKey,{perGraceBeats:scheduledPerGraceBeats,remainingEvents:graceEvents-1,voice:group.voice,staff:group.staff,beat:noteBeat,minMs:20});else internalGraceForwardStates.delete(pathKey);
      }
      terminalGraceDelay=Math.max(terminalGraceDelay,branchMs);
     }
