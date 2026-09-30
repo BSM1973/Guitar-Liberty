@@ -1700,7 +1700,7 @@ function noteIntervalMs(){
     // make-time and both steal-time attributes on the same source-order rule.
     const graceTiming=internalGraceTiming(e,graceGroup,index);
     const previousState=internalGracePreviousState;
-    if(graceTiming.makeTime===null&&graceTiming.stealPrevious!==null&&previousState&&
+    if(previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
@@ -1790,7 +1790,7 @@ function noteIntervalMs(){
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup,index);
     const previousState=internalGracePreviousState;
-    if(graceTiming.makeTime===null&&graceTiming.stealPrevious!==null&&previousState&&
+    if(previousState&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
