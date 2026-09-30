@@ -1856,9 +1856,10 @@ function sameInternalOnset(a,b,e=exercises[current]){
 function tick(){
  const e=exercises[current];
  if(internalLoopBoundaryPending){
-  // We have now reached the musical loop boundary. End any sustain from the
-  // previous pass before the next pass attacks, rather than at its last attack.
+  // We have now reached the musical loop boundary. End any sustain and any
+  // grace pre-roll debt from the previous pass before the next pass attacks.
   internalLoopBoundaryPending=false;
+  internalGracePreviousState=null;
   stopAllVoices();
   if(internalLoopSeriesComplete){
    internalLoopSeriesComplete=false;
