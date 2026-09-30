@@ -1661,6 +1661,19 @@ function internalGraceTiming(e,group){
  }
  return {makeTime,makeTimeDivisions,stealPrevious,stealFollowing};
 }
+function internalGracePreviousWindow(e,group,timing,onsetStart,measureOffsets,beat){
+ if(timing.stealPrevious===null)return null;
+ const previous=internalPreviousVoiceNote(e,group.start,onsetStart,group.voice,group.staff);
+ if(!previous)return null;
+ const note=previous.note;
+ const previousBeat=(measureOffsets[(+note[4]||1)-1]||0)+(+note[5]||0);
+ const intervalBeats=Math.max(0,beat-previousBeat);
+ const durationBeats=Math.max(0,+note[3]||0);
+ if(intervalBeats<=0||durationBeats<=0)return null;
+ const stolenBeats=Math.min(intervalBeats,durationBeats*timing.stealPrevious/100);
+ if(stolenBeats<=0)return null;
+ return {previousIndex:previous.index,beats:stolenBeats};
+}
 function noteIntervalMs(){
  const e=exercises[current],v=e.notes[index];
  let beats=v?Math.max(.001,Number.isFinite(+v[6])?+v[6]:(Number.isFinite(+v[3])?+v[3]:0)):.5,eventEnd=index+1;
