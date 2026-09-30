@@ -1300,10 +1300,16 @@ loopToggle.onclick=()=>{
  if(restartingSavedSession){resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
  const completedSeries=!practiceLoop&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionSeriesCount&&practiceStatus.textContent.indexOf('Série terminée')===0;
  const internalTransportWasPlaying=!alphaTabMode&&playing;
+ const internalTransportWasPreparing=!alphaTabMode&&internalPlaybackPreparing;
  // A normal internal playback interrupted to arm LOOP is a new loop series,
  // never a continuation of repetition progress from an older paused session.
- const resumingPausedSession=!practiceLoop&&!internalTransportWasPlaying&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
+ const resumingPausedSession=!practiceLoop&&!internalTransportWasPlaying&&!internalTransportWasPreparing&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
  const wasLooping=practiceLoop;
+ if(internalTransportWasPreparing){
+  internalPlaybackPreparing=false;internalPlaybackGeneration++;
+  clearInternalTimer();stopAllVoices();
+  document.querySelector('#play').textContent='▶ PLAY';
+ }
  if(internalTransportWasPlaying){
   playing=false;clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
