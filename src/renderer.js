@@ -1717,7 +1717,7 @@ function noteIntervalMs(){
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
        internalGracePreviousStates.delete(pathKey);
-       if(timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
+       internalGraceFollowingDebts.delete(pathKey);
       }
       const forward=internalGraceForwardStates.get(pathKey);
       const previous=internalGracePreviousStates.get(pathKey);
@@ -1778,7 +1778,7 @@ function noteIntervalMs(){
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
      internalGracePreviousStates.delete(graceStateKey);
-     if(graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(graceStateKey);
+     internalGraceFollowingDebts.delete(graceStateKey);
     }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
     const previousState=internalGracePreviousStates.get(graceStateKey);
@@ -1925,7 +1925,7 @@ function noteIntervalMs(){
       if(hasLocalTiming){
        internalGraceForwardStates.delete(pathKey);
        internalGracePreviousStates.delete(pathKey);
-       if(timing.stealPrevious!==null)internalGraceFollowingDebts.delete(pathKey);
+       internalGraceFollowingDebts.delete(pathKey);
       }
      const forward=internalGraceForwardStates.get(pathKey);
      const previous=internalGracePreviousStates.get(pathKey);
@@ -1958,7 +1958,7 @@ function noteIntervalMs(){
     if(hasLocalTiming){
      internalGraceForwardStates.delete(graceStateKey);
      internalGracePreviousStates.delete(graceStateKey);
-     if(graceTiming.stealPrevious!==null)internalGraceFollowingDebts.delete(graceStateKey);
+     internalGraceFollowingDebts.delete(graceStateKey);
     }
     const forwardState=internalGraceForwardStates.get(graceStateKey);
     if(!hasLocalTiming&&forwardState&&
