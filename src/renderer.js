@@ -1704,7 +1704,7 @@ function noteIntervalMs(){
     const previousState=internalGracePreviousState;
     if(!hasLocalTiming&&forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9)
      return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
-    if(!hasLocalTiming&&previousState&&
+    if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-here)<1e-9){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
@@ -1804,7 +1804,7 @@ function noteIntervalMs(){
        Math.abs(forwardState.beat-noteBeat)<1e-9)
      return Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
     const previousState=internalGracePreviousState;
-    if(!hasLocalTiming&&previousState&&
+    if(previousState&&graceTiming.makeTime===null&&graceTiming.stealFollowing===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      return Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
