@@ -9,8 +9,8 @@ const exercises={
   [1,8,1],[1,10,3],[0,8,1],[0,10,3],[0,10,3],[0,8,1],[1,10,3],[1,8,1]
  ]}
 };
-let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousState=null,internalGraceForwardState=null,internalGraceFollowingDebt=null,timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
-function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousState=null;internalGraceForwardState=null;internalGraceFollowingDebt=null}}
+let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,audio,index=0,alphaTabMode=false;
+function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;if(!preserveBoundary){internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
@@ -1618,6 +1618,7 @@ function musicXmlGracePercent(value){
  const percent=+value;
  return Number.isFinite(percent)&&percent>0?Math.min(100,percent):null;
 }
+function internalGraceStateKey(voice,staff,beat){return String(staff||'1')+'|'+String(voice||'1')+'|'+Number(beat).toPrecision(15)}
 function internalGraceGroup(e,at,onsetStart,onsetLimit,measureOffsets,beat){
  const anchor=e.notes[at],voice=String(anchor?.[9]||'1'),staff=String(anchor?.[10]||'1');
  let start=at;
@@ -1706,12 +1707,13 @@ function noteIntervalMs(){
     // make-time and both steal-time attributes on the same source-order rule.
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
-    const forwardState=internalGraceForwardState;
-    const previousState=internalGracePreviousState;
+    const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,here);
+    const forwardState=internalGraceForwardStates.get(graceStateKey);
+    const previousState=internalGracePreviousStates.get(graceStateKey);
     if(!hasLocalTiming&&forwardState&&forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&Math.abs(forwardState.beat-here)<1e-9){
      const forwardMs=Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
      forwardState.remainingEvents=Math.max(0,(+forwardState.remainingEvents||1)-1);
-     if(forwardState.remainingEvents<=0)internalGraceForwardState=null;
+     if(forwardState.remainingEvents<=0)internalGraceForwardStates.delete(graceStateKey);
      return forwardMs;
     }
     if(previousState&&graceTiming.makeTime===null&&
@@ -1719,14 +1721,14 @@ function noteIntervalMs(){
        Math.abs(previousState.beat-here)<1e-9){
      const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
      previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
-     if(previousState.remainingEvents<=0)internalGracePreviousState=null;
+     if(previousState.remainingEvents<=0)internalGracePreviousStates.delete(graceStateKey);
      return previousMs;
     }
     if(graceTiming.makeTime!==null){
      const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceEvents;
-     internalGracePreviousState=null;
-     internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20}:null;
+     internalGracePreviousStates.delete(graceStateKey);
+     if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
     // MusicXML steal-time-following is a percentage of the following
@@ -1755,9 +1757,9 @@ function noteIntervalMs(){
        // Keep metadata-driven grace timing audible but bounded. A malformed or
        // unusually long principal note must not stall the internal scheduler.
        const perGraceBeats=ornamentBeats/graceEvents;
-       internalGracePreviousState=null;
-       internalGraceFollowingDebt={beats:ornamentBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here};
-     internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20}:null;
+       internalGracePreviousStates.delete(graceStateKey);
+       internalGraceFollowingDebts.set(graceStateKey,{beats:ornamentBeats,voice:graceGroup.voice,staff:graceGroup.staff,beat:here});
+       if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:here,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
        return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
       }
      }
@@ -1789,7 +1791,7 @@ function noteIntervalMs(){
        const appliedBeats=Math.min(previousWindow.beats,Math.max(0,beats-.001));
        if(appliedBeats>0){
         const graceEvents=internalGraceTimingEvents(e,nextGroup,nextTiming);
-        internalGracePreviousState={perGraceBeats:appliedBeats/graceEvents,remainingEvents:graceEvents,voice:nextGroup.voice,staff:nextGroup.staff,beat:there};
+        internalGracePreviousStates.set(internalGraceStateKey(nextGroup.voice,nextGroup.staff,there),{perGraceBeats:appliedBeats/graceEvents,remainingEvents:graceEvents,voice:nextGroup.voice,staff:nextGroup.staff,beat:there});
         beats-=appliedBeats;
        }
       }
@@ -1814,29 +1816,30 @@ function noteIntervalMs(){
     const graceGroup=internalGraceGroup(e,index,range?range.start:0,range?range.end:e.notes.length,measureOffsets,noteBeat);
     const graceTiming=internalGraceTiming(e,graceGroup,index,true);
     const hasLocalTiming=graceTiming.sourceIndex===index;
-    const forwardState=internalGraceForwardState;
+    const graceStateKey=internalGraceStateKey(graceGroup.voice,graceGroup.staff,noteBeat);
+    const forwardState=internalGraceForwardStates.get(graceStateKey);
     if(!hasLocalTiming&&forwardState&&
        forwardState.voice===graceGroup.voice&&forwardState.staff===graceGroup.staff&&
        Math.abs(forwardState.beat-noteBeat)<1e-9){
      const forwardMs=Math.max(forwardState.minMs,Math.min(250,60000/Math.max(1,+tempo.value||120)*forwardState.perGraceBeats));
      forwardState.remainingEvents=Math.max(0,(+forwardState.remainingEvents||1)-1);
-     if(forwardState.remainingEvents<=0)internalGraceForwardState=null;
+     if(forwardState.remainingEvents<=0)internalGraceForwardStates.delete(graceStateKey);
      return forwardMs;
     }
-    const previousState=internalGracePreviousState;
+    const previousState=internalGracePreviousStates.get(graceStateKey);
     if(previousState&&graceTiming.makeTime===null&&
        previousState.voice===graceGroup.voice&&previousState.staff===graceGroup.staff&&
        Math.abs(previousState.beat-noteBeat)<1e-9){
      const previousMs=Math.max(1,60000/Math.max(1,+tempo.value||120)*previousState.perGraceBeats);
      previousState.remainingEvents=Math.max(0,(+previousState.remainingEvents||1)-1);
-     if(previousState.remainingEvents<=0)internalGracePreviousState=null;
+     if(previousState.remainingEvents<=0)internalGracePreviousStates.delete(graceStateKey);
      return previousMs;
     }
     if(graceTiming.makeTime!==null){
      const graceEvents=internalGraceTimingEvents(e,graceGroup,graceTiming);
      const perGraceBeats=(graceTiming.makeTime/graceTiming.makeTimeDivisions)/graceEvents;
-     internalGracePreviousState=null;
-     internalGraceForwardState=graceEvents>1?{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20}:null;
+     internalGracePreviousStates.delete(graceStateKey);
+     if(graceEvents>1)internalGraceForwardStates.set(graceStateKey,{perGraceBeats,remainingEvents:graceEvents-1,voice:graceGroup.voice,staff:graceGroup.staff,beat:noteBeat,minMs:20});else internalGraceForwardStates.delete(graceStateKey);
      return Math.max(20,Math.min(250,60000/Math.max(1,+tempo.value||120)*perGraceBeats));
     }
     return 60;
@@ -1907,9 +1910,9 @@ function tick(){
   // We have now reached the musical loop boundary. End any sustain and any
   // grace pre-roll debt from the previous pass before the next pass attacks.
   internalLoopBoundaryPending=false;
-  internalGracePreviousState=null;
-  internalGraceForwardState=null;
-  internalGraceFollowingDebt=null;
+  internalGracePreviousStates.clear();
+  internalGraceForwardStates.clear();
+  internalGraceFollowingDebts.clear();
   stopAllVoices();
   if(internalLoopSeriesComplete){
    internalLoopSeriesComplete=false;
@@ -1948,7 +1951,7 @@ function tick(){
  const eventStart=index,eventNotes=[e.notes[eventStart]];
  // Once the first non-grace event is reached, the anticipated window has
  // been fully consumed and must not leak into later ornaments.
- if(!e.notes[eventStart]?.[11]){internalGracePreviousState=null;internalGraceForwardState=null;}
+ // Polyphonic grace state is cleared per principal path after this event.
  let eventEnd=eventStart+1;
  while(eventEnd<e.notes.length&&(!internalRange||eventEnd<internalRange.end)&&sameInternalOnset(e.notes[eventStart],e.notes[eventEnd])){eventNotes.push(e.notes[eventEnd]);eventEnd++}
  const notes=document.querySelectorAll('.note');
@@ -2010,12 +2013,23 @@ function tick(){
     :total;
    holdBeats=Math.min(holdBeats,Math.max(0,boundaryBeat-attackBeat));
   }
-  const followingDebt=internalGraceFollowingDebt;
-  if(!v[11]&&followingDebt&&String(v[9]||'1')===followingDebt.voice&&String(v[10]||'1')===followingDebt.staff&&Math.abs(absoluteBeat(v)-followingDebt.beat)<1e-9)
+  const principalGraceKey=internalGraceStateKey(String(v[9]||'1'),String(v[10]||'1'),absoluteBeat(v));
+  const followingDebt=internalGraceFollowingDebts.get(principalGraceKey);
+  if(!v[11]&&followingDebt&&Math.abs(absoluteBeat(v)-followingDebt.beat)<1e-9)
    holdBeats=Math.max(0,holdBeats-followingDebt.beats);
   playNote(s,f,holdBeats);
  });
- if(!e.notes[eventStart]?.[11])internalGraceFollowingDebt=null;
+ if(!e.notes[eventStart]?.[11]){
+  const clearedGraceKeys=new Set();
+  eventNotes.forEach(v=>{
+   const key=internalGraceStateKey(String(v[9]||'1'),String(v[10]||'1'),absoluteBeat(v));
+   if(clearedGraceKeys.has(key))return;
+   clearedGraceKeys.add(key);
+   internalGracePreviousStates.delete(key);
+   internalGraceForwardStates.delete(key);
+   internalGraceFollowingDebts.delete(key);
+  });
+ }
  progress.style.width=(eventEnd/e.notes.length*100)+'%';
  index=eventEnd;
  if(internalRange&&index>=internalRange.end){
