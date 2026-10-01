@@ -1313,6 +1313,7 @@ loopToggle.onclick=()=>{
  const internalTransportWasPlaying=!alphaTabMode&&playing;
  const internalTransportWasPreparing=!alphaTabMode&&internalPlaybackPreparing;
  const alphaTransportWasPlaying=alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1;
+ const alphaTransportWasPreparing=alphaTabMode&&!!(alphaTabMediaPreparing||countInActive||backingStartTimer||leadInResumePending);
  // A normal internal playback interrupted to arm LOOP is a new loop series,
  // never a continuation of repetition progress from an older paused session.
  const resumingPausedSession=!practiceLoop&&!internalTransportWasPlaying&&!internalTransportWasPreparing&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
@@ -1327,9 +1328,9 @@ loopToggle.onclick=()=>{
   document.querySelector('#play').textContent='▶ PLAY';
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
  }
- if(alphaTransportWasPlaying){
+ if(alphaTransportWasPlaying||alphaTransportWasPreparing){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
-  try{window.guitarLibertyAlphaTab.pause()}catch(_){}
+  try{window.guitarLibertyAlphaTab?.pause()}catch(_){}
   pausePracticeClock();
   document.querySelector('#play').textContent='▶ PLAY';
  }
@@ -1357,7 +1358,7 @@ loopToggle.onclick=()=>{
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
  }
  if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
- if(practiceLoop&&alphaTransportWasPlaying&&api){
+ if(practiceLoop&&(alphaTransportWasPlaying||alphaTransportWasPreparing)&&api){
   const range=practiceTicks();if(range){try{api.tickPosition=range.start}catch(_){}}
  }
  if(!alphaTabMode&&internalTransportWasPlaying){
