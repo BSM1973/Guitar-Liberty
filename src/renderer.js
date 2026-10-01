@@ -3126,6 +3126,16 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   if(!hit?.beat)return;
   const bt=hit.beat.absolutePlaybackStart??hit.beat.absoluteStart??hit.beat.playbackStart;
   if(!Number.isFinite(bt))return;
+  const armedSeek=!!(countInActive||backingStartTimer||leadInResumePending||alphaTabMediaPreparing);
+  const activeSeek=api.playerState===1;
+  if(armedSeek||activeSeek){
+   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+   try{api.pause()}catch(_){}
+   pausePracticeClock();
+   alphaTabResumePending=false;
+   document.querySelector('#play').textContent='▶ PLAY';
+   practiceStatus.textContent=practiceLoop?'Prêt • position sélectionnée':'Prêt';
+  }
   try{api.tickPosition=bt;}catch(_){}
   alphaPlayedBeat=hit.beat;
   updatePlayCursor(api,bt);
