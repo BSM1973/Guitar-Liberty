@@ -2172,8 +2172,8 @@ function tick(){
    const autoStep=advanceAutoBpm({deferMetronome:Math.max(0,+countIn.value||0)>0});
    if(autoStep){
     const {next,reached}=autoStep;
-    if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return}
-    playing=false;clearInternalTimer();index=internalLoopBounds(e)?.start??index;
+    if(reached){practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Objectif atteint • '+next+' BPM';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return}
+    playing=false;clearInternalTimer();cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});index=internalLoopBounds(e)?.start??index;
     countInThenPlay(null,()=>{
      if(!practiceLoop)return;
      startInternalPracticePlayback(()=>{
@@ -2186,7 +2186,7 @@ function tick(){
     });
     return;
    }
-   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return;
+   practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');pausePracticeClock();playing=false;clearInternalTimer();cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});document.querySelector('#play').textContent='▶ PLAY';document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));practiceStatus.textContent='Série terminée • '+max+' répétitions';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();return;
   }
  }
  if(!practiceLoop&&index>=e.notes.length){
