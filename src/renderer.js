@@ -1619,6 +1619,7 @@ function playNote(string,fret,holdBeats=null){
 }
 function stop(){
  alphaTabResumePending=false;
+ pausePracticeClock();
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  internalVoiceGeneration++;
