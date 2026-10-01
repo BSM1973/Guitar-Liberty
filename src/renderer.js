@@ -2397,8 +2397,18 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   return;
  }
  if(videoEnabled&&currentWistiaId&&!wistiaPlayer){
+  alphaTabMediaPreparing=true;
   practiceStatus.textContent='Vidéo en cours de chargement…';
-  document.querySelector('#play').textContent='▶ PLAY';
+  const requestedWistiaId=currentWistiaId;
+  waitForWistiaReady(requestedWistiaId).then(readyPlayer=>{
+   if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){
+    if(!readyPlayer&&videoEnabled&&currentWistiaId===requestedWistiaId&&window.guitarLibertyAlphaTab===api)failStart('Wistia',new Error('Délai de chargement dépassé'));
+    else alphaTabMediaPreparing=false;
+    return;
+   }
+   alphaTabMediaPreparing=false;
+   startAlphaPracticePlayback(api,{restartAccompaniment,resumeAccompaniment});
+  }).catch(e=>failStart('Wistia',e));
   return;
  }
  if(videoEnabled&&wistiaPlayer){
