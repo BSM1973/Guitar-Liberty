@@ -2805,12 +2805,9 @@ function restoreBackingTime(time){
  const track=backingAudio,target=Math.max(0,+time||0);
  if(!track||!(target>0))return;
  track._guitarLibertyRestoreTime=target;
- const seek=()=>{
-  if(backingAudio!==track||+track._guitarLibertyRestoreTime!==target||track.readyState<1)return;
+ if(track.readyState>=1){
   try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
- };
- if(track.readyState>=1)seek();
- else track.addEventListener('loadedmetadata',seek,{once:true});
+ }
 }
 function applyPendingBackingRestore(track){
  if(!track||backingAudio!==track)return Promise.resolve();
