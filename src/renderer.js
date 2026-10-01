@@ -2555,6 +2555,12 @@ function startInternalPracticePlayback(startScore){
  releaseScore();
 }
 document.querySelector('#play').onclick=async()=>{
+ if(sessionHistorySaved&&sessionStarted){
+  // A completed result is already immutable in history. PLAY now starts a new
+  // practice session instead of appending counters to a session that can no
+  // longer be saved a second time.
+  resetTrainingSession();practiceIteration=0;lastLoopTick=-1;naturalEndCounted=false;updatePracticeProgress(0);
+ }
  if(document.querySelector('#play').textContent.includes('REPRENDRE')){
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
