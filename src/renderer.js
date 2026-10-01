@@ -3233,7 +3233,10 @@ async function loadBundledScore(button){
   syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
   practiceLoop=previousLibraryState.practiceLoop;
   practiceIteration=previousLibraryState.practiceIteration;
-  lastLoopTick=previousLibraryState.lastLoopTick;
+  // A failed library switch rebuilds the previous score in a new alphaTab
+  // player. Re-arm loop-wrap detection instead of carrying a tick from the
+  // destroyed player into the restored instance.
+  lastLoopTick=-1;
   loopStart.value=previousLibraryState.loopStartValue;
   loopEnd.value=previousLibraryState.loopEndValue;
   loopRepeats.value=previousLibraryState.loopRepeatsValue;
