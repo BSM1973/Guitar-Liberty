@@ -2748,17 +2748,18 @@ function applyPendingLocalVideoRestore(video,requestedVideo){
  };
  if(video.readyState>=1){seek();return Promise.resolve()}
  return new Promise((resolve,reject)=>{
+  const wait={video,onMetadata:null,onError:null,resolve,timer:null};
   const finish=()=>{
-   if(pendingLocalVideoMetadata?.video===video)pendingLocalVideoMetadata=null;
-   video.removeEventListener('loadedmetadata',onMetadata);video.removeEventListener('error',onError);
-   clearTimeout(timer);
+   if(pendingLocalVideoMetadata===wait)pendingLocalVideoMetadata=null;
+   video.removeEventListener('loadedmetadata',wait.onMetadata);video.removeEventListener('error',wait.onError);
+   clearTimeout(wait.timer);
   };
-  const onMetadata=()=>{finish();seek();resolve()};
-  const onError=()=>{finish();reject(video.error||new Error('Vidéo indisponible'))};
-  const timer=setTimeout(()=>{finish();reject(new Error('Délai de chargement vidéo dépassé'))},8000);
-  pendingLocalVideoMetadata={video,onMetadata,onError,resolve,timer};
-  video.addEventListener('loadedmetadata',onMetadata,{once:true});
-  video.addEventListener('error',onError,{once:true});
+  wait.onMetadata=()=>{finish();seek();resolve()};
+  wait.onError=()=>{finish();reject(video.error||new Error('Vidéo indisponible'))};
+  wait.timer=setTimeout(()=>{finish();reject(new Error('Délai de chargement vidéo dépassé'))},8000);
+  pendingLocalVideoMetadata=wait;
+  video.addEventListener('loadedmetadata',wait.onMetadata,{once:true});
+  video.addEventListener('error',wait.onError,{once:true});
  });
 }
 function setVideoTrack(id,practiceUrl=null){
