@@ -11,7 +11,7 @@ const exercises={
 };
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
 function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;if(!preserveBoundary){nextDelayWallClock=false;internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false,pendingBackingRestore=null;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false,internalMediaPreparing=false,pendingBackingRestore=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null,pendingWistiaRestore=null,pendingWistiaReady=null,pendingLocalVideoRestore=null,pendingLocalVideoMetadata=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
 const sampleLoadPromises=new Map();
@@ -1213,7 +1213,7 @@ function cancelPendingWistiaResume(){
  try{player?.unbind('play',handler)}catch(_){}
 }
 function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
- alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;alphaTabMediaPreparing=false;mediaStartGeneration++;cancelPendingWistiaResume();cancelPendingWistiaReady();
+ alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;alphaTabMediaPreparing=false;internalMediaPreparing=false;mediaStartGeneration++;cancelPendingWistiaResume();cancelPendingWistiaReady();
  internalPlaybackPreparing=false;internalPlaybackGeneration++;
  countInGeneration++;countInActive=false;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
@@ -2484,13 +2484,15 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
  alphaTabMediaPreparing=false;api.play();
 }
 function startInternalPracticePlayback(startScore){
+ internalMediaPreparing=true;
+ const releaseScore=()=>{internalMediaPreparing=false;startScore()};
  const failStart=(label,error)=>{
   internalPlaybackPreparing=false;mediaStartGeneration++;cancelDelayedPlayback();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();playing=false;clearInternalTimer();stopAllVoices();pausePracticeClock();
   document.querySelector('#play').textContent='▶ PLAY';practiceStatus.textContent=label+' indisponible • prêt à relancer';
   if(error)console.error(label+' internal playback',error);
  };
  const startAfterLead=(leadBeats,bpm,guard)=>{
-  scheduleLeadInStart(()=>{if(guard())startScore()},Math.max(0,+leadBeats||0)*(60000/Math.max(1,bpm)));
+  scheduleLeadInStart(()=>{if(guard())releaseScore()},Math.max(0,+leadBeats||0)*(60000/Math.max(1,bpm)));
  };
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
   syncVideoTempo();practiceVideo.currentTime=0;
@@ -2544,7 +2546,7 @@ function startInternalPracticePlayback(startScore){
   else if(guard())startAfterLead(currentBackingLeadBeats,bpm,guard);
   return;
  }
- startScore();
+ releaseScore();
 }
 document.querySelector('#play').onclick=async()=>{
  if(document.querySelector('#play').textContent.includes('REPRENDRE')){
@@ -2718,7 +2720,7 @@ document.querySelector('#play').onclick=async()=>{
  // while the next series counts in. Treat PLAY/STOP as a cancellation here;
  // otherwise a click could start playback immediately and the pending count-in
  // callback would start it a second time.
- if(countInActive||backingStartTimer||(!alphaTabMode&&((backingAudio&&backingEnabled&&!backingAudio.paused)||(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&!practiceVideo.paused)||isWistiaPlaying()))){
+ if(countInActive||backingStartTimer||internalMediaPreparing||(!alphaTabMode&&((backingAudio&&backingEnabled&&!backingAudio.paused)||(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&!practiceVideo.paused)||isWistiaPlaying()))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   pausePracticeClock();
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
