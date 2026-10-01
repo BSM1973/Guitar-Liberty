@@ -768,7 +768,7 @@ function saveCurrentSession(savedAt=Date.now(),{refresh=true}={}){
  if(refresh){renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);setTimeout(paintLessonMastery,0)}
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
-window.addEventListener('beforeunload',()=>{const closedAt=Date.now();pausePracticeClock(closedAt);saveCurrentSession(closedAt,{refresh:false})});
+window.addEventListener('beforeunload',()=>{const closedAt=Date.now();pausePracticeClock(closedAt);if(sessionStarted&&(sessionFirstPracticeAt||sessionRepCount||sessionSeriesCount))writeLastSessionInsight(sessionInsightData(closedAt));saveCurrentSession(closedAt,{refresh:false})});
 renderHistory();
 function beginPracticePassage(at=Date.now()){
  startSession();
