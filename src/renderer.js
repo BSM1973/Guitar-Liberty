@@ -2931,11 +2931,15 @@ function setBackingTrack(url){
   const track=backingAudio;
   track.preload='auto';
   track.addEventListener('ended',()=>{
-   if(backingAudio!==track||(!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing))return;
+   if(backingAudio!==track)return;
    const api=window.guitarLibertyAlphaTab;
+   // In loop practice alphaTab owns repetition/series completion. Outside loop,
+   // an ended backing closes the synchronized passage just like practice video.
+   if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing)return;
    cancelPracticeTransition({stopBackingAudio:true});
    if(alphaTabMode&&api){try{api.pause()}catch(_){}}
    pausePracticeClock();
+   alphaTabResumePending=false;
    document.querySelector('#play').textContent='▶ PLAY';
    practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
    paintSession();
