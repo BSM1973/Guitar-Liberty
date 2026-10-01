@@ -2450,7 +2450,7 @@ document.querySelector('#play').onclick=async()=>{
     cancelDelayedPlayback();pauseAlphaPracticeAccompaniment();
     if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock();
     practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
-    document.querySelector('#play').textContent='▶ PLAY';
+    document.querySelector('#play').textContent='▶ REPRENDRE';
     paintSession();
     return;
    }
