@@ -2156,10 +2156,10 @@ function tick(){
   stopAllVoices();
   if(!internalLoopSeriesComplete&&practiceLoop&&hasInternalPracticeMedia()){
    const range=internalLoopBounds(e);
-   playing=false;
+   playing=false;pausePracticeClock();
    startInternalPracticePlayback(()=>{
     if(!practiceLoop||alphaTabMode)return;
-    playing=true;document.querySelector('#play').textContent='■ STOP';
+    beginPracticePassage();playing=true;document.querySelector('#play').textContent='■ STOP';
     const loopLeadIn=internalLoopLeadInMs(e,range);
     if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
    });
