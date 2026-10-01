@@ -2405,14 +2405,14 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   backingAudio.playbackRate=sourceRate;
   if(resumeAccompaniment){
    alphaTabMediaPreparing=true;
-   const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
+   const startGeneration=++mediaStartGeneration,startBacking=backingAudio;applyPendingBackingRestore(startBacking);const backingPromise=startBacking.play();
    if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;alphaTabMediaPreparing=false;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
    else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){beginPracticePassage();api.play()}
    return;
   }
   alphaTabMediaPreparing=true;
   backingAudio.currentTime=0;
-  const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
+  const startGeneration=++mediaStartGeneration,startBacking=backingAudio;applyPendingBackingRestore(startBacking);
   const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
   const backingPromise=startBacking.play();
   if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
@@ -2524,7 +2524,7 @@ document.querySelector('#play').onclick=async()=>{
      }catch(e){failAccompanimentResume('Wistia',e)}
     }else if(backingAudio&&backingEnabled){
      alphaTabMediaPreparing=true;
-     const startGeneration=++mediaStartGeneration,startBacking=backingAudio,backingPromise=startBacking.play();
+     const startGeneration=++mediaStartGeneration,startBacking=backingAudio;applyPendingBackingRestore(startBacking);const backingPromise=startBacking.play();
      const resumeBackingLeadIn=()=>{
       if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;
       alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;resumeLeadInPlayback()},remainingLeadIn);
@@ -2791,12 +2791,19 @@ function syncBackingVolume(){
 function restoreBackingTime(time){
  const track=backingAudio,target=Math.max(0,+time||0);
  if(!track||!(target>0))return;
+ track._guitarLibertyRestoreTime=target;
  const seek=()=>{
   if(backingAudio!==track)return;
-  try{track.currentTime=target}catch(_){}
+  try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
  };
  seek();
  if(track.readyState<1)track.addEventListener('loadedmetadata',seek,{once:true});
+}
+function applyPendingBackingRestore(track){
+ if(!track||backingAudio!==track)return;
+ const target=+track._guitarLibertyRestoreTime||0;
+ if(!(target>0))return;
+ try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
 }
 function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
