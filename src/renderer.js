@@ -2793,11 +2793,11 @@ function restoreBackingTime(time){
  if(!track||!(target>0))return;
  track._guitarLibertyRestoreTime=target;
  const seek=()=>{
-  if(backingAudio!==track||+track._guitarLibertyRestoreTime!==target)return;
+  if(backingAudio!==track||+track._guitarLibertyRestoreTime!==target||track.readyState<1)return;
   try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
  };
- seek();
- if(track.readyState<1)track.addEventListener('loadedmetadata',seek,{once:true});
+ if(track.readyState>=1)seek();
+ else track.addEventListener('loadedmetadata',seek,{once:true});
 }
 function applyPendingBackingRestore(track){
  if(!track||backingAudio!==track)return;
