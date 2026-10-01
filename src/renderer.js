@@ -2317,7 +2317,14 @@ function tick(){
  }
  return eventDelay;
 }
-document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{stop();document.querySelector('.exercise.active').classList.remove('active');b.classList.add('active');current=b.dataset.ex;render()});
+document.querySelectorAll('.exercise').forEach(b=>b.onclick=()=>{
+ if(b.dataset.ex===current)return;
+ stop();
+ if(sessionStarted)resetTrainingSession();
+ practiceIteration=0;lastLoopTick=-1;naturalEndCounted=false;updatePracticeProgress(0);
+ document.querySelector('.exercise.active')?.classList.remove('active');
+ b.classList.add('active');current=b.dataset.ex;render();
+});
 let preservePreferredTempo=false;
 tempo.oninput=()=>{
  if(!preservePreferredTempo)saveExerciseTempo(currentPracticeTitle,+tempo.value);
