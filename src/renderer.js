@@ -2342,9 +2342,9 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
  const failStart=(label,error)=>{
   alphaTabMediaPreparing=false;
   mediaStartGeneration++;cancelPendingWistiaResume();cancelDelayedPlayback();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();try{api.pause()}catch(_){}
-  alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;pausePracticeClock();
-  document.querySelector('#play').textContent='▶ PLAY';
-  practiceStatus.textContent=label+' indisponible • prêt à relancer';
+  alphaTabResumePending=resumeAccompaniment;leadInResumePending=false;leadInRemainingMs=0;pausePracticeClock();
+  document.querySelector('#play').textContent=resumeAccompaniment?'▶ REPRENDRE':'▶ PLAY';
+  practiceStatus.textContent=label+' indisponible • '+(resumeAccompaniment?'prêt à reprendre':'prêt à relancer');
   if(error)console.error(label+' playback',error);
  };
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
