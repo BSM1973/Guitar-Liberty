@@ -2817,10 +2817,17 @@ function syncVideoTempo(){
 }
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
+ const activeApi=window.guitarLibertyAlphaTab;
  const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
- // Enabling video also changes the media configuration of an armed start.
- // Cancel it so the next PLAY begins with one coherent accompaniment setup.
- if(armedVideoStart)cancelPracticeTransition({stopBackingAudio:true});
+ const activeVideoPlayback=!!((alphaTabMode&&activeApi?.playerState===1)||(!alphaTabMode&&playing));
+ // Enabling video changes the accompaniment contract. If playback is already
+ // running, restart from a stable boundary instead of attaching video mid-pass.
+ if(armedVideoStart||activeVideoPlayback)cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+ if(activeVideoPlayback){
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  else{playing=false;clearInternalTimer();stopAllVoices();document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
+  pausePracticeClock();
+ }
  videoEnabled=true;videoStage.hidden=false;
  if(currentPracticeVideoUrl&&practiceVideo){
    wistiaFrame.hidden=true;practiceVideo.hidden=false;
@@ -2869,18 +2876,28 @@ function openVideo(){
    wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(requestedWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  }
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
- if(armedVideoStart){
+ if(armedVideoStart||activeVideoPlayback){
+  if(practiceLoop){
+   if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
+   else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
+  }
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
 }
 function closeVideo(){
  pendingWistiaRestore=null;cancelPendingWistiaReady();pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
+ const activeApi=window.guitarLibertyAlphaTab;
  const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
- // Closing the practice video invalidates any start/count-in that was armed
- // around that video. Otherwise a delayed callback can still start the score
- // after the user explicitly switched the video off.
- if(armedVideoStart)cancelPracticeTransition();
+ const activeVideoPlayback=!!((alphaTabMode&&activeApi?.playerState===1)||(!alphaTabMode&&playing));
+ // Removing video while playback is running also changes the synchronization
+ // contract, so settle the transport before exposing the new media state.
+ if(armedVideoStart||activeVideoPlayback)cancelPracticeTransition({stopBackingAudio:true});
+ if(activeVideoPlayback){
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  else{playing=false;clearInternalTimer();stopAllVoices();document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
+  pausePracticeClock();
+ }
  wistiaLoadGeneration++;
  pauseLocalPracticeVideo();
  if(videoPracticeTimer){clearInterval(videoPracticeTimer);videoPracticeTimer=null;}
@@ -2889,7 +2906,11 @@ function closeVideo(){
  if(videoStage)videoStage.hidden=true;
  if(wistiaFrame)wistiaFrame.src='';
  if(videoToggle){videoToggle.classList.remove('active');videoToggle.textContent='🎬 VIDÉO';}
- if(armedVideoStart){
+ if(armedVideoStart||activeVideoPlayback){
+  if(practiceLoop){
+   if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
+   else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
+  }
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
