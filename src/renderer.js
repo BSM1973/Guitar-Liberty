@@ -3147,7 +3147,7 @@ async function loadBundledScore(button){
   lessonId:currentLessonId,objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,lessonTempo:lessonTempo.textContent,
   backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
-  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,
+  wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,videoEnabledValue:videoEnabled,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
   practiceLoop,practiceIteration,lastLoopTick,
@@ -3223,7 +3223,7 @@ async function loadBundledScore(button){
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
   setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;
-  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;
+  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;if(previousLibraryState.videoEnabledValue)openVideo();
   setTutorial(previousLibraryState.tutorialUrl);
   currentPracticeTitle=previousLibraryState.practiceTitle;
   document.querySelector('#title').textContent=currentPracticeTitle;
@@ -3395,6 +3395,7 @@ if(importButton) importButton.onclick=async()=>{
   setBackingTrack(previousLessonContext.backingUrl);
   currentBackingLeadBeats=previousLessonContext.backingLeadBeats;
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
+  if(previousLessonContext.videoEnabledValue)openVideo();
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
   currentVideoSourceBpm=previousLessonContext.videoSourceBpm||50;
   setTutorial(previousLessonContext.tutorialUrl);
