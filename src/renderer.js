@@ -2690,7 +2690,7 @@ function finishPracticeVideoPlayback(){
  // series; it simply remains ended until the next explicit accompaniment restart.
  if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing)return;
  cancelPracticeTransition({stopBackingAudio:true});
- if(alphaTabMode&&api){try{api.pause()}catch(_){}if(!practiceLoop){try{api.tickPosition=0}catch(_){}lastLoopTick=-1}}
+ if(alphaTabMode&&api){if(!practiceLoop){naturalEndCounted=true;lastLoopTick=-1;try{api.tickPosition=0}catch(_){}}try{api.pause()}catch(_){}}
  pausePracticeClock();
  alphaTabResumePending=false;
  document.querySelector('#play').textContent='▶ PLAY';
@@ -2943,7 +2943,7 @@ function setBackingTrack(url){
    // an ended backing closes the synchronized passage just like practice video.
    if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing)return;
    cancelPracticeTransition({stopBackingAudio:true});
-   if(alphaTabMode&&api){try{api.pause()}catch(_){}if(!practiceLoop){try{api.tickPosition=0}catch(_){}lastLoopTick=-1}}
+   if(alphaTabMode&&api){if(!practiceLoop){naturalEndCounted=true;lastLoopTick=-1;try{api.tickPosition=0}catch(_){}}try{api.pause()}catch(_){}}
    pausePracticeClock();
    alphaTabResumePending=false;
    document.querySelector('#play').textContent='▶ PLAY';
