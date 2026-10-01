@@ -2476,7 +2476,7 @@ document.querySelector('#play').onclick=async()=>{
      document.querySelector('#play').textContent='▶ PLAY';return;
     }
    }
-   if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);alphaTabResumePending=true;document.querySelector('#play').textContent='▶ PLAY';return;}
+   if(!videoEnabled&&api.playerState===1){pausePracticeClock();api.pause();stopBacking(false);alphaTabResumePending=true;document.querySelector('#play').textContent='▶ PLAY';return;}
    const resumeLeadIn=leadInResumePending;
    const remainingLeadIn=resumeLeadIn?leadInRemainingMs:0;
    leadInResumePending=false;
