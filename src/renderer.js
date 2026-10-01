@@ -2411,8 +2411,8 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
    return;
   }
   alphaTabMediaPreparing=true;
-  backingAudio.currentTime=0;
-  const startGeneration=++mediaStartGeneration,startBacking=backingAudio;applyPendingBackingRestore(startBacking);
+  backingAudio.currentTime=0;delete backingAudio._guitarLibertyRestoreTime;
+  const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
   const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||!practiceLoop||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
   const backingPromise=startBacking.play();
   if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
@@ -2793,7 +2793,7 @@ function restoreBackingTime(time){
  if(!track||!(target>0))return;
  track._guitarLibertyRestoreTime=target;
  const seek=()=>{
-  if(backingAudio!==track)return;
+  if(backingAudio!==track||+track._guitarLibertyRestoreTime!==target)return;
   try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
  };
  seek();
