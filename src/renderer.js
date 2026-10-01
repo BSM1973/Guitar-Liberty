@@ -1588,6 +1588,7 @@ function advanceAutoBpm({deferMetronome=false}={}){
  const next=Math.min(goal,(+tempo.value||0)+inc);
  tempo.value=next;syncTempo();
  if(videoEnabled)syncVideoTempo();
+ syncBackingTempo();
  const reached=next>=goal;
  if(metronomeEnabled){
   const scheduledThrough=metronomeNextTime;
@@ -2319,6 +2320,7 @@ tempo.oninput=()=>{
   scheduleNext(wallClock?remainingMs:remainingBeats*60000/Math.max(1,+tempo.value||120));
  }
  if(videoEnabled)syncVideoTempo();
+ syncBackingTempo();
  if(metronomeEnabled&&!countInActive){stopMetronome();startMetronome()}
  if(sessionStarted&&sessionFirstPracticeAt&&practiceLoop){
   sessionBest=Math.max(sessionBest,+tempo.value||0);
@@ -2425,8 +2427,8 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   return;
  }
  if(backingAudio&&backingEnabled){
-  const bpm=Math.max(1,+tempo.value||50),sourceRate=Math.max(.5,Math.min(2,bpm/50));
-  backingAudio.playbackRate=sourceRate;
+  const bpm=Math.max(1,+tempo.value||50);
+  syncBackingTempo();
   if(resumeAccompaniment){
    alphaTabMediaPreparing=true;
    const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
@@ -2916,6 +2918,11 @@ function syncBackingVolume(){
  const volume=Math.max(0,Math.min(100,+backingVolume?.value||0));
  if(backingVolumeLabel)backingVolumeLabel.textContent=volume+'%';
  if(backingAudio)backingAudio.volume=volume/100;
+}
+function syncBackingTempo(){
+ if(!backingAudio)return;
+ const bpm=Math.max(1,+tempo.value||50);
+ backingAudio.playbackRate=Math.max(.5,Math.min(2,bpm/50));
 }
 function restoreBackingTime(time){
  const track=backingAudio,target=Math.max(0,+time||0);
