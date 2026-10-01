@@ -152,7 +152,7 @@ function saveExerciseGoal(name,value){if(!name||name==='Exercice'||!Number.isFin
 function exerciseTempos(){try{return JSON.parse(localStorage.getItem(EXERCISE_TEMPO_KEY)||'{}')}catch{return {}}}
 function savedExerciseTempo(name){const tempos=exerciseTempos(),value=+tempos[name];return Number.isFinite(value)&&value>0?value:0}
 function saveExerciseTempo(name,value){if(!name||name==='Exercice'||!Number.isFinite(+value)||+value<=0)return;const tempos=exerciseTempos();tempos[name]=+value;localStorage.setItem(EXERCISE_TEMPO_KEY,JSON.stringify(tempos))}
-function courseButtons(){return [...document.querySelectorAll('.library-exercise')]}
+function courseButtons(){return [...document.querySelectorAll('#appWorkspace .library-exercise')]}
 let listenStream=null,listenContext=null,listenAnalyser=null,listenFrame=0,listening=false,expectedMidi=null,expectedSince=0,expectedMeasure=1,expectedToken=0,expectedResolved=false,lastDetectedMidi=null,lastAttackAt=0,lastSoundingAt=0,analysisHits=0,analysisTotal=0,timingHits=0,currentAnalysisMeasure=1,measurePerformance={},weakMeasure=null,adaptiveMode=false,adaptiveMeasureNo=null,adaptiveBaseline=null,adaptivePasses=0,adaptiveLastTotals={};
 const aiListening=document.querySelector('#aiListening'),audioInput=document.querySelector('#audioInput'),audioOutput=document.querySelector('#audioOutput'),guitarMonitor=document.querySelector('#guitarMonitor'),monitorToggle=document.querySelector('#monitorToggle'),monitorVolume=document.querySelector('#monitorVolume'),listenStart=document.querySelector('#listenStart');
 async function listAudioInputs(){
@@ -2820,13 +2820,6 @@ document.querySelector('#homeStart')?.addEventListener('click',()=>openWorkspace
 document.querySelector('#homeLibrary')?.addEventListener('click',()=>openWorkspace('courses'));
 document.querySelector('#homeImport')?.addEventListener('click',()=>{openWorkspace('courses');setTimeout(()=>document.querySelector('#importScore')?.click(),120)});
 document.querySelectorAll('[data-home-target]').forEach(b=>b.addEventListener('click',()=>openWorkspace(b.dataset.homeTarget)));
-document.querySelectorAll('[data-home-level]').forEach(button=>button.addEventListener('click',()=>{
- openWorkspace('score');
- const level=Math.max(0,+button.dataset.homeLevel||0);
- const menus=[...document.querySelectorAll('#appWorkspace>.course-nav>.level-menu')];
- menus.forEach((menu,index)=>menu.open=index===level);
- menus[level]?.scrollIntoView({behavior:'smooth',block:'start'});
-}));
 const resetAll=document.querySelector('#resetAll');
 if(resetAll)resetAll.onclick=()=>{
  if(!window.confirm('Attention vous allez perdre toutes vos valeurs actuelles.'))return;
@@ -3661,7 +3654,11 @@ async function loadBundledScore(button){
   importStatus.textContent='Exercice non installé : '+button.textContent.trim();
  }
 }
-document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked')){openWorkspace('score');loadBundledScore(b)}});
+document.querySelectorAll('#appWorkspace .library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked')){openWorkspace('score');loadBundledScore(b)}});
+document.querySelectorAll('#homePage .library-exercise').forEach(b=>b.onclick=()=>{
+ const target=courseButtons().find(x=>x.dataset.score===b.dataset.score);
+ if(target&&!target.classList.contains('course-locked')){openWorkspace('score');loadBundledScore(target)}
+});
 refreshCourseProgress();
 if(importButton) importButton.onclick=async()=>{
  // A manual import becomes the newest score request immediately. Invalidate
