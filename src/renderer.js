@@ -2787,9 +2787,10 @@ function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
  backingAudio=url?new Audio(encodeURI(url)):null;
  if(backingAudio){
-  backingAudio.preload='auto';
-  backingAudio.addEventListener('ended',()=>{
-   if(!backingStartTimer&&!alphaTabMediaPreparing)return;
+  const track=backingAudio;
+  track.preload='auto';
+  track.addEventListener('ended',()=>{
+   if(backingAudio!==track||(!backingStartTimer&&!alphaTabMediaPreparing))return;
    const api=window.guitarLibertyAlphaTab;
    cancelPracticeTransition({stopBackingAudio:true});
    if(alphaTabMode&&api){try{api.pause()}catch(_){}}
