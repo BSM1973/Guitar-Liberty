@@ -1480,10 +1480,13 @@ loopRepeats.onchange=()=>{
     }else{
      countInThenPlay(null,()=>{
       if(!practiceLoop||alphaTabMode)return;
-      beginPracticePassage();
-      playing=true;document.querySelector('#play').textContent='■ STOP';
-      const loopLeadIn=internalLoopLeadInMs(exercises[current],internalRange);
-      if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
+      startInternalPracticePlayback(()=>{
+       if(!practiceLoop||alphaTabMode)return;
+       beginPracticePassage();
+       playing=true;document.querySelector('#play').textContent='■ STOP';
+       const loopLeadIn=internalLoopLeadInMs(exercises[current],internalRange);
+       if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
+      });
      });
     }
    }
@@ -2173,10 +2176,13 @@ function tick(){
     playing=false;clearInternalTimer();index=internalLoopBounds(e)?.start??index;
     countInThenPlay(null,()=>{
      if(!practiceLoop)return;
-     beginPracticePassage();playing=true;document.querySelector('#play').textContent='■ STOP';
-     const range=internalLoopBounds(exercises[current]);
-     const loopLeadIn=internalLoopLeadInMs(exercises[current],range);
-     if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
+     startInternalPracticePlayback(()=>{
+      if(!practiceLoop||alphaTabMode)return;
+      beginPracticePassage();playing=true;document.querySelector('#play').textContent='■ STOP';
+      const range=internalLoopBounds(exercises[current]);
+      const loopLeadIn=internalLoopLeadInMs(exercises[current],range);
+      if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
+     });
     });
     return;
    }
