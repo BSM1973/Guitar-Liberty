@@ -2501,6 +2501,40 @@ function startInternalPracticePlayback(startScore){
   else if(guard())startAfterLead(currentVideoLeadBeats,bpm,guard);
   return;
  }
+ if(videoEnabled&&currentWistiaId&&!wistiaPlayer){
+  const requestedWistiaId=currentWistiaId;
+  practiceStatus.textContent='Vidéo en cours de chargement…';
+  waitForWistiaReady(requestedWistiaId).then(player=>{
+   if(!player||!videoEnabled||currentWistiaId!==requestedWistiaId||alphaTabMode){
+    if(!player&&videoEnabled&&currentWistiaId===requestedWistiaId&&!alphaTabMode)failStart('Wistia',new Error('Délai de chargement dépassé'));
+    return;
+   }
+   startInternalPracticePlayback(startScore);
+  }).catch(e=>failStart('Wistia',e));
+  return;
+ }
+ if(videoEnabled&&wistiaPlayer){
+  syncVideoTempo();cancelPendingWistiaResume();
+  const player=wistiaPlayer,generation=wistiaResumeGeneration;
+  let started=false;
+  try{
+   if(typeof player.time==='function')player.time(0);
+   else if(typeof player.currentTime==='function')player.currentTime(0);
+   const guard=()=>generation===wistiaResumeGeneration&&videoEnabled&&wistiaPlayer===player&&!alphaTabMode&&isWistiaPlaying();
+   const onPlay=()=>{
+    if(started||!guard())return;
+    started=true;pendingWistiaResume=null;
+    try{player.unbind('play',onPlay)}catch(_){}
+    const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
+    startAfterLead(currentVideoLeadBeats,bpm,guard);
+   };
+   pendingWistiaResume={player,handler:onPlay};
+   try{player.bind('play',onPlay)}catch(e){pendingWistiaResume=null;failStart('Wistia',e);return}
+   player.play();
+   if(isWistiaPlaying())onPlay();
+  }catch(e){failStart('Wistia',e)}
+  return;
+ }
  if(backingAudio&&backingEnabled){
   syncBackingTempo();backingAudio.currentTime=0;delete backingAudio._guitarLibertyRestoreTime;
   const bpm=Math.max(1,+tempo.value||50),generation=++mediaStartGeneration,track=backingAudio;
