@@ -1340,11 +1340,16 @@ loopToggle.onclick=()=>{
  }
  lastLoopTick=-1;updatePracticeProgress(resumingPausedSession?practiceIteration:0);loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';loopToggle.classList.toggle('active',practiceLoop);
  if(!practiceLoop&&wasLooping)cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+ const api=window.guitarLibertyAlphaTab;
+ if(!practiceLoop&&wasLooping&&alphaTabMode&&api?.playerState===1){
+  try{api.pause()}catch(_){}
+  document.querySelector('#play').textContent='▶ PLAY';
+ }
  if(!practiceLoop&&wasLooping&&sessionStarted&&sessionFirstPracticeAt){
   pausePracticeClock();
   if(!sessionRepCount&&!sessionSeriesCount)resetTrainingSession();
  }
- const api=window.guitarLibertyAlphaTab;if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
+ if(api){practiceLoop?setPracticeRange(api):clearPracticeRange(api)}
  if(!alphaTabMode&&internalTransportWasPlaying){
   if(practiceLoop){const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
   else index=0;
