@@ -768,6 +768,7 @@ function saveCurrentSession(savedAt=Date.now()){
  setTimeout(paintLessonMastery,0);
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
+window.addEventListener('beforeunload',()=>{const closedAt=Date.now();pausePracticeClock(closedAt);saveCurrentSession(closedAt)});
 renderHistory();
 function beginPracticePassage(at=Date.now()){
  startSession();
