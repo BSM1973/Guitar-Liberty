@@ -2383,7 +2383,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
    const startGeneration=wistiaResumeGeneration;
    const startPlayer=wistiaPlayer;
    let started=false;
-   if(restartAccompaniment){
+   if(restartAccompaniment||!resumeAccompaniment){
     if(typeof startPlayer.time==='function')startPlayer.time(0);
     else if(typeof startPlayer.currentTime==='function')startPlayer.currentTime(0);
    }
