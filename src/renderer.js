@@ -3558,6 +3558,7 @@ if(importButton) importButton.onclick=async()=>{
   }else{
    practiceStatus.textContent=/^(En cours|Compte\s*:)/.test(previousLessonContext.practiceStatusText||'')?'Prêt à reprendre':previousLessonContext.practiceStatusText;
   }
+  paintSession();
   document.querySelector('#title').textContent=currentPracticeTitle;
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
