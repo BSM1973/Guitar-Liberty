@@ -2717,6 +2717,7 @@ function finishPracticeVideoPlayback(){
  if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing)return;
  cancelPracticeTransition({stopBackingAudio:true});
  if(alphaTabMode&&api){if(!practiceLoop){naturalEndCounted=true;lastLoopTick=-1;try{api.tickPosition=0}catch(_){}}try{api.pause()}catch(_){}}
+ else if(!alphaTabMode&&playing){playing=false;clearInternalTimer();stopAllVoices();document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));const range=internalLoopBounds(exercises[current]);index=practiceLoop&&range?range.start:0;}
  pausePracticeClock();
  alphaTabResumePending=false;
  document.querySelector('#play').textContent='▶ PLAY';
@@ -2998,6 +2999,7 @@ function setBackingTrack(url){
    if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing)return;
    cancelPracticeTransition({stopBackingAudio:true});
    if(alphaTabMode&&api){if(!practiceLoop){naturalEndCounted=true;lastLoopTick=-1;try{api.tickPosition=0}catch(_){}}try{api.pause()}catch(_){}}
+   else if(!alphaTabMode&&playing){playing=false;clearInternalTimer();stopAllVoices();document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));const range=internalLoopBounds(exercises[current]);index=practiceLoop&&range?range.start:0;}
    pausePracticeClock();
    alphaTabResumePending=false;
    document.querySelector('#play').textContent='▶ PLAY';
