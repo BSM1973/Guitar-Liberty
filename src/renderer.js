@@ -1319,7 +1319,7 @@ loopToggle.onclick=()=>{
  const resumingPausedSession=!practiceLoop&&!internalTransportWasPlaying&&!internalTransportWasPreparing&&sessionStarted&&sessionFirstPracticeAt&&sessionPausedAt&&sessionRepCount&&!completedSeries;
  const wasLooping=practiceLoop;
  if(internalTransportWasPreparing){
-  internalPlaybackPreparing=false;internalPlaybackGeneration++;
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   clearInternalTimer();stopAllVoices();
   document.querySelector('#play').textContent='▶ PLAY';
  }
