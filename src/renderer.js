@@ -2151,6 +2151,17 @@ function tick(){
   internalGraceForwardStates.clear();
   internalGraceFollowingDebts.clear();
   stopAllVoices();
+  if(!internalLoopSeriesComplete&&practiceLoop&&!alphaTabMode&&((videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src)||(backingAudio&&backingEnabled))){
+   const range=internalLoopBounds(e);
+   playing=false;
+   startInternalPracticePlayback(()=>{
+    if(!practiceLoop||alphaTabMode)return;
+    playing=true;document.querySelector('#play').textContent='■ STOP';
+    const loopLeadIn=internalLoopLeadInMs(e,range);
+    if(loopLeadIn>0)scheduleNext(loopLeadIn);else scheduleNext(tick());
+   });
+   return;
+  }
   if(internalLoopSeriesComplete){
    internalLoopSeriesComplete=false;
    const max=Math.max(1,+loopRepeats.value||1);
