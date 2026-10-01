@@ -3128,6 +3128,7 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
+ const previousAlphaTabWasPlaying=!!(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1);
  // A library selection immediately invalidates the previous transport and any
  // alphaTab load still in flight. Do this before the library fetch so an older
  // import cannot finish and publish its score while the new lesson is downloading.
@@ -3167,6 +3168,7 @@ async function loadBundledScore(button){
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
+  alphaWasPlaying:previousAlphaTabWasPlaying,
   alphaTickPosition:alphaTabMode&&window.guitarLibertyAlphaTab?Math.max(0,+window.guitarLibertyAlphaTab.tickPosition||0):0,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
   internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
@@ -3277,7 +3279,13 @@ async function loadBundledScore(button){
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
   updatePracticeProgress(practiceIteration);
-  practiceStatus.textContent=/^(En cours|Compte\s*:)/.test(previousLibraryState.practiceStatusText||'')?'Prêt à reprendre':previousLibraryState.practiceStatusText;
+  if(previousLibraryState.alphaWasPlaying&&window.guitarLibertyAlphaTab){
+   alphaTabResumePending=true;
+   document.querySelector('#play').textContent='▶ REPRENDRE';
+   practiceStatus.textContent=practiceLoop?'Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'Prêt à reprendre';
+  }else{
+   practiceStatus.textContent=/^(En cours|Compte\s*:)/.test(previousLibraryState.practiceStatusText||'')?'Prêt à reprendre':previousLibraryState.practiceStatusText;
+  }
   paintSession();
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',b===previousLibraryButton));
   paintLessonComplete();paintLessonMastery();
