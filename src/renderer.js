@@ -2513,7 +2513,7 @@ document.querySelector('#play').onclick=async()=>{
      alphaTabMediaPreparing=true;
      const requestedWistiaId=currentWistiaId;
      const readyPlayer=await waitForWistiaReady(requestedWistiaId);
-     if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){alphaTabMediaPreparing=false;return}
+     if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){if(!readyPlayer&&videoEnabled&&currentWistiaId===requestedWistiaId&&window.guitarLibertyAlphaTab===api)failAccompanimentResume('Wistia',new Error('Délai de chargement dépassé'));else alphaTabMediaPreparing=false;return}
      syncVideoTempo();
      try{
       let resumed=false;
@@ -2563,7 +2563,7 @@ document.querySelector('#play').onclick=async()=>{
      alphaTabMediaPreparing=true;
      const requestedWistiaId=currentWistiaId;
      const readyPlayer=await waitForWistiaReady(requestedWistiaId);
-     if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){alphaTabMediaPreparing=false;return}
+     if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){if(!readyPlayer&&videoEnabled&&currentWistiaId===requestedWistiaId&&window.guitarLibertyAlphaTab===api)failAccompanimentResume('Wistia',new Error('Délai de chargement dépassé'));else alphaTabMediaPreparing=false;return}
      syncVideoTempo();
      try{
       let resumed=false;
@@ -2700,13 +2700,22 @@ function detachWistiaPracticeHandlers(){
 }
 function cancelPendingWistiaReady(){
  if(!pendingWistiaReady)return;
- const {resolve}=pendingWistiaReady;pendingWistiaReady=null;resolve(null);
+ const {resolve,timer}=pendingWistiaReady;pendingWistiaReady=null;
+ if(timer)clearTimeout(timer);
+ resolve(null);
 }
 function waitForWistiaReady(id){
  if(!id||!videoEnabled||currentWistiaId!==id)return Promise.resolve(null);
  if(wistiaPlayer)return Promise.resolve(wistiaPlayer);
  cancelPendingWistiaReady();
- return new Promise(resolve=>{pendingWistiaReady={id,generation:wistiaLoadGeneration,resolve}});
+ return new Promise(resolve=>{
+  const generation=wistiaLoadGeneration;
+  const timer=setTimeout(()=>{
+   if(pendingWistiaReady?.id!==id||pendingWistiaReady.generation!==generation)return;
+   pendingWistiaReady=null;resolve(null);
+  },8000);
+  pendingWistiaReady={id,generation,resolve,timer};
+ });
 }
 function getWistiaTime(){
  if(!wistiaPlayer)return 0;
@@ -2808,7 +2817,7 @@ function openVideo(){
     // waiting for this player. "Ready" therefore means fully synchronized.
     syncVideoTempo();
     if(pendingWistiaReady?.id===requestedWistiaId&&pendingWistiaReady.generation===loadGeneration){
-     const {resolve}=pendingWistiaReady;pendingWistiaReady=null;resolve(video);
+     const {resolve,timer}=pendingWistiaReady;pendingWistiaReady=null;if(timer)clearTimeout(timer);resolve(video);
     }
     const readyGeneration=loadGeneration;
     wistiaEndHandler=()=>{
