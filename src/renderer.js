@@ -2500,7 +2500,7 @@ document.querySelector('#play').onclick=async()=>{
     if(error)console.error(label+' resume',error);
    };
    if(resumeLeadIn){
-    const resumeLeadInPlayback=()=>{if(window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();};
+    const resumeLeadInPlayback=()=>{if(window.guitarLibertyAlphaTab!==api)return;api.play();};
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();
      alphaTabMediaPreparing=true;
