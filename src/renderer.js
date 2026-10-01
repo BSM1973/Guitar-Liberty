@@ -2742,7 +2742,6 @@ function applyPendingLocalVideoRestore(video,requestedVideo){
  if(!video||pendingLocalVideoRestore?.url!==requestedVideo)return Promise.resolve();
  const target=pendingLocalVideoRestore.time;
  const seek=()=>{
-  if(pendingLocalVideoMetadata?.video===video)pendingLocalVideoMetadata=null;
   if(practiceVideo!==video||pendingLocalVideoRestore?.url!==requestedVideo||(video.getAttribute('src')||'')!==requestedVideo)return;
   try{video.currentTime=target;pendingLocalVideoRestore=null}catch(_){}
  };
