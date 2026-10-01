@@ -2886,6 +2886,7 @@ function openVideo(){
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
    else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
   }else if(alphaTabMode&&activeApi){try{activeApi.tickPosition=0}catch(_){}}
+  else if(!alphaTabMode)index=0;
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
@@ -2916,6 +2917,7 @@ function closeVideo(){
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
    else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
   }else if(alphaTabMode&&activeApi){try{activeApi.tickPosition=0}catch(_){}}
+  else if(!alphaTabMode)index=0;
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
@@ -3033,6 +3035,7 @@ if(backingToggle)backingToggle.onclick=()=>{
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
    else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
   }else if(alphaTabMode&&activeApi){try{activeApi.tickPosition=0}catch(_){}}
+  else if(!alphaTabMode)index=0;
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
