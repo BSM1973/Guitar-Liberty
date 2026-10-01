@@ -2885,7 +2885,7 @@ function openVideo(){
   if(practiceLoop){
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
    else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
-  }
+  }else if(alphaTabMode&&activeApi){try{activeApi.tickPosition=0}catch(_){}}
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
@@ -2915,7 +2915,7 @@ function closeVideo(){
   if(practiceLoop){
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
    else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
-  }
+  }else if(alphaTabMode&&activeApi){try{activeApi.tickPosition=0}catch(_){}}
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
@@ -3032,7 +3032,7 @@ if(backingToggle)backingToggle.onclick=()=>{
   if(practiceLoop){
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
    else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
-  }
+  }else if(alphaTabMode&&activeApi){try{activeApi.tickPosition=0}catch(_){}}
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
