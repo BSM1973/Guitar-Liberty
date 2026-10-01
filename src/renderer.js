@@ -2498,7 +2498,10 @@ document.querySelector('#play').onclick=async()=>{
      alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
-     practiceVideo.play().then(()=>{
+     applyPendingLocalVideoRestore(practiceVideo,encodeURI(currentPracticeVideoUrl)).then(()=>{
+      if(startGeneration!==mediaStartGeneration||!videoEnabled||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
+      return practiceVideo.play();
+     }).then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
       scheduleLeadInStart(()=>{
@@ -2546,7 +2549,10 @@ document.querySelector('#play').onclick=async()=>{
      alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
-     practiceVideo.play().then(()=>{
+     applyPendingLocalVideoRestore(practiceVideo,encodeURI(currentPracticeVideoUrl)).then(()=>{
+      if(startGeneration!==mediaStartGeneration||!videoEnabled||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
+      return practiceVideo.play();
+     }).then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       api.play();startSession();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
@@ -2696,8 +2702,8 @@ function getWistiaTime(){
 function restoreWistiaTime(time){const target=Math.max(0,+time||0);pendingWistiaRestore=target>0&&currentWistiaId?{id:currentWistiaId,time:target}:null}
 function cancelPendingLocalVideoMetadata(){
  if(!pendingLocalVideoMetadata)return;
- const {video,onMetadata}=pendingLocalVideoMetadata;pendingLocalVideoMetadata=null;
- video.removeEventListener('loadedmetadata',onMetadata);
+ const {video,onMetadata,resolve}=pendingLocalVideoMetadata;pendingLocalVideoMetadata=null;
+ video.removeEventListener('loadedmetadata',onMetadata);if(resolve)resolve();
 }
 function restoreLocalVideoTime(time){
  cancelPendingLocalVideoMetadata();
@@ -2706,18 +2712,19 @@ function restoreLocalVideoTime(time){
 }
 function applyPendingLocalVideoRestore(video,requestedVideo){
  cancelPendingLocalVideoMetadata();
- if(!video||pendingLocalVideoRestore?.url!==requestedVideo)return;
+ if(!video||pendingLocalVideoRestore?.url!==requestedVideo)return Promise.resolve();
  const target=pendingLocalVideoRestore.time;
  const seek=()=>{
   if(pendingLocalVideoMetadata?.video===video)pendingLocalVideoMetadata=null;
   if(practiceVideo!==video||pendingLocalVideoRestore?.url!==requestedVideo||(video.getAttribute('src')||'')!==requestedVideo)return;
   try{video.currentTime=target;pendingLocalVideoRestore=null}catch(_){}
  };
- if(video.readyState>=1)seek();else{
-  const onMetadata=()=>seek();
-  pendingLocalVideoMetadata={video,onMetadata};
+ if(video.readyState>=1){seek();return Promise.resolve()}
+ return new Promise(resolve=>{
+  const onMetadata=()=>{seek();resolve()};
+  pendingLocalVideoMetadata={video,onMetadata,resolve};
   video.addEventListener('loadedmetadata',onMetadata,{once:true});
- }
+ });
 }
 function setVideoTrack(id,practiceUrl=null){
  pendingWistiaRestore=null;pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
