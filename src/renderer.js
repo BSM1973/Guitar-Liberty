@@ -2743,7 +2743,7 @@ function applyPendingLocalVideoRestore(video,requestedVideo){
  const target=pendingLocalVideoRestore.time;
  const seek=()=>{
   if(practiceVideo!==video||pendingLocalVideoRestore?.url!==requestedVideo||(video.getAttribute('src')||'')!==requestedVideo)return;
-  try{video.currentTime=target;pendingLocalVideoRestore=null}catch(_){}
+  try{const max=Number.isFinite(video.duration)&&video.duration>0?Math.max(0,video.duration-.05):target;video.currentTime=Math.min(target,max);pendingLocalVideoRestore=null}catch(_){}
  };
  if(video.readyState>=1){seek();return Promise.resolve()}
  return new Promise((resolve,reject)=>{
@@ -2894,7 +2894,7 @@ function restoreBackingTime(time){
  if(!track||!(target>0))return;
  track._guitarLibertyRestoreTime=target;
  if(track.readyState>=1){
-  try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
+  try{const max=Number.isFinite(track.duration)&&track.duration>0?Math.max(0,track.duration-.05):target;track.currentTime=Math.min(target,max);delete track._guitarLibertyRestoreTime}catch(_){}
  }
 }
 function applyPendingBackingRestore(track){
@@ -2903,7 +2903,7 @@ function applyPendingBackingRestore(track){
  if(!(target>0))return Promise.resolve();
  const seek=()=>{
   if(backingAudio!==track||+track._guitarLibertyRestoreTime!==target)return;
-  try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
+  try{const max=Number.isFinite(track.duration)&&track.duration>0?Math.max(0,track.duration-.05):target;track.currentTime=Math.min(target,max);delete track._guitarLibertyRestoreTime}catch(_){}
  };
  if(track.readyState>=1){seek();return Promise.resolve()}
  return new Promise((resolve,reject)=>{
