@@ -2191,7 +2191,8 @@ function tick(){
  }
  if(!practiceLoop&&index>=e.notes.length){
   sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();
-  index=0;playing=false;clearInternalTimer();stopAllVoices();pausePracticeClock();
+  index=0;playing=false;clearInternalTimer();stopAllVoices();
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});pausePracticeClock();
   document.querySelector('#play').textContent='▶ PLAY';
   document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'));
   const paper=document.querySelector('.paper');if(paper)paper.scrollTo({top:0,behavior:'smooth'});
