@@ -2470,6 +2470,7 @@ document.querySelector('#play').onclick=async()=>{
    }
    if(!videoEnabled&&api.playerState===1){api.pause();stopBacking(false);alphaTabResumePending=true;document.querySelector('#play').textContent='▶ PLAY';return;}
    const resumeLeadIn=leadInResumePending;
+   const remainingLeadIn=resumeLeadIn?leadInRemainingMs:0;
    leadInResumePending=false;
    const resumeFromPause=alphaTabResumePending;
    alphaTabResumePending=false;
@@ -2491,7 +2492,6 @@ document.querySelector('#play').onclick=async()=>{
     if(error)console.error(label+' resume',error);
    };
    if(resumeLeadIn){
-    const remainingLeadIn=leadInRemainingMs;
     const resumeLeadInPlayback=()=>{if(!practiceLoop||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();};
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
      syncVideoTempo();
