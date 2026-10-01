@@ -902,6 +902,11 @@ function setAlphaTempo(api){
  const original=practiceScore.tempo||120;
  api.playbackSpeed=Math.max(.25,Math.min(3,+tempo.value/original));
 }
+function restoreAlphaTick(api,tick){
+ if(!api||!(tick>0))return;
+ try{api.tickPosition=tick}catch(_){return}
+ requestAnimationFrame(()=>{if(window.guitarLibertyAlphaTab===api)updatePlayCursor(api,tick)});
+}
 const libertyLevel=document.querySelector('#libertyLevel'),libertyState=document.querySelector('#libertyState'),libertyText=document.querySelector('#libertyText'),libertyReset=document.querySelector('#libertyReset'),libertyAuto=document.querySelector('#libertyAuto'),libertyCycle=document.querySelector('#libertyCycle'),libertyStartFade=document.querySelector('#libertyStartFade'),libertyStage=document.querySelector('#libertyStage');
 function applyLibertyMode(){
  const level=Math.max(0,Math.min(100,+libertyLevel?.value||0)),tabHost=document.querySelector('#tab');
@@ -3230,7 +3235,7 @@ async function loadBundledScore(button){
   loopRepeats.value=previousLibraryState.loopRepeatsValue;
   syncPracticeRange();
   if(window.guitarLibertyAlphaTab){practiceLoop?setPracticeRange(window.guitarLibertyAlphaTab):clearPracticeRange(window.guitarLibertyAlphaTab)}
-  if(window.guitarLibertyAlphaTab&&previousLibraryState.alphaTickPosition>0){try{window.guitarLibertyAlphaTab.tickPosition=previousLibraryState.alphaTickPosition}catch(_){}}
+  restoreAlphaTick(window.guitarLibertyAlphaTab,previousLibraryState.alphaTickPosition);
   sessionSeriesCount=previousLibraryState.sessionSeriesCount;
   sessionRepCount=previousLibraryState.sessionRepCount;
   sessionBest=previousLibraryState.sessionBest;
@@ -3384,7 +3389,7 @@ if(importButton) importButton.onclick=async()=>{
   loopRepeats.value=previousLessonContext.loopRepeatsValue;
   syncPracticeRange();
   if(window.guitarLibertyAlphaTab){practiceLoop?setPracticeRange(window.guitarLibertyAlphaTab):clearPracticeRange(window.guitarLibertyAlphaTab)}
-  if(window.guitarLibertyAlphaTab&&previousLessonContext.alphaTickPosition>0){try{window.guitarLibertyAlphaTab.tickPosition=previousLessonContext.alphaTickPosition}catch(_){}}
+  restoreAlphaTick(window.guitarLibertyAlphaTab,previousLessonContext.alphaTickPosition);
   sessionSeriesCount=previousLessonContext.sessionSeriesCount;
   sessionRepCount=previousLessonContext.sessionRepCount;
   sessionBest=previousLessonContext.sessionBest;
