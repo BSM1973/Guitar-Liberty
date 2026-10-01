@@ -3128,7 +3128,9 @@ if(tutorialToggle)tutorialToggle.onclick=()=>{
 };
 async function loadBundledScore(button){
  const url=button.dataset.score;if(!url)return;
- const previousAlphaTabWasPlaying=!!(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1);
+ const previousAlphaTabApi=alphaTabMode?window.guitarLibertyAlphaTab:null;
+ const previousAlphaTabWasPlaying=!!(previousAlphaTabApi?.playerState===1);
+ const previousAlphaTabTickPosition=previousAlphaTabApi?Math.max(0,+previousAlphaTabApi.tickPosition||0):0;
  // A library selection immediately invalidates the previous transport and any
  // alphaTab load still in flight. Do this before the library fetch so an older
  // import cannot finish and publish its score while the new lesson is downloading.
@@ -3169,7 +3171,7 @@ async function loadBundledScore(button){
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
   alphaWasPlaying:previousAlphaTabWasPlaying,
-  alphaTickPosition:alphaTabMode&&window.guitarLibertyAlphaTab?Math.max(0,+window.guitarLibertyAlphaTab.tickPosition||0):0,
+  alphaTickPosition:previousAlphaTabTickPosition,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
   internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
  };
