@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
 function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;if(!preserveBoundary){nextDelayWallClock=false;internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false,pendingBackingRestore=null;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null,pendingWistiaRestoreTime=0;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null,pendingWistiaRestore=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
@@ -2693,7 +2693,7 @@ function getWistiaTime(){
   return Math.max(0,+value||0);
  }catch(_){return 0}
 }
-function restoreWistiaTime(time){pendingWistiaRestoreTime=Math.max(0,+time||0)}
+function restoreWistiaTime(time){const target=Math.max(0,+time||0);pendingWistiaRestore=target>0&&currentWistiaId?{id:currentWistiaId,time:target}:null}
 function restoreLocalVideoTime(time){
  const video=practiceVideo,target=Math.max(0,+time||0);
  if(!video||!(target>0))return;
@@ -2701,6 +2701,7 @@ function restoreLocalVideoTime(time){
  if(video.readyState>=1)seek();else video.addEventListener('loadedmetadata',seek,{once:true});
 }
 function setVideoTrack(id,practiceUrl=null){
+ pendingWistiaRestore=null;
  currentPracticeVideoUrl=practiceUrl||null;
  wistiaLoadGeneration++;pauseWistiaPracticeVideo();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
@@ -2753,8 +2754,8 @@ function openVideo(){
      return;
     }
     wistiaPlayer=video;
-    if(pendingWistiaRestoreTime>0){
-     const restoreTime=pendingWistiaRestoreTime;pendingWistiaRestoreTime=0;
+    if(pendingWistiaRestore?.id===requestedWistiaId){
+     const restoreTime=pendingWistiaRestore.time;pendingWistiaRestore=null;
      try{
       if(typeof video.time==='function')video.time(restoreTime);
       else if(typeof video.currentTime==='function')video.currentTime(restoreTime);
@@ -2779,6 +2780,7 @@ function openVideo(){
  }
 }
 function closeVideo(){
+ pendingWistiaRestore=null;
  const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  // Closing the practice video invalidates any start/count-in that was armed
  // around that video. Otherwise a delayed callback can still start the score
