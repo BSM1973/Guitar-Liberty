@@ -2797,9 +2797,6 @@ function openVideo(){
      return;
     }
     wistiaPlayer=video;
-    if(pendingWistiaReady?.id===requestedWistiaId&&pendingWistiaReady.generation===loadGeneration){
-     const {resolve}=pendingWistiaReady;pendingWistiaReady=null;resolve(video);
-    }
     if(pendingWistiaRestore?.id===requestedWistiaId){
      const restoreTime=pendingWistiaRestore.time;pendingWistiaRestore=null;
      try{
@@ -2807,9 +2804,12 @@ function openVideo(){
       else if(typeof video.currentTime==='function')video.currentTime(restoreTime);
      }catch(e){console.error('Wistia position restore',e)}
     }
-    // Apply the current practice tempo as soon as Wistia becomes ready. Auto BPM
-    // and manual tempo changes use the same sync path afterwards.
+    // Apply position and tempo before releasing a transport resume that was
+    // waiting for this player. "Ready" therefore means fully synchronized.
     syncVideoTempo();
+    if(pendingWistiaReady?.id===requestedWistiaId&&pendingWistiaReady.generation===loadGeneration){
+     const {resolve}=pendingWistiaReady;pendingWistiaReady=null;resolve(video);
+    }
     const readyGeneration=loadGeneration;
     wistiaEndHandler=()=>{
      if(readyGeneration!==wistiaLoadGeneration||!videoEnabled||wistiaPlayer!==video||currentWistiaId!==requestedWistiaId)return;
