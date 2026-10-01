@@ -11,7 +11,7 @@ const exercises={
 };
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
 function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;if(!preserveBoundary){nextDelayWallClock=false;internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
-let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false;
+let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false,pendingBackingRestore=null;
 let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
 const sampleLoadPromises=new Map();
@@ -2785,9 +2785,14 @@ function scheduleLeadInStart(callback,delayMs){
  leadInDelayMs=Math.max(0,delayMs||0);leadInStartedAt=performance.now();
  backingStartTimer=setTimeout(()=>{backingStartTimer=null;leadInStartedAt=0;leadInDelayMs=0;leadInRemainingMs=0;callback()},leadInDelayMs);
 }
+function cancelPendingBackingRestore(){
+ if(!pendingBackingRestore)return;
+ const {track,onMetadata,onError,resolve}=pendingBackingRestore;pendingBackingRestore=null;
+ track.removeEventListener('loadedmetadata',onMetadata);track.removeEventListener('error',onError);resolve();
+}
 function stopBacking(reset=true){
  mediaStartGeneration++;
- cancelDelayedPlayback();
+ cancelDelayedPlayback();cancelPendingBackingRestore();
  if(!backingAudio)return;
  backingAudio.pause();if(reset)backingAudio.currentTime=0;
 }
@@ -2817,8 +2822,10 @@ function applyPendingBackingRestore(track){
  };
  if(track.readyState>=1){seek();return Promise.resolve()}
  return new Promise((resolve,reject)=>{
-  const onMetadata=()=>{track.removeEventListener('error',onError);seek();resolve()};
-  const onError=()=>{track.removeEventListener('loadedmetadata',onMetadata);reject(track.error||new Error('Backing indisponible'))};
+  const finish=()=>{if(pendingBackingRestore?.track===track)pendingBackingRestore=null};
+  const onMetadata=()=>{track.removeEventListener('error',onError);finish();seek();resolve()};
+  const onError=()=>{track.removeEventListener('loadedmetadata',onMetadata);finish();reject(track.error||new Error('Backing indisponible'))};
+  pendingBackingRestore={track,onMetadata,onError,resolve};
   track.addEventListener('loadedmetadata',onMetadata,{once:true});
   track.addEventListener('error',onError,{once:true});
  });
