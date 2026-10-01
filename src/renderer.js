@@ -2727,8 +2727,10 @@ function getWistiaTime(){
 function restoreWistiaTime(time){const target=Math.max(0,+time||0);pendingWistiaRestore=target>0&&currentWistiaId?{id:currentWistiaId,time:target}:null}
 function cancelPendingLocalVideoMetadata(){
  if(!pendingLocalVideoMetadata)return;
- const {video,onMetadata,resolve}=pendingLocalVideoMetadata;pendingLocalVideoMetadata=null;
- video.removeEventListener('loadedmetadata',onMetadata);if(resolve)resolve();
+ const {video,onMetadata,onError,resolve,timer}=pendingLocalVideoMetadata;pendingLocalVideoMetadata=null;
+ video.removeEventListener('loadedmetadata',onMetadata);video.removeEventListener('error',onError);
+ if(timer)clearTimeout(timer);
+ if(resolve)resolve();
 }
 function restoreLocalVideoTime(time){
  cancelPendingLocalVideoMetadata();
@@ -2745,10 +2747,18 @@ function applyPendingLocalVideoRestore(video,requestedVideo){
   try{video.currentTime=target;pendingLocalVideoRestore=null}catch(_){}
  };
  if(video.readyState>=1){seek();return Promise.resolve()}
- return new Promise(resolve=>{
-  const onMetadata=()=>{seek();resolve()};
-  pendingLocalVideoMetadata={video,onMetadata,resolve};
+ return new Promise((resolve,reject)=>{
+  const finish=()=>{
+   if(pendingLocalVideoMetadata?.video===video)pendingLocalVideoMetadata=null;
+   video.removeEventListener('loadedmetadata',onMetadata);video.removeEventListener('error',onError);
+   clearTimeout(timer);
+  };
+  const onMetadata=()=>{finish();seek();resolve()};
+  const onError=()=>{finish();reject(video.error||new Error('Vidéo indisponible'))};
+  const timer=setTimeout(()=>{finish();reject(new Error('Délai de chargement vidéo dépassé'))},8000);
+  pendingLocalVideoMetadata={video,onMetadata,onError,resolve,timer};
   video.addEventListener('loadedmetadata',onMetadata,{once:true});
+  video.addEventListener('error',onError,{once:true});
  });
 }
 function setVideoTrack(id,practiceUrl=null){
