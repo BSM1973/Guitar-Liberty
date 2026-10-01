@@ -3370,6 +3370,7 @@ if(importButton) importButton.onclick=async()=>{
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
+  alphaWasPlaying:importInterruptedPlayback&&!!previousAlphaTabSource,
   alphaTickPosition:previousImportAlphaTickPosition,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
@@ -3444,7 +3445,13 @@ if(importButton) importButton.onclick=async()=>{
   loopToggle.textContent=practiceLoop?'↻ LOOP ON':'↻ LOOP OFF';
   loopToggle.classList.toggle('active',practiceLoop);
   updatePracticeProgress(practiceIteration);
-  practiceStatus.textContent=/^(En cours|Compte\s*:)/.test(previousLessonContext.practiceStatusText||'')?'Prêt à reprendre':previousLessonContext.practiceStatusText;
+  if(previousLessonContext.alphaWasPlaying&&window.guitarLibertyAlphaTab){
+   alphaTabResumePending=true;
+   document.querySelector('#play').textContent='▶ REPRENDRE';
+   practiceStatus.textContent=practiceLoop?'Prêt à reprendre • répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'Prêt à reprendre';
+  }else{
+   practiceStatus.textContent=/^(En cours|Compte\\s*:)/.test(previousLessonContext.practiceStatusText||'')?'Prêt à reprendre':previousLessonContext.practiceStatusText;
+  }
   document.querySelector('#title').textContent=currentPracticeTitle;
   document.querySelectorAll('.library-exercise').forEach(b=>b.classList.toggle('active',!!previousLessonContext.activeLibraryScore&&b.dataset.score===previousLessonContext.activeLibraryScore));
   paintLessonComplete();paintLessonMastery();
