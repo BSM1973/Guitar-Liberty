@@ -760,15 +760,15 @@ function renderHistory(){
  renderExerciseProgress(items);renderLearningPath(items);if(!items.length){historyList.innerHTML='<p>Aucune session enregistrée.</p>';return}
  historyList.innerHTML=items.map(x=>{const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null,libertyText=freedom===0?'SANS TAB':freedom!==null&&freedom<100?'TAB '+freedom+' %':freedom===100?'TAB COMPLÈTE':'LIBERTÉ —',series=Math.max(0,+x.series||0),reps=Math.max(0,+x.reps||0),end=+x.end||+x.best||+x.start||0,best=+x.best||end,start=+x.start||end;return '<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+series+' série'+(series>1?'s':'')+'</span><span>'+reps+' répétition'+(reps>1?'s':'')+'</span><span>'+start+' → '+end+' BPM'+(best!==end?' • record '+best:'')+'</span><span>'+libertyText+'</span><strong>+'+(+x.gain||0)+' BPM</strong></div>'}).join('');
 }
-function saveCurrentSession(savedAt=Date.now()){
+function saveCurrentSession(savedAt=Date.now(),{refresh=true}={}){
  if(sessionHistorySaved||!sessionStarted||(!sessionFirstPracticeAt&&!sessionRepCount&&!sessionSeriesCount))return;
  const sec=sessionFirstPracticeAt?activePracticeSeconds(savedAt):Math.floor((savedAt-sessionStarted)/1000),items=readHistory();
  items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:formatSessionDuration(sec),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,end:+tempo.value||sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
- writeHistory(items);sessionHistorySaved=true;renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
- setTimeout(paintLessonMastery,0);
+ writeHistory(items);sessionHistorySaved=true;
+ if(refresh){renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);setTimeout(paintLessonMastery,0)}
 }
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
-window.addEventListener('beforeunload',()=>{const closedAt=Date.now();pausePracticeClock(closedAt);saveCurrentSession(closedAt)});
+window.addEventListener('beforeunload',()=>{const closedAt=Date.now();pausePracticeClock(closedAt);saveCurrentSession(closedAt,{refresh:false})});
 renderHistory();
 function beginPracticePassage(at=Date.now()){
  startSession();
