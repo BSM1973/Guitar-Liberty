@@ -268,3 +268,11 @@ main{display:block;min-height:calc(100vh - 92px)}
 @media(max-width:650px){
  .home-levels,#appWorkspace>.course-nav{grid-template-columns:1fr}
 }
+
+
+/* La page d'accueil se termine strictement après les quatre niveaux. */
+#homePage{display:block}
+#homePage[hidden]{display:none!important}
+#homePage>.home-content{padding-bottom:24px}
+#homePage>.home-content>.course-nav{margin-bottom:0}
+#appWorkspace[hidden]{display:none!important}
