@@ -2,7 +2,7 @@
 <html lang="fr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guitare Liberty</title><link rel="stylesheet" href="style.css"></head>
 <body>
-<header><div class="brand"><h1>Guitare <span>Liberty</span></h1><p>S'ENTRAÎNER – JOUER – PROGRESSER</p></div><div class="jrp-edition"><strong>ÉDITION JRP&nbsp;&nbsp;•&nbsp;&nbsp;JEUX – RÊVES – PENTA</strong></div><div class="badge">v0.4 TAB</div></header>
+<header><div class="brand"><h1>Guitare <span>Liberty</span></h1><p>S'ENTRAÎNER – JOUER – PROGRESSER</p></div><div class="jrp-edition"><strong>ÉDITION JRP&nbsp;&nbsp;•&nbsp;&nbsp;JEUX – RÊVES – PENTA</strong></div><div class="header-actions"><button id="resetAll" type="button">RESET</button><div class="badge">v0.4 TAB</div></div></header>
 <section id="homePage" class="home-page">
  <div class="home-hero">
   <small>BIENVENUE DANS</small>
@@ -21,17 +21,7 @@
     <div><span>▶</span><strong>VIDÉO DE PRÉSENTATION</strong><small>Ta vidéo d'explication pourra être intégrée ici.</small></div>
    </div>
   </article>
-  <aside class="home-shortcuts">
-   <div class="home-section-title"><small>ACCÈS RAPIDE</small><strong>OÙ VEUX-TU ALLER ?</strong></div>
-   <button data-home-target="dashboard"><b>MON PARCOURS</b><small>Progression, cours actuel et objectifs</small></button>
-   <button data-home-target="courses"><b>COURS & EXERCICES</b><small>Niveaux JEUX – RÊVES – PENTA</small></button>
-   <button data-home-target="coach"><b>COACH IA</b><small>Analyse et conseils de progression</small></button>
-   <button data-home-target="listen"><b>ÉCOUTE IA</b><small>Analyse de ton jeu en temps réel</small></button>
-  </aside>
- </div>
-</section>
-<main id="appWorkspace" hidden>
-<aside class="course-nav">
+  <aside class="course-nav">
 <details class="level-menu" open><summary>NIVEAU 0</summary>
  <details class="category-menu" open><summary>#1 - JEUX</summary><button class="library-exercise" data-score="../assets/exercises/niveau-0/jeux/IMPRO - Am Penta 1ère Improvisation.gp" data-backing="../assets/exercises/niveau-0/jeux/IMPRO - Am Penta 1ere Improvisation 50 BPM.mp3" data-bpm="50" data-backing-lead-beats="1.25">Am Penta 1ère Improvisation<small>Improvisation • Am Pentatonique</small></button></details>
  <details class="category-menu"><summary>#2 - REVES</summary><p>À venir</p></details>
@@ -49,7 +39,11 @@
 </details>
 <details class="level-menu"><summary>NIVEAU 2</summary><details class="category-menu"><summary>#1 - JEUX</summary><p>À venir</p></details><details class="category-menu"><summary>#2 - REVES</summary><p>À venir</p></details><details class="category-menu"><summary>#3 - PENTA</summary><p>À venir</p></details></details>
 <details class="level-menu"><summary>NIVEAU 3</summary><details class="category-menu"><summary>#1 - JEUX</summary><p>À venir</p></details><details class="category-menu"><summary>#2 - REVES</summary><p>À venir</p></details><details class="category-menu"><summary>#3 - PENTA</summary><p>À venir</p></details></details>
-<div class="course-progression"><strong>PROGRESSION DES COURS</strong><span id="courseProgressText">0 / 0 terminé</span><div class="course-progress-track"><i id="courseProgressBar"></i></div></div><div class="personal-tabs"><span>MES TABS</span><button id="importScore">⇩ IMPORTER UNE TAB</button></div></aside>
+</aside>
+ </div>
+</section>
+<main id="appWorkspace" hidden>
+<button id="importScore" type="button" hidden>⇩ IMPORTER UNE TAB</button>
 <section>
 <section class="student-dashboard">
  <div class="dashboard-head"><div><small>TABLEAU DE BORD</small><h2>MON PARCOURS GUITARE LIBERTY</h2></div><button id="continueCourse" type="button">▶ CONTINUER MON PARCOURS</button></div>
@@ -163,7 +157,6 @@
 <div class="listen-actions"><button id="listenStart" type="button">DÉMARRER L’ANALYSE</button><span id="listenStatus">Prêt • l’analyse reste locale dans Guitare Liberty</span></div>
 </section>
 
-<div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div id="tutorialNotice" class="tutorial-notice" hidden><strong>VIDÉO TUTORIEL</strong><span id="tutorialNoticeText">Tutoriel à venir pour ce cours.</span></div><div id="videoStage" class="video-stage" hidden><iframe id="wistiaFrame" title="Vidéo de cours" allow="autoplay; fullscreen" class="wistia_embed" name="wistia_embed" frameborder="0" scrolling="no"></iframe><video id="practiceVideo" playsinline preload="auto" controls hidden></video></div>
 <div class="practice-panel">
  <strong>MODE ENTRAÎNEMENT</strong>
@@ -230,6 +223,7 @@
  <div id="metronomeBeat" class="metronome-beat" aria-label="Battement du métronome"><i></i><i></i><i></i><i></i></div>
 </div>
 <div class="score-head"><div><h2 id="title"></h2><p id="subtitle"></p></div><div class="score-meta"><span>Standard tuning</span><strong id="scoreTempo">♩ = 90</strong></div></div>
+<div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div class="paper"><div class="exercise-label">Ex.1</div><div id="countInOverlay" class="count-in-overlay" hidden><small>PRÉPARE-TOI</small><strong id="countInNumber">4</strong></div><div id="tab" class="tab-score"></div></div>
 <div class="transport"><div id="progress"></div></div>
 </section>
