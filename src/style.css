@@ -246,3 +246,25 @@ main{display:block;min-height:calc(100vh - 92px)}
 }
 @media(max-width:1100px){.home-page .course-nav{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.home-page .course-nav{grid-template-columns:1fr}.header-actions{gap:5px}#resetAll{padding:8px}}
+
+
+/* Accueil : uniquement les quatre niveaux, sans leur contenu détaillé. */
+.home-levels{
+ width:100%;margin-top:22px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;
+}
+.home-levels button{
+ min-height:64px;border:1px solid #343b46;border-radius:10px;background:#14181e;color:#e9b44c;
+ font-weight:900;letter-spacing:.08em;cursor:pointer;
+}
+.home-levels button:hover{border-color:#e9b44c;background:#201c14}
+#appWorkspace>.course-nav{
+ padding:18px 24px;border:0;border-bottom:1px solid #292d35;background:#101319;
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;
+}
+#appWorkspace>.course-nav .level-menu{min-width:0}
+@media(max-width:1100px){
+ .home-levels,#appWorkspace>.course-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+ .home-levels,#appWorkspace>.course-nav{grid-template-columns:1fr}
+}
