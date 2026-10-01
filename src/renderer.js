@@ -2411,7 +2411,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     const backingPromise=startBacking.play();
     if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;alphaTabMediaPreparing=false;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
     else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){beginPracticePassage();api.play()}
-   })
+   }).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)})
    return;
   }
   alphaTabMediaPreparing=true;
@@ -2538,7 +2538,7 @@ document.querySelector('#play').onclick=async()=>{
       const backingPromise=startBacking.play();
       if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
       else resumeBackingLeadIn();
-     });
+     }).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
     }else scheduleLeadInStart(resumeLeadInPlayback,remainingLeadIn);
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
@@ -2816,7 +2816,12 @@ function applyPendingBackingRestore(track){
   try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
  };
  if(track.readyState>=1){seek();return Promise.resolve()}
- return new Promise(resolve=>track.addEventListener('loadedmetadata',()=>{seek();resolve()},{once:true}));
+ return new Promise((resolve,reject)=>{
+  const onMetadata=()=>{track.removeEventListener('error',onError);seek();resolve()};
+  const onError=()=>{track.removeEventListener('loadedmetadata',onMetadata);reject(track.error||new Error('Backing indisponible'))};
+  track.addEventListener('loadedmetadata',onMetadata,{once:true});
+  track.addEventListener('error',onError,{once:true});
+ });
 }
 function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
