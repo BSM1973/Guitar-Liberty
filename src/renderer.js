@@ -2498,7 +2498,7 @@ document.querySelector('#play').onclick=async()=>{
      alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
-     applyPendingLocalVideoRestore(practiceVideo,encodeURI(currentPracticeVideoUrl)).then(()=>{
+     applyPendingLocalVideoRestore(practiceVideo,normalizeMediaUrl(currentPracticeVideoUrl)).then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       return practiceVideo.play();
      }).then(()=>{
@@ -2552,7 +2552,7 @@ document.querySelector('#play').onclick=async()=>{
      alphaTabMediaPreparing=true;
      const startGeneration=++mediaStartGeneration;
      const resumeVideoSrc=practiceVideo.currentSrc||practiceVideo.src;
-     applyPendingLocalVideoRestore(practiceVideo,encodeURI(currentPracticeVideoUrl)).then(()=>{
+     applyPendingLocalVideoRestore(practiceVideo,normalizeMediaUrl(currentPracticeVideoUrl)).then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       return practiceVideo.play();
      }).then(()=>{
@@ -2732,10 +2732,14 @@ function cancelPendingLocalVideoMetadata(){
  if(timer)clearTimeout(timer);
  if(resolve)resolve();
 }
+function normalizeMediaUrl(url){
+ const value=String(url||'');
+ try{return encodeURI(decodeURI(value))}catch(_){return encodeURI(value)}
+}
 function restoreLocalVideoTime(time){
  cancelPendingLocalVideoMetadata();
  const target=Math.max(0,+time||0);
- pendingLocalVideoRestore=target>0&&currentPracticeVideoUrl?{url:encodeURI(currentPracticeVideoUrl),time:target}:null;
+ pendingLocalVideoRestore=target>0&&currentPracticeVideoUrl?{url:normalizeMediaUrl(currentPracticeVideoUrl),time:target}:null;
 }
 function applyPendingLocalVideoRestore(video,requestedVideo){
  cancelPendingLocalVideoMetadata();
@@ -2794,7 +2798,7 @@ function openVideo(){
  videoEnabled=true;videoStage.hidden=false;
  if(currentPracticeVideoUrl&&practiceVideo){
    wistiaFrame.hidden=true;practiceVideo.hidden=false;
-   const requestedVideo=encodeURI(currentPracticeVideoUrl);
+   const requestedVideo=normalizeMediaUrl(currentPracticeVideoUrl);
    const loadedVideo=practiceVideo.getAttribute('src')||'';
    if(loadedVideo!==requestedVideo){
     practiceVideo.src=requestedVideo;
