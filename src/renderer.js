@@ -2788,6 +2788,16 @@ function syncBackingVolume(){
  if(backingVolumeLabel)backingVolumeLabel.textContent=volume+'%';
  if(backingAudio)backingAudio.volume=volume/100;
 }
+function restoreBackingTime(time){
+ const track=backingAudio,target=Math.max(0,+time||0);
+ if(!track||!(target>0))return;
+ const seek=()=>{
+  if(backingAudio!==track)return;
+  try{track.currentTime=target}catch(_){}
+ };
+ seek();
+ if(track.readyState<1)track.addEventListener('loadedmetadata',seek,{once:true});
+}
 function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
  backingAudio=url?new Audio(encodeURI(url)):null;
@@ -3223,7 +3233,7 @@ async function loadBundledScore(button){
   currentLessonId=previousLibraryState.lessonId;
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
-  setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;if(backingAudio&&previousLibraryState.backingTime>0){try{backingAudio.currentTime=previousLibraryState.backingTime}catch(_){}}
+  setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;restoreBackingTime(previousLibraryState.backingTime);
   setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;
   setTutorial(previousLibraryState.tutorialUrl);
   currentPracticeTitle=previousLibraryState.practiceTitle;
@@ -3396,7 +3406,7 @@ if(importButton) importButton.onclick=async()=>{
   lessonTempo.textContent=previousLessonContext.tempo;
   setBackingTrack(previousLessonContext.backingUrl);
   currentBackingLeadBeats=previousLessonContext.backingLeadBeats;
-  if(backingAudio&&previousLessonContext.backingTime>0){try{backingAudio.currentTime=previousLessonContext.backingTime}catch(_){}}
+  restoreBackingTime(previousLessonContext.backingTime);
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
   currentVideoSourceBpm=previousLessonContext.videoSourceBpm||50;
