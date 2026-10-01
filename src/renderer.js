@@ -2405,9 +2405,13 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   backingAudio.playbackRate=sourceRate;
   if(resumeAccompaniment){
    alphaTabMediaPreparing=true;
-   const startGeneration=++mediaStartGeneration,startBacking=backingAudio;applyPendingBackingRestore(startBacking);const backingPromise=startBacking.play();
-   if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;alphaTabMediaPreparing=false;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
-   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){beginPracticePassage();api.play()}
+   const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
+   applyPendingBackingRestore(startBacking).then(()=>{
+    if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||window.guitarLibertyAlphaTab!==api)return;
+    const backingPromise=startBacking.play();
+    if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;alphaTabMediaPreparing=false;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
+    else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){beginPracticePassage();api.play()}
+   })
    return;
   }
   alphaTabMediaPreparing=true;
@@ -2524,13 +2528,17 @@ document.querySelector('#play').onclick=async()=>{
      }catch(e){failAccompanimentResume('Wistia',e)}
     }else if(backingAudio&&backingEnabled){
      alphaTabMediaPreparing=true;
-     const startGeneration=++mediaStartGeneration,startBacking=backingAudio;applyPendingBackingRestore(startBacking);const backingPromise=startBacking.play();
+     const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
      const resumeBackingLeadIn=()=>{
       if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;
       alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;resumeLeadInPlayback()},remainingLeadIn);
      };
-     if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
-     else resumeBackingLeadIn();
+     applyPendingBackingRestore(startBacking).then(()=>{
+      if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||window.guitarLibertyAlphaTab!==api)return;
+      const backingPromise=startBacking.play();
+      if(backingPromise?.then)backingPromise.then(resumeBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failAccompanimentResume('Backing',e)});
+      else resumeBackingLeadIn();
+     });
     }else scheduleLeadInStart(resumeLeadInPlayback,remainingLeadIn);
    }else if(resumeFromPause){
     if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
@@ -2800,10 +2808,15 @@ function restoreBackingTime(time){
  else track.addEventListener('loadedmetadata',seek,{once:true});
 }
 function applyPendingBackingRestore(track){
- if(!track||backingAudio!==track)return;
+ if(!track||backingAudio!==track)return Promise.resolve();
  const target=+track._guitarLibertyRestoreTime||0;
- if(!(target>0))return;
- try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
+ if(!(target>0))return Promise.resolve();
+ const seek=()=>{
+  if(backingAudio!==track||+track._guitarLibertyRestoreTime!==target)return;
+  try{track.currentTime=target;delete track._guitarLibertyRestoreTime}catch(_){}
+ };
+ if(track.readyState>=1){seek();return Promise.resolve()}
+ return new Promise(resolve=>track.addEventListener('loadedmetadata',()=>{seek();resolve()},{once:true}));
 }
 function setBackingTrack(url){
  stopBacking();currentBackingUrl=url||null;
