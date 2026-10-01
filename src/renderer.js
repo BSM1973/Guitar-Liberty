@@ -3400,6 +3400,7 @@ if(importButton) importButton.onclick=async()=>{
   if(previousLessonContext.targetTempo)targetBpm.value=previousLessonContext.targetTempo;
   autoBpm.value=previousLessonContext.autoBpmValue;
   syncTempo();
+  if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
   practiceLoop=previousLessonContext.practiceLoop;
   practiceIteration=previousLessonContext.practiceIteration;
   lastLoopTick=previousLessonContext.lastLoopTick;
