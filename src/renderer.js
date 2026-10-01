@@ -3306,6 +3306,7 @@ if(importButton) importButton.onclick=async()=>{
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  const previousImportAlphaTabApi=alphaTabMode?window.guitarLibertyAlphaTab:null;
  const previousImportAlphaTickPosition=previousImportAlphaTabApi?Math.max(0,+previousImportAlphaTabApi.tickPosition||0):0;
+ const previousImportAlphaWasPlaying=!!(previousImportAlphaTabApi&&previousImportAlphaTabApi.playerState===1);
  const importInterruptedPreparation=!!(internalPlaybackPreparing||alphaTabMediaPreparing||countInActive);
  const importInterruptedPlayback=!!(backingStartTimer||leadInResumePending||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  pausePracticeClock();
@@ -3370,7 +3371,7 @@ if(importButton) importButton.onclick=async()=>{
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
-  alphaWasPlaying:importInterruptedPlayback&&!!previousAlphaTabSource,
+  alphaWasPlaying:previousImportAlphaWasPlaying&&!!previousAlphaTabSource,
   alphaTickPosition:previousImportAlphaTickPosition,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
