@@ -3304,6 +3304,8 @@ if(importButton) importButton.onclick=async()=>{
  // Opening the file picker interrupts active practice too. Pause before the
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
+ const previousImportAlphaTabApi=alphaTabMode?window.guitarLibertyAlphaTab:null;
+ const previousImportAlphaTickPosition=previousImportAlphaTabApi?Math.max(0,+previousImportAlphaTabApi.tickPosition||0):0;
  const importInterruptedPreparation=!!(internalPlaybackPreparing||alphaTabMediaPreparing||countInActive);
  const importInterruptedPlayback=!!(backingStartTimer||leadInResumePending||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  pausePracticeClock();
@@ -3368,7 +3370,7 @@ if(importButton) importButton.onclick=async()=>{
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
-  alphaTickPosition:alphaTabMode&&window.guitarLibertyAlphaTab?Math.max(0,+window.guitarLibertyAlphaTab.tickPosition||0):0,
+  alphaTickPosition:previousImportAlphaTickPosition,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
  const importStillCurrent=()=>importLibraryGeneration===libraryLoadGeneration;
