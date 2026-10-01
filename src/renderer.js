@@ -2658,7 +2658,7 @@ function finishPracticeVideoPlayback(){
  // During loop practice alphaTab owns repetition/series completion. A backing
  // video ending a little early must never stop the current repetition or Auto BPM
  // series; it simply remains ended until the next explicit accompaniment restart.
- if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!alphaTabMediaPreparing)return;
+ if(practiceLoop&&alphaTabMode&&api&&!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing)return;
  cancelPracticeTransition({stopBackingAudio:true});
  if(alphaTabMode&&api){try{api.pause()}catch(_){}}
  pausePracticeClock();
@@ -2790,7 +2790,7 @@ function setBackingTrack(url){
   const track=backingAudio;
   track.preload='auto';
   track.addEventListener('ended',()=>{
-   if(backingAudio!==track||(!backingStartTimer&&!alphaTabMediaPreparing))return;
+   if(backingAudio!==track||(!backingStartTimer&&!leadInResumePending&&!alphaTabMediaPreparing))return;
    const api=window.guitarLibertyAlphaTab;
    cancelPracticeTransition({stopBackingAudio:true});
    if(alphaTabMode&&api){try{api.pause()}catch(_){}}
