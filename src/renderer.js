@@ -770,7 +770,6 @@ function saveCurrentSession(savedAt=Date.now()){
 clearHistory.onclick=()=>{localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(LAST_SESSION_INSIGHT_KEY);lastSessionInsight=null;renderHistory();refreshDashboard();paintSessionInsight()};
 renderHistory();
 function beginPracticePassage(at=Date.now()){
- if(!practiceLoop)return;
  startSession();
  if(!sessionFirstPracticeAt){sessionFirstPracticeAt=at;sessionStartHint=''}
  resumePracticeClock(at);
