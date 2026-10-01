@@ -1207,7 +1207,7 @@ function cancelPendingWistiaResume(){
  try{player?.unbind('play',handler)}catch(_){}
 }
 function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
- alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;alphaTabMediaPreparing=false;mediaStartGeneration++;cancelPendingWistiaResume();
+ alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;alphaTabMediaPreparing=false;mediaStartGeneration++;cancelPendingWistiaResume();cancelPendingWistiaReady();
  internalPlaybackPreparing=false;internalPlaybackGeneration++;
  countInGeneration++;countInActive=false;
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
