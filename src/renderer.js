@@ -3162,6 +3162,7 @@ async function loadBundledScore(button){
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
+  alphaTickPosition:alphaTabMode&&window.guitarLibertyAlphaTab?Math.max(0,+window.guitarLibertyAlphaTab.tickPosition||0):0,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
   internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
  };
@@ -3229,6 +3230,7 @@ async function loadBundledScore(button){
   loopRepeats.value=previousLibraryState.loopRepeatsValue;
   syncPracticeRange();
   if(window.guitarLibertyAlphaTab){practiceLoop?setPracticeRange(window.guitarLibertyAlphaTab):clearPracticeRange(window.guitarLibertyAlphaTab)}
+  if(window.guitarLibertyAlphaTab&&previousLibraryState.alphaTickPosition>0){try{window.guitarLibertyAlphaTab.tickPosition=previousLibraryState.alphaTickPosition}catch(_){}}
   sessionSeriesCount=previousLibraryState.sessionSeriesCount;
   sessionRepCount=previousLibraryState.sessionRepCount;
   sessionBest=previousLibraryState.sessionBest;
@@ -3351,6 +3353,7 @@ if(importButton) importButton.onclick=async()=>{
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
+  alphaTickPosition:alphaTabMode&&window.guitarLibertyAlphaTab?Math.max(0,+window.guitarLibertyAlphaTab.tickPosition||0):0,
   activeLibraryScore:document.querySelector('.library-exercise.active')?.dataset.score||null
  };
  const importStillCurrent=()=>importLibraryGeneration===libraryLoadGeneration;
@@ -3381,6 +3384,7 @@ if(importButton) importButton.onclick=async()=>{
   loopRepeats.value=previousLessonContext.loopRepeatsValue;
   syncPracticeRange();
   if(window.guitarLibertyAlphaTab){practiceLoop?setPracticeRange(window.guitarLibertyAlphaTab):clearPracticeRange(window.guitarLibertyAlphaTab)}
+  if(window.guitarLibertyAlphaTab&&previousLessonContext.alphaTickPosition>0){try{window.guitarLibertyAlphaTab.tickPosition=previousLessonContext.alphaTickPosition}catch(_){}}
   sessionSeriesCount=previousLessonContext.sessionSeriesCount;
   sessionRepCount=previousLessonContext.sessionRepCount;
   sessionBest=previousLessonContext.sessionBest;
