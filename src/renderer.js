@@ -2823,7 +2823,7 @@ function syncVideoTempo(){
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
  const activeApi=window.guitarLibertyAlphaTab;
- const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
+ const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||alphaTabResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  const activeVideoPlayback=!!((alphaTabMode&&activeApi?.playerState===1)||(!alphaTabMode&&playing));
  // Enabling video changes the accompaniment contract. If playback is already
  // running, restart from a stable boundary instead of attaching video mid-pass.
@@ -2893,7 +2893,7 @@ function openVideo(){
 function closeVideo(){
  pendingWistiaRestore=null;cancelPendingWistiaReady();pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
  const activeApi=window.guitarLibertyAlphaTab;
- const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
+ const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||alphaTabResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  const activeVideoPlayback=!!((alphaTabMode&&activeApi?.playerState===1)||(!alphaTabMode&&playing));
  // Removing video while playback is running also changes the synchronization
  // contract, so settle the transport before exposing the new media state.
@@ -3015,7 +3015,7 @@ if(backingToggle)backingToggle.onclick=()=>{
   return;
  }
  const activeApi=window.guitarLibertyAlphaTab;
- const armedBackingStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
+ const armedBackingStart=!!(countInActive||backingStartTimer||leadInResumePending||alphaTabResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  const activeBackingPlayback=!!((alphaTabMode&&activeApi?.playerState===1)||(!alphaTabMode&&playing));
  if(armedBackingStart||activeBackingPlayback)cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  if(activeBackingPlayback){
