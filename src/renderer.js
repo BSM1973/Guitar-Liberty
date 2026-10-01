@@ -2431,7 +2431,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused)startBackingLeadIn();
   return;
  }
- alphaTabMediaPreparing=false;beginPracticePassage();api.play();
+ alphaTabMediaPreparing=false;api.play();
 }
 document.querySelector('#play').onclick=async()=>{
  if(document.querySelector('#play').textContent.includes('REPRENDRE')){
@@ -3097,7 +3097,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
    if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
- api.playerStateChanged.on(e=>{if(!isActiveLoad())return;if(e.state===1){naturalEndCounted=false;playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY}if(sessionStarted&&sessionFirstPracticeAt){const stateAt=Date.now();if(e.state===1&&practiceLoop)resumePracticeClock(stateAt);else pausePracticeClock(stateAt)}if(!videoEnabled)document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else{const endTick=scoreEndTick(),stoppedTick=Math.max(lastLoopTick,+api.tickPosition||0),naturalEnd=!practiceLoop&&!naturalEndCounted&&endTick>0&&stoppedTick>=endTick-1;if(naturalEnd){naturalEndCounted=true;sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;try{api.tickPosition=0}catch(_){}lastLoopTick=-1;document.querySelector('#play').textContent='▶ PLAY';}if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';}});
+ api.playerStateChanged.on(e=>{if(!isActiveLoad())return;const stateAt=Date.now();if(e.state===1){naturalEndCounted=false;playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY;startSession();if(practiceLoop)beginPracticePassage(stateAt)}else if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock(stateAt);if(!videoEnabled)document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else{const endTick=scoreEndTick(),stoppedTick=Math.max(lastLoopTick,+api.tickPosition||0),naturalEnd=!practiceLoop&&!naturalEndCounted&&endTick>0&&stoppedTick>=endTick-1;if(naturalEnd){naturalEndCounted=true;sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;try{api.tickPosition=0}catch(_){}lastLoopTick=-1;document.querySelector('#play').textContent='▶ PLAY';}if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';}});
  api.playerPositionChanged.on(e=>{
   if(!isActiveLoad())return;
   const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
