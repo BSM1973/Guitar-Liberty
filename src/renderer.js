@@ -3301,6 +3301,10 @@ if(importButton) importButton.onclick=async()=>{
  // A manual import becomes the newest score request immediately. Invalidate
  // any library fetch still in flight so it cannot take over afterwards.
  const importLibraryGeneration=++libraryLoadGeneration;
+ // The import owns score selection immediately, including while the native
+ // picker is open. Invalidate any alphaTab load already started by a library
+ // request so it cannot publish a stale score behind the picker.
+ invalidateAlphaTabLoad();
  // Opening the file picker interrupts active practice too. Pause before the
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
