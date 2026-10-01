@@ -1184,7 +1184,7 @@ metronomeSignature.onchange=()=>{
  // The signature can define the fallback count-in plan when the score has no
  // usable meter metadata. Do not let an already armed count finish with the
  // previous signature while the UI displays the new one.
- if(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing))){
+ if(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -1285,7 +1285,7 @@ countIn.onchange=()=>{
  // The count-in duration is part of the armed start contract. If it changes
  // while counting or waiting for accompaniment lead-in, discard that old start
  // and require an explicit PLAY so the new OFF/1/2-measure setting is honored.
- if(practiceLoop&&(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
+ if(practiceLoop&&(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -1349,7 +1349,7 @@ loopToggle.onclick=()=>{
 };
 autoBpm.onchange=()=>{
  autoBpm.value=Math.max(0,+autoBpm.value||0);
- if(practiceLoop&&(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
+ if(practiceLoop&&(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -1376,7 +1376,7 @@ autoBpm.onchange=()=>{
 targetBpm.onchange=()=>{
  targetBpm.value=Math.max(+tempo.min,Math.min(+tempo.max,+targetBpm.value||120));
  saveExerciseGoal(currentPracticeTitle,+targetBpm.value);
- if(practiceLoop&&(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
+ if(practiceLoop&&(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -1403,7 +1403,7 @@ loopRepeats.onchange=()=>{
  // Changing the repetition target while a count-in/lead-in is armed changes the
  // series contract. Cancel the old transition so it cannot start under the new
  // target without an explicit PLAY from the user.
- if(practiceLoop&&(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
+ if(practiceLoop&&(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -2271,7 +2271,7 @@ tempo.oninput=()=>{
  // A manual tempo edit changes the timing contract of an armed count-in/lead-in.
  // Cancel that pending start instead of letting old delays launch the new tempo
  // out of sync. Live playback can still change tempo in place below.
- if(practiceLoop&&(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
+ if(practiceLoop&&(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)))){
   cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
   const activeApi=window.guitarLibertyAlphaTab;
   if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
@@ -2698,7 +2698,7 @@ function syncVideoTempo(){
 }
 function openVideo(){
  if(!currentWistiaId&&!currentPracticeVideoUrl)return;
- const armedVideoStart=!!(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
+ const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  // Enabling video also changes the media configuration of an armed start.
  // Cancel it so the next PLAY begins with one coherent accompaniment setup.
  if(armedVideoStart)cancelPracticeTransition({stopBackingAudio:true});
@@ -2745,7 +2745,7 @@ function openVideo(){
  }
 }
 function closeVideo(){
- const armedVideoStart=!!(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
+ const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  // Closing the practice video invalidates any start/count-in that was armed
  // around that video. Otherwise a delayed callback can still start the score
  // after the user explicitly switched the video off.
@@ -2811,7 +2811,7 @@ if(backingToggle)backingToggle.onclick=()=>{
   backingToggle.textContent='♫ BACKING OFF';backingToggle.classList.remove('active');
   return;
  }
- const armedBackingStart=!!(countInActive||backingStartTimer||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
+ const armedBackingStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  if(armedBackingStart)cancelPracticeTransition({stopBackingAudio:true});
  backingEnabled=!backingEnabled;
  const backingActive=backingEnabled&&!!currentBackingUrl;
@@ -3288,7 +3288,7 @@ if(importButton) importButton.onclick=async()=>{
  // native dialog opens so time spent browsing files is never counted.
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  const importInterruptedPreparation=!!(internalPlaybackPreparing||alphaTabMediaPreparing||countInActive);
- const importInterruptedPlayback=!!(backingStartTimer||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
+ const importInterruptedPlayback=!!(backingStartTimer||leadInResumePending||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
  pausePracticeClock();
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
  if(alphaTabMode&&window.guitarLibertyAlphaTab){try{window.guitarLibertyAlphaTab.pause()}catch(_){}}
