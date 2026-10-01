@@ -2367,7 +2367,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     alphaTabMediaPreparing=false;startSession();document.querySelector('#play').textContent='⏸ PAUSE';
     scheduleLeadInStart(()=>{
      if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==startVideoSrc||window.guitarLibertyAlphaTab!==api)return;
-     beginPracticePassage();api.play();
+     api.play();
     },currentVideoLeadBeats*(60000/bpm));
    }).catch(e=>{if(startGeneration===mediaStartGeneration)failStart('Vidéo',e)});
   }
@@ -2398,7 +2398,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
     const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
     scheduleLeadInStart(()=>{
      if(startGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==startPlayer||!isWistiaPlaying()||window.guitarLibertyAlphaTab!==api)return;
-     beginPracticePassage();api.play();
+     api.play();
     },currentVideoLeadBeats*(60000/bpm));
    };
    pendingWistiaResume={player:startPlayer,handler:startWistiaPractice};
@@ -2417,15 +2417,15 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
    applyPendingBackingRestore(startBacking).then(()=>{
     if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||window.guitarLibertyAlphaTab!==api)return;
     const backingPromise=startBacking.play();
-    if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;alphaTabMediaPreparing=false;beginPracticePassage();api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
-    else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){beginPracticePassage();api.play()}
+    if(backingPromise?.then)backingPromise.then(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;alphaTabMediaPreparing=false;api.play()}).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
+    else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused&&window.guitarLibertyAlphaTab===api){api.play()}
    }).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)})
    return;
   }
   alphaTabMediaPreparing=true;
   backingAudio.currentTime=0;delete backingAudio._guitarLibertyRestoreTime;
   const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
-  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;beginPracticePassage();api.play();},currentBackingLeadBeats*(60000/bpm))};
+  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;api.play();},currentBackingLeadBeats*(60000/bpm))};
   const backingPromise=startBacking.play();
   if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused)startBackingLeadIn();
@@ -2565,7 +2565,7 @@ document.querySelector('#play').onclick=async()=>{
       return practiceVideo.play();
      }).then(()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
-      beginPracticePassage();api.play();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
+      api.play();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
     }else if(videoEnabled&&currentWistiaId&&!currentPracticeVideoUrl){
      alphaTabMediaPreparing=true;
@@ -2582,7 +2582,7 @@ document.querySelector('#play').onclick=async()=>{
        if(resumed||resumeGeneration!==wistiaResumeGeneration||!videoEnabled||wistiaPlayer!==resumePlayer||window.guitarLibertyAlphaTab!==api)return;
        resumed=true;alphaTabMediaPreparing=false;pendingWistiaResume=null;
        try{resumePlayer.unbind('play',resumeAlphaTab)}catch(_){}
-       beginPracticePassage();api.play();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
+       api.play();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
       };
       pendingWistiaResume={player:resumePlayer,handler:resumeAlphaTab};
       try{resumePlayer.bind('play',resumeAlphaTab)}catch(e){pendingWistiaResume=null;failAccompanimentResume('Wistia',e);return}
