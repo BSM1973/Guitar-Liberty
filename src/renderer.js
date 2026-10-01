@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
 function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;if(!preserveBoundary){nextDelayWallClock=false;internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false,pendingBackingRestore=null;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null,pendingWistiaRestoreTime=0;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
@@ -2686,6 +2686,14 @@ function detachWistiaPracticeHandlers(){
  try{wistiaPlayer.unbind('end',wistiaEndHandler)}catch(_){}
  wistiaEndHandler=null;
 }
+function getWistiaTime(){
+ if(!wistiaPlayer)return 0;
+ try{
+  const value=typeof wistiaPlayer.time==='function'?wistiaPlayer.time():typeof wistiaPlayer.currentTime==='function'?wistiaPlayer.currentTime():0;
+  return Math.max(0,+value||0);
+ }catch(_){return 0}
+}
+function restoreWistiaTime(time){pendingWistiaRestoreTime=Math.max(0,+time||0)}
 function restoreLocalVideoTime(time){
  const video=practiceVideo,target=Math.max(0,+time||0);
  if(!video||!(target>0))return;
@@ -2745,6 +2753,13 @@ function openVideo(){
      return;
     }
     wistiaPlayer=video;
+    if(pendingWistiaRestoreTime>0){
+     const restoreTime=pendingWistiaRestoreTime;pendingWistiaRestoreTime=0;
+     try{
+      if(typeof video.time==='function')video.time(restoreTime);
+      else if(typeof video.currentTime==='function')video.currentTime(restoreTime);
+     }catch(e){console.error('Wistia position restore',e)}
+    }
     // Apply the current practice tempo as soon as Wistia becomes ready. Auto BPM
     // and manual tempo changes use the same sync path afterwards.
     syncVideoTempo();
@@ -3178,6 +3193,7 @@ async function loadBundledScore(button){
  const previousAlphaTabTickPosition=previousAlphaTabApi?Math.max(0,+previousAlphaTabApi.tickPosition||0):0;
  const previousBackingTime=backingAudio?Math.max(0,+backingAudio.currentTime||0):0;
  const previousLocalVideoTime=practiceVideo&&!practiceVideo.hidden?Math.max(0,+practiceVideo.currentTime||0):0;
+ const previousWistiaTime=getWistiaTime();
  // A library selection immediately invalidates the previous transport and any
  // alphaTab load still in flight. Do this before the library fetch so an older
  // import cannot finish and publish its score while the new lesson is downloading.
@@ -3193,7 +3209,7 @@ async function loadBundledScore(button){
  const previousLibraryState={
   lessonId:currentLessonId,objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,lessonTempo:lessonTempo.textContent,
-  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,backingTime:previousBackingTime,localVideoTime:previousLocalVideoTime,
+  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,backingTime:previousBackingTime,localVideoTime:previousLocalVideoTime,wistiaTime:previousWistiaTime,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,videoEnabledValue:videoEnabled,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
@@ -3270,7 +3286,7 @@ async function loadBundledScore(button){
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
   setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;restoreBackingTime(previousLibraryState.backingTime);
-  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;restoreLocalVideoTime(previousLibraryState.localVideoTime);
+  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;restoreLocalVideoTime(previousLibraryState.localVideoTime);restoreWistiaTime(previousLibraryState.wistiaTime);
   setTutorial(previousLibraryState.tutorialUrl);
   currentPracticeTitle=previousLibraryState.practiceTitle;
   document.querySelector('#title').textContent=currentPracticeTitle;
@@ -3363,6 +3379,7 @@ if(importButton) importButton.onclick=async()=>{
  const previousImportAlphaTickPosition=previousImportAlphaTabApi?Math.max(0,+previousImportAlphaTabApi.tickPosition||0):0;
  const previousImportBackingTime=backingAudio?Math.max(0,+backingAudio.currentTime||0):0;
  const previousImportLocalVideoTime=practiceVideo&&!practiceVideo.hidden?Math.max(0,+practiceVideo.currentTime||0):0;
+ const previousImportWistiaTime=getWistiaTime();
  const previousImportAlphaWasPlaying=!!(previousImportAlphaTabApi&&previousImportAlphaTabApi.playerState===1);
  const importInterruptedPreparation=!!(internalPlaybackPreparing||alphaTabMediaPreparing||countInActive);
  const importInterruptedPlayback=!!(backingStartTimer||leadInResumePending||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
@@ -3403,7 +3420,7 @@ if(importButton) importButton.onclick=async()=>{
   id:currentLessonId,
   objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,tempo:lessonTempo.textContent,
-  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,backingTime:previousImportBackingTime,localVideoTime:previousImportLocalVideoTime,
+  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,backingTime:previousImportBackingTime,localVideoTime:previousImportLocalVideoTime,wistiaTime:previousImportWistiaTime,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,videoEnabledValue:videoEnabled,
   tutorialUrl:currentTutorialUrl,
   practiceTitle:currentPracticeTitle,
@@ -3446,6 +3463,7 @@ if(importButton) importButton.onclick=async()=>{
   restoreBackingTime(previousLessonContext.backingTime);
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
   restoreLocalVideoTime(previousLessonContext.localVideoTime);
+  restoreWistiaTime(previousLessonContext.wistiaTime);
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
   currentVideoSourceBpm=previousLessonContext.videoSourceBpm||50;
   setTutorial(previousLessonContext.tutorialUrl);
