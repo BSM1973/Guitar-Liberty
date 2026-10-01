@@ -2667,8 +2667,9 @@ document.querySelector('#play').onclick=async()=>{
  // while the next series counts in. Treat PLAY/STOP as a cancellation here;
  // otherwise a click could start playback immediately and the pending count-in
  // callback would start it a second time.
- if(countInActive){
-  cancelPracticeTransition();
+ if(countInActive||backingStartTimer||(!alphaTabMode&&((backingAudio&&backingEnabled&&!backingAudio.paused)||(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&!practiceVideo.paused)||isWistiaPlaying()))){
+  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+  pausePracticeClock();
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
   document.querySelector('#play').textContent='▶ PLAY';
   return;
