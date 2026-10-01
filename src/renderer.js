@@ -3255,7 +3255,7 @@ async function loadBundledScore(button){
   adaptiveLastTotalsValue:JSON.parse(JSON.stringify(adaptiveLastTotals||{})),
   sessionSeriesCount,sessionRepCount,sessionBest,
   pendingImportedScore:window.pendingImportedScore||null,
-  alphaWasPlaying:previousAlphaTabWasPlaying,
+  alphaWasPlaying:previousAlphaTabWasPlaying&&!!currentAlphaTabSource,
   alphaTickPosition:previousAlphaTabTickPosition,
   alphaSource:alphaTabMode&&currentAlphaTabSource?{name:currentAlphaTabSource.name,ext:currentAlphaTabSource.ext,bytes:new Uint8Array(currentAlphaTabSource.bytes)}:null,
   internalExerciseKey:!alphaTabMode&&exercises[current]?current:null
