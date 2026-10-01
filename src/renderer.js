@@ -761,7 +761,7 @@ function renderHistory(){
  historyList.innerHTML=items.map(x=>{const freedom=Number.isFinite(+x.libertyLevel)?+x.libertyLevel:null,libertyText=freedom===0?'SANS TAB':freedom!==null&&freedom<100?'TAB '+freedom+' %':freedom===100?'TAB COMPLÈTE':'LIBERTÉ —',series=Math.max(0,+x.series||0),reps=Math.max(0,+x.reps||0),end=+x.end||+x.best||+x.start||0,best=+x.best||end,start=+x.start||end;return '<div class="history-row"><b>'+x.date+'</b><span>'+x.duration+'</span><span>'+series+' série'+(series>1?'s':'')+'</span><span>'+reps+' répétition'+(reps>1?'s':'')+'</span><span>'+start+' → '+end+' BPM'+(best!==end?' • record '+best:'')+'</span><span>'+libertyText+'</span><strong>+'+(+x.gain||0)+' BPM</strong></div>'}).join('');
 }
 function saveCurrentSession(savedAt=Date.now()){
- if(sessionHistorySaved||!sessionStarted||(!sessionRepCount&&!sessionSeriesCount))return;
+ if(sessionHistorySaved||!sessionStarted||(!sessionFirstPracticeAt&&!sessionRepCount&&!sessionSeriesCount))return;
  const sec=sessionFirstPracticeAt?activePracticeSeconds(savedAt):Math.floor((savedAt-sessionStarted)/1000),items=readHistory();
  items.unshift({exercise:currentPracticeTitle,goal:+targetBpm.value||120,date:new Date(savedAt).toLocaleString('fr-FR'),timestamp:savedAt,duration:formatSessionDuration(sec),seconds:sec,series:sessionSeriesCount,reps:sessionRepCount,start:sessionStartBpm,end:+tempo.value||sessionStartBpm,best:sessionBest,gain:Math.max(0,sessionBest-sessionStartBpm),libertyLevel:sessionLowestLibertyLevel});
  writeHistory(items);sessionHistorySaved=true;renderHistory();refreshDashboard();setTimeout(paintSmartFretboard,0);
@@ -851,7 +851,7 @@ function startSession(){
  sessionClock=setInterval(paintSession,1000)
 }
 function resetTrainingSession(){
- const finishedAt=Date.now(),hasPractice=!!(sessionRepCount||sessionSeriesCount),finished=sessionStarted?sessionInsightData(finishedAt):null;
+ const finishedAt=Date.now(),hasPractice=!!(sessionFirstPracticeAt||sessionRepCount||sessionSeriesCount),finished=sessionStarted?sessionInsightData(finishedAt):null;
  const previousFreedom=finished&&hasPractice?previousLibertyLevel():null;
  saveCurrentSession(finishedAt);
  if(finished&&hasPractice){lastSessionInsight=finished;writeLastSessionInsight(finished);}
