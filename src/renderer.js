@@ -2988,14 +2988,25 @@ if(backingToggle)backingToggle.onclick=()=>{
   backingToggle.textContent='♫ BACKING OFF';backingToggle.classList.remove('active');
   return;
  }
+ const activeApi=window.guitarLibertyAlphaTab;
  const armedBackingStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
- if(armedBackingStart)cancelPracticeTransition({stopBackingAudio:true});
+ const activeBackingPlayback=!!((alphaTabMode&&activeApi?.playerState===1)||(!alphaTabMode&&playing));
+ if(armedBackingStart||activeBackingPlayback)cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
+ if(activeBackingPlayback){
+  if(alphaTabMode&&activeApi){try{activeApi.pause()}catch(_){}}
+  else{playing=false;clearInternalTimer();stopAllVoices();document.querySelectorAll('.note').forEach(n=>n.classList.remove('active'))}
+  pausePracticeClock();
+ }
  backingEnabled=!backingEnabled;
  const backingActive=backingEnabled&&!!currentBackingUrl;
  backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
  backingToggle.classList.toggle('active',backingActive);
  if(!backingEnabled)stopBacking(false);
- if(armedBackingStart){
+ if(armedBackingStart||activeBackingPlayback){
+  if(practiceLoop){
+   if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
+   else{const range=internalLoopBounds(exercises[current]);if(range)index=range.start}
+  }
   document.querySelector('#play').textContent='▶ PLAY';
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
