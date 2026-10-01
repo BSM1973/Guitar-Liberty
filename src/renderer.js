@@ -2154,7 +2154,7 @@ function tick(){
   internalGraceForwardStates.clear();
   internalGraceFollowingDebts.clear();
   stopAllVoices();
-  if(!internalLoopSeriesComplete&&practiceLoop&&!alphaTabMode&&((videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src)||(backingAudio&&backingEnabled))){
+  if(!internalLoopSeriesComplete&&practiceLoop&&hasInternalPracticeMedia()){
    const range=internalLoopBounds(e);
    playing=false;
    startInternalPracticePlayback(()=>{
@@ -2312,7 +2312,7 @@ function tick(){
  // silence after the current pass's trailing silence. This keeps every
  // repetition aligned to the selected measure boundary, not just the first.
  if(internalRange&&playing&&practiceLoop&&index===internalRange.start&&!internalLoopSeriesComplete){
-  return eventDelay+internalLoopLeadInMs(e,internalRange);
+  return eventDelay+(hasInternalPracticeMedia()?0:internalLoopLeadInMs(e,internalRange));
  }
  return eventDelay;
 }
@@ -2484,6 +2484,7 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
  }
  alphaTabMediaPreparing=false;api.play();
 }
+function hasInternalPracticeMedia(){return !alphaTabMode&&(((videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src)||(videoEnabled&&currentWistiaId)||(backingAudio&&backingEnabled)))}
 function startInternalPracticePlayback(startScore){
  internalMediaPreparing=true;
  const releaseScore=()=>{internalMediaPreparing=false;startScore()};
