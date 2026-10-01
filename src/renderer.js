@@ -2875,8 +2875,8 @@ function scheduleLeadInStart(callback,delayMs){
 }
 function cancelPendingBackingRestore(){
  if(!pendingBackingRestore)return;
- const {track,onMetadata,onError,resolve}=pendingBackingRestore;pendingBackingRestore=null;
- track.removeEventListener('loadedmetadata',onMetadata);track.removeEventListener('error',onError);resolve();
+ const {track,onMetadata,onError,resolve,timer}=pendingBackingRestore;pendingBackingRestore=null;
+ track.removeEventListener('loadedmetadata',onMetadata);track.removeEventListener('error',onError);if(timer)clearTimeout(timer);resolve();
 }
 function stopBacking(reset=true){
  mediaStartGeneration++;
@@ -2907,10 +2907,15 @@ function applyPendingBackingRestore(track){
  };
  if(track.readyState>=1){seek();return Promise.resolve()}
  return new Promise((resolve,reject)=>{
-  const wait={track,onMetadata:null,onError:null,resolve};
-  const finish=()=>{if(pendingBackingRestore===wait)pendingBackingRestore=null};
-  wait.onMetadata=()=>{track.removeEventListener('error',wait.onError);finish();seek();resolve()};
-  wait.onError=()=>{track.removeEventListener('loadedmetadata',wait.onMetadata);finish();reject(track.error||new Error('Backing indisponible'))};
+  const wait={track,onMetadata:null,onError:null,resolve,timer:null};
+  const finish=()=>{
+   if(pendingBackingRestore===wait)pendingBackingRestore=null;
+   track.removeEventListener('loadedmetadata',wait.onMetadata);track.removeEventListener('error',wait.onError);
+   if(wait.timer)clearTimeout(wait.timer);
+  };
+  wait.onMetadata=()=>{finish();seek();resolve()};
+  wait.onError=()=>{finish();reject(track.error||new Error('Backing indisponible'))};
+  wait.timer=setTimeout(()=>{finish();reject(new Error('Délai de chargement backing dépassé'))},8000);
   pendingBackingRestore=wait;
   track.addEventListener('loadedmetadata',wait.onMetadata,{once:true});
   track.addEventListener('error',wait.onError,{once:true});
