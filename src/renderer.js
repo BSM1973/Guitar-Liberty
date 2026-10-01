@@ -2820,6 +2820,13 @@ document.querySelector('#homeStart')?.addEventListener('click',()=>openWorkspace
 document.querySelector('#homeLibrary')?.addEventListener('click',()=>openWorkspace('courses'));
 document.querySelector('#homeImport')?.addEventListener('click',()=>{openWorkspace('courses');setTimeout(()=>document.querySelector('#importScore')?.click(),120)});
 document.querySelectorAll('[data-home-target]').forEach(b=>b.addEventListener('click',()=>openWorkspace(b.dataset.homeTarget)));
+const resetAll=document.querySelector('#resetAll');
+if(resetAll)resetAll.onclick=()=>{
+ if(!window.confirm('Attention vous allez perdre toutes vos valeurs actuelles.'))return;
+ stop();
+ try{localStorage.clear()}catch(_){}
+ window.location.reload();
+};
 
 const backingToggle=document.querySelector('#backingToggle');
 const backingVolume=document.querySelector('#backingVolume');
@@ -3647,7 +3654,7 @@ async function loadBundledScore(button){
   importStatus.textContent='Exercice non installé : '+button.textContent.trim();
  }
 }
-document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked'))loadBundledScore(b)});
+document.querySelectorAll('.library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked')){openWorkspace('score');loadBundledScore(b)}});
 refreshCourseProgress();
 if(importButton) importButton.onclick=async()=>{
  // A manual import becomes the newest score request immediately. Invalidate
