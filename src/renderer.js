@@ -2498,10 +2498,11 @@ function startInternalPracticePlayback(startScore){
  if(videoEnabled&&practiceVideo&&!practiceVideo.hidden&&practiceVideo.src){
   syncVideoTempo();practiceVideo.currentTime=0;
   const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50),generation=++mediaStartGeneration,src=practiceVideo.currentSrc||practiceVideo.src;
-  const guard=()=>generation===mediaStartGeneration&&videoEnabled&&!practiceVideo.paused&&(practiceVideo.currentSrc||practiceVideo.src)===src&&!alphaTabMode;
+  const guard=()=>generation===mediaStartGeneration&&videoEnabled&&(practiceVideo.currentSrc||practiceVideo.src)===src&&!alphaTabMode;
+  const playingGuard=()=>guard()&&!practiceVideo.paused;
   const promise=practiceVideo.play();
-  if(promise?.then)promise.then(()=>{if(guard())startAfterLead(currentVideoLeadBeats,bpm,guard)}).catch(e=>{if(generation===mediaStartGeneration)failStart('Vidéo',e)});
-  else if(guard())startAfterLead(currentVideoLeadBeats,bpm,guard);
+  if(promise?.then)promise.then(()=>{if(playingGuard())startAfterLead(currentVideoLeadBeats,bpm,guard)}).catch(e=>{if(generation===mediaStartGeneration)failStart('Vidéo',e)});
+  else if(playingGuard())startAfterLead(currentVideoLeadBeats,bpm,guard);
   return;
  }
  if(videoEnabled&&currentWistiaId&&!wistiaPlayer){
@@ -2523,9 +2524,10 @@ function startInternalPracticePlayback(startScore){
   try{
    if(typeof player.time==='function')player.time(0);
    else if(typeof player.currentTime==='function')player.currentTime(0);
-   const guard=()=>generation===wistiaResumeGeneration&&videoEnabled&&wistiaPlayer===player&&!alphaTabMode&&isWistiaPlaying();
+   const guard=()=>generation===wistiaResumeGeneration&&videoEnabled&&wistiaPlayer===player&&!alphaTabMode;
+   const playingGuard=()=>guard()&&isWistiaPlaying();
    const onPlay=()=>{
-    if(started||!guard())return;
+    if(started||!playingGuard())return;
     started=true;pendingWistiaResume=null;
     try{player.unbind('play',onPlay)}catch(_){}
     const bpm=Math.max(1,+tempo.value||currentVideoSourceBpm||50);
@@ -2541,10 +2543,11 @@ function startInternalPracticePlayback(startScore){
  if(backingAudio&&backingEnabled){
   syncBackingTempo();backingAudio.currentTime=0;delete backingAudio._guitarLibertyRestoreTime;
   const bpm=Math.max(1,+tempo.value||50),generation=++mediaStartGeneration,track=backingAudio;
-  const guard=()=>generation===mediaStartGeneration&&backingAudio===track&&!track.paused&&!alphaTabMode;
+  const guard=()=>generation===mediaStartGeneration&&backingAudio===track&&!alphaTabMode;
+  const playingGuard=()=>guard()&&!track.paused;
   const promise=track.play();
-  if(promise?.then)promise.then(()=>{if(guard())startAfterLead(currentBackingLeadBeats,bpm,guard)}).catch(e=>{if(generation===mediaStartGeneration&&backingAudio===track)failStart('Backing',e)});
-  else if(guard())startAfterLead(currentBackingLeadBeats,bpm,guard);
+  if(promise?.then)promise.then(()=>{if(playingGuard())startAfterLead(currentBackingLeadBeats,bpm,guard)}).catch(e=>{if(generation===mediaStartGeneration&&backingAudio===track)failStart('Backing',e)});
+  else if(playingGuard())startAfterLead(currentBackingLeadBeats,bpm,guard);
   return;
  }
  releaseScore();
