@@ -3403,7 +3403,11 @@ if(importButton) importButton.onclick=async()=>{
   if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
   practiceLoop=previousLessonContext.practiceLoop;
   practiceIteration=previousLessonContext.practiceIteration;
-  lastLoopTick=previousLessonContext.lastLoopTick;
+  // The restored score uses a new alphaTab player instance. The previous
+  // lastLoopTick belongs to the destroyed player and could make the first
+  // position event look like a loop wrap. Re-arm wrap detection from the
+  // first tick emitted by the restored instance instead.
+  lastLoopTick=-1;
   loopStart.value=previousLessonContext.loopStartValue;
   loopEnd.value=previousLessonContext.loopEndValue;
   loopRepeats.value=previousLessonContext.loopRepeatsValue;
