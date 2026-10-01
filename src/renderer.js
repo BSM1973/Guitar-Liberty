@@ -3125,7 +3125,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
    }
    playWithMeLastTick=tick;
   }
-  if(!practiceLoop)return;
+  if(!practiceLoop){lastLoopTick=tick;return;}
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
    practiceIteration++;if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
