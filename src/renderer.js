@@ -12,7 +12,7 @@ const exercises={
 let current='chromatic',playing=false,internalPlaybackPreparing=false,internalPlaybackGeneration=0,internalSchedulerGeneration=0,internalVoiceGeneration=0,internalLoopBoundaryPending=false,internalLoopSeriesComplete=false,internalGracePreviousStates=new Map(),internalGraceForwardStates=new Map(),internalGraceFollowingDebts=new Map(),timer=null,timerStartedAt=0,timerDelayMs=0,timerScheduledBpm=0,timerWallClock=false,nextDelayWallClock=false,audio,index=0,alphaTabMode=false;
 function clearInternalTimer({preserveBoundary=false}={}){internalSchedulerGeneration++;if(timer){clearTimeout(timer);timer=null}timerStartedAt=0;timerDelayMs=0;timerScheduledBpm=0;timerWallClock=false;if(!preserveBoundary){nextDelayWallClock=false;internalLoopBoundaryPending=false;internalLoopSeriesComplete=false;internalGracePreviousStates.clear();internalGraceForwardStates.clear();internalGraceFollowingDebts.clear()}}
 let backingAudio=null,backingEnabled=true,currentBackingUrl=null,currentBackingLeadBeats=0,backingStartTimer=null,leadInResumePending=false,leadInStartedAt=0,leadInDelayMs=0,leadInRemainingMs=0,mediaStartGeneration=0,alphaTabMediaPreparing=false,pendingBackingRestore=null;
-let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null,pendingWistiaRestore=null,pendingLocalVideoRestore=null,pendingLocalVideoMetadata=null;
+let currentWistiaId=null,currentVideoLeadBeats=0,videoEnabled=false,wistiaPlayer=null,currentPracticeVideoUrl=null,videoPracticeTimer=null,currentVideoSourceBpm=50,wistiaResumeGeneration=0,pendingWistiaResume=null,wistiaLoadGeneration=0,wistiaEndHandler=null,pendingWistiaRestore=null,pendingWistiaReady=null,pendingLocalVideoRestore=null,pendingLocalVideoMetadata=null;
 const sampleCache=new Map(),stringAttackGeneration=new Map();
 const sampleLoadPromises=new Map();
 const activeVoices=new Map();
@@ -2509,9 +2509,12 @@ document.querySelector('#play').onclick=async()=>{
        resumeLeadInPlayback();
       },remainingLeadIn);
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
-    }else if(videoEnabled&&wistiaPlayer){
-     syncVideoTempo();
+    }else if(videoEnabled&&currentWistiaId&&!currentPracticeVideoUrl){
      alphaTabMediaPreparing=true;
+     const requestedWistiaId=currentWistiaId;
+     const readyPlayer=await waitForWistiaReady(requestedWistiaId);
+     if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){alphaTabMediaPreparing=false;return}
+     syncVideoTempo();
      try{
       let resumed=false;
       cancelPendingWistiaResume();
@@ -2556,9 +2559,12 @@ document.querySelector('#play').onclick=async()=>{
       if(startGeneration!==mediaStartGeneration||!videoEnabled||practiceVideo.paused||(practiceVideo.currentSrc||practiceVideo.src)!==resumeVideoSrc||window.guitarLibertyAlphaTab!==api)return;
       api.play();startSession();alphaTabMediaPreparing=false;document.querySelector('#play').textContent='⏸ PAUSE';
      }).catch(e=>{if(startGeneration===mediaStartGeneration)failAccompanimentResume('Vidéo',e)});
-    }else if(videoEnabled&&wistiaPlayer){
-     syncVideoTempo();
+    }else if(videoEnabled&&currentWistiaId&&!currentPracticeVideoUrl){
      alphaTabMediaPreparing=true;
+     const requestedWistiaId=currentWistiaId;
+     const readyPlayer=await waitForWistiaReady(requestedWistiaId);
+     if(!readyPlayer||!videoEnabled||currentWistiaId!==requestedWistiaId||window.guitarLibertyAlphaTab!==api){alphaTabMediaPreparing=false;return}
+     syncVideoTempo();
      try{
       let resumed=false;
       cancelPendingWistiaResume();
@@ -2692,6 +2698,16 @@ function detachWistiaPracticeHandlers(){
  try{wistiaPlayer.unbind('end',wistiaEndHandler)}catch(_){}
  wistiaEndHandler=null;
 }
+function cancelPendingWistiaReady(){
+ if(!pendingWistiaReady)return;
+ const {resolve}=pendingWistiaReady;pendingWistiaReady=null;resolve(null);
+}
+function waitForWistiaReady(id){
+ if(!id||!videoEnabled||currentWistiaId!==id)return Promise.resolve(null);
+ if(wistiaPlayer)return Promise.resolve(wistiaPlayer);
+ cancelPendingWistiaReady();
+ return new Promise(resolve=>{pendingWistiaReady={id,generation:wistiaLoadGeneration,resolve}});
+}
 function getWistiaTime(){
  if(!wistiaPlayer)return 0;
  try{
@@ -2727,7 +2743,7 @@ function applyPendingLocalVideoRestore(video,requestedVideo){
  });
 }
 function setVideoTrack(id,practiceUrl=null){
- pendingWistiaRestore=null;pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
+ pendingWistiaRestore=null;cancelPendingWistiaReady();pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
  currentPracticeVideoUrl=practiceUrl||null;
  wistiaLoadGeneration++;pauseWistiaPracticeVideo();detachWistiaPracticeHandlers();
  currentWistiaId=id||null;currentVideoLeadBeats=0;currentVideoSourceBpm=50;videoEnabled=false;wistiaPlayer=null;clearInterval(videoPracticeTimer);videoPracticeTimer=null;
@@ -2781,6 +2797,9 @@ function openVideo(){
      return;
     }
     wistiaPlayer=video;
+    if(pendingWistiaReady?.id===requestedWistiaId&&pendingWistiaReady.generation===loadGeneration){
+     const {resolve}=pendingWistiaReady;pendingWistiaReady=null;resolve(video);
+    }
     if(pendingWistiaRestore?.id===requestedWistiaId){
      const restoreTime=pendingWistiaRestore.time;pendingWistiaRestore=null;
      try{
@@ -2807,7 +2826,7 @@ function openVideo(){
  }
 }
 function closeVideo(){
- pendingWistiaRestore=null;pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
+ pendingWistiaRestore=null;cancelPendingWistiaReady();pendingLocalVideoRestore=null;cancelPendingLocalVideoMetadata();
  const armedVideoStart=!!(countInActive||backingStartTimer||leadInResumePending||((!alphaTabMode&&internalPlaybackPreparing)||(alphaTabMode&&alphaTabMediaPreparing)));
  // Closing the practice video invalidates any start/count-in that was armed
  // around that video. Otherwise a delayed callback can still start the score
