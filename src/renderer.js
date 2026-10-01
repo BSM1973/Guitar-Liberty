@@ -3223,14 +3223,14 @@ async function loadBundledScore(button){
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
   setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;
-  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;if(previousLibraryState.videoEnabledValue)openVideo();
+  setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;
   setTutorial(previousLibraryState.tutorialUrl);
   currentPracticeTitle=previousLibraryState.practiceTitle;
   document.querySelector('#title').textContent=currentPracticeTitle;
   if(previousLibraryState.workingTempo)tempo.value=previousLibraryState.workingTempo;
   if(previousLibraryState.targetTempo)targetBpm.value=previousLibraryState.targetTempo;
   autoBpm.value=previousLibraryState.autoBpmValue;
-  syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
+  syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);if(previousLibraryState.videoEnabledValue)openVideo();
   practiceLoop=previousLibraryState.practiceLoop;
   practiceIteration=previousLibraryState.practiceIteration;
   // A failed library switch rebuilds the previous score in a new alphaTab
@@ -3395,7 +3395,6 @@ if(importButton) importButton.onclick=async()=>{
   setBackingTrack(previousLessonContext.backingUrl);
   currentBackingLeadBeats=previousLessonContext.backingLeadBeats;
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
-  if(previousLessonContext.videoEnabledValue)openVideo();
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
   currentVideoSourceBpm=previousLessonContext.videoSourceBpm||50;
   setTutorial(previousLessonContext.tutorialUrl);
@@ -3405,6 +3404,7 @@ if(importButton) importButton.onclick=async()=>{
   autoBpm.value=previousLessonContext.autoBpmValue;
   syncTempo();
   if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab);
+  if(previousLessonContext.videoEnabledValue)openVideo();
   practiceLoop=previousLessonContext.practiceLoop;
   practiceIteration=previousLessonContext.practiceIteration;
   // The restored score uses a new alphaTab player instance. The previous
