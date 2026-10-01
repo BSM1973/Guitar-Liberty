@@ -3131,6 +3131,7 @@ async function loadBundledScore(button){
  const previousAlphaTabApi=alphaTabMode?window.guitarLibertyAlphaTab:null;
  const previousAlphaTabWasPlaying=!!(previousAlphaTabApi?.playerState===1);
  const previousAlphaTabTickPosition=previousAlphaTabApi?Math.max(0,+previousAlphaTabApi.tickPosition||0):0;
+ const previousBackingTime=backingAudio?Math.max(0,+backingAudio.currentTime||0):0;
  // A library selection immediately invalidates the previous transport and any
  // alphaTab load still in flight. Do this before the library fetch so an older
  // import cannot finish and publish its score while the new lesson is downloading.
@@ -3146,7 +3147,7 @@ async function loadBundledScore(button){
  const previousLibraryState={
   lessonId:currentLessonId,objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,lessonTempo:lessonTempo.textContent,
-  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
+  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,backingTime:previousBackingTime,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,videoEnabledValue:videoEnabled,
   tutorialUrl:currentTutorialUrl,practiceTitle:currentPracticeTitle,
   workingTempo:+tempo.value||0,targetTempo:+targetBpm.value||0,autoBpmValue:+autoBpm.value||0,
@@ -3222,7 +3223,7 @@ async function loadBundledScore(button){
   currentLessonId=previousLibraryState.lessonId;
   lessonObjective.textContent=previousLibraryState.objective;lessonPrereq.textContent=previousLibraryState.prereq;
   lessonDifficulty.textContent=previousLibraryState.difficulty;lessonKey.textContent=previousLibraryState.key;lessonTempo.textContent=previousLibraryState.lessonTempo;
-  setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;
+  setBackingTrack(previousLibraryState.backingUrl);currentBackingLeadBeats=previousLibraryState.backingLeadBeats;if(backingAudio&&previousLibraryState.backingTime>0){try{backingAudio.currentTime=previousLibraryState.backingTime}catch(_){}}
   setVideoTrack(previousLibraryState.wistiaId,previousLibraryState.practiceVideoUrl);currentVideoLeadBeats=previousLibraryState.videoLeadBeats;currentVideoSourceBpm=previousLibraryState.videoSourceBpm||50;
   setTutorial(previousLibraryState.tutorialUrl);
   currentPracticeTitle=previousLibraryState.practiceTitle;
@@ -3314,6 +3315,7 @@ if(importButton) importButton.onclick=async()=>{
  const wasPracticeClockRunning=!!(sessionStarted&&sessionFirstPracticeAt&&!sessionPausedAt);
  const previousImportAlphaTabApi=alphaTabMode?window.guitarLibertyAlphaTab:null;
  const previousImportAlphaTickPosition=previousImportAlphaTabApi?Math.max(0,+previousImportAlphaTabApi.tickPosition||0):0;
+ const previousImportBackingTime=backingAudio?Math.max(0,+backingAudio.currentTime||0):0;
  const previousImportAlphaWasPlaying=!!(previousImportAlphaTabApi&&previousImportAlphaTabApi.playerState===1);
  const importInterruptedPreparation=!!(internalPlaybackPreparing||alphaTabMediaPreparing||countInActive);
  const importInterruptedPlayback=!!(backingStartTimer||leadInResumePending||playing||(alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1)||(practiceVideo&&!practiceVideo.paused)||isWistiaPlaying());
@@ -3354,7 +3356,7 @@ if(importButton) importButton.onclick=async()=>{
   id:currentLessonId,
   objective:lessonObjective.textContent,prereq:lessonPrereq.textContent,
   difficulty:lessonDifficulty.textContent,key:lessonKey.textContent,tempo:lessonTempo.textContent,
-  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,
+  backingUrl:currentBackingUrl,backingLeadBeats:currentBackingLeadBeats,backingTime:previousImportBackingTime,
   wistiaId:currentWistiaId,practiceVideoUrl:currentPracticeVideoUrl,videoLeadBeats:currentVideoLeadBeats,videoSourceBpm:currentVideoSourceBpm,
   tutorialUrl:currentTutorialUrl,
   practiceTitle:currentPracticeTitle,
@@ -3394,6 +3396,7 @@ if(importButton) importButton.onclick=async()=>{
   lessonTempo.textContent=previousLessonContext.tempo;
   setBackingTrack(previousLessonContext.backingUrl);
   currentBackingLeadBeats=previousLessonContext.backingLeadBeats;
+  if(backingAudio&&previousLessonContext.backingTime>0){try{backingAudio.currentTime=previousLessonContext.backingTime}catch(_){}}
   setVideoTrack(previousLessonContext.wistiaId,previousLessonContext.practiceVideoUrl);
   currentVideoLeadBeats=previousLessonContext.videoLeadBeats;
   currentVideoSourceBpm=previousLessonContext.videoSourceBpm||50;
