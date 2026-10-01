@@ -2907,12 +2907,13 @@ function applyPendingBackingRestore(track){
  };
  if(track.readyState>=1){seek();return Promise.resolve()}
  return new Promise((resolve,reject)=>{
-  const finish=()=>{if(pendingBackingRestore?.track===track)pendingBackingRestore=null};
-  const onMetadata=()=>{track.removeEventListener('error',onError);finish();seek();resolve()};
-  const onError=()=>{track.removeEventListener('loadedmetadata',onMetadata);finish();reject(track.error||new Error('Backing indisponible'))};
-  pendingBackingRestore={track,onMetadata,onError,resolve};
-  track.addEventListener('loadedmetadata',onMetadata,{once:true});
-  track.addEventListener('error',onError,{once:true});
+  const wait={track,onMetadata:null,onError:null,resolve};
+  const finish=()=>{if(pendingBackingRestore===wait)pendingBackingRestore=null};
+  wait.onMetadata=()=>{track.removeEventListener('error',wait.onError);finish();seek();resolve()};
+  wait.onError=()=>{track.removeEventListener('loadedmetadata',wait.onMetadata);finish();reject(track.error||new Error('Backing indisponible'))};
+  pendingBackingRestore=wait;
+  track.addEventListener('loadedmetadata',wait.onMetadata,{once:true});
+  track.addEventListener('error',wait.onError,{once:true});
  });
 }
 function setBackingTrack(url){
