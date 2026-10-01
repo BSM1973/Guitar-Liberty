@@ -276,3 +276,43 @@ main{display:block;min-height:calc(100vh - 92px)}
 #homePage>.home-content{padding-bottom:24px}
 #homePage>.home-content>.course-nav{margin-bottom:0}
 #appWorkspace[hidden]{display:none!important}
+
+
+/* Workspace historique : niveaux à gauche, contenu principal à droite. */
+#appWorkspace:not([hidden]){
+ display:grid;
+ grid-template-columns:250px minmax(0,1fr);
+ align-items:start;
+ min-height:calc(100vh - 92px);
+}
+#appWorkspace>.course-nav{
+ grid-column:1;
+ grid-row:1;
+ position:sticky;
+ top:92px;
+ width:250px;
+ box-sizing:border-box;
+ padding:18px 12px;
+ border:0;
+ border-right:1px solid #292d35;
+ border-bottom:0;
+ background:#101319;
+ display:block;
+ min-height:calc(100vh - 92px);
+}
+#appWorkspace>.course-nav .level-menu{
+ width:100%;
+ margin:0 0 10px;
+}
+#appWorkspace>section{
+ grid-column:2;
+ grid-row:1;
+ min-width:0;
+ width:100%;
+ box-sizing:border-box;
+}
+#appWorkspace>#importScore{grid-column:2}
+@media(max-width:900px){
+ #appWorkspace:not([hidden]){grid-template-columns:190px minmax(0,1fr)}
+ #appWorkspace>.course-nav{width:190px}
+}
