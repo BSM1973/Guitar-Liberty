@@ -1134,7 +1134,26 @@ function updatePlayCursor(api,tick){
  }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
- // Viewport is deliberately never moved by playback. The orange cursor continues independently.
+ followPlayedSystem(sys);
+}
+function followPlayedSystem(sys){
+ if(!playbackFollowEnabled||!sys)return;
+ const tabRect=tab.getBoundingClientRect();
+ const systemTop=tabRect.top+sys.y;
+ const systemBottom=systemTop+Math.max(1,sys.h||0);
+ const viewportH=Math.max(document.documentElement.clientHeight||0,window.innerHeight||0);
+ // Keep the played staff inside a stable reading zone instead of centering
+ // on every tick. This follows line changes, repeats and loop jumps smoothly.
+ const safeTop=Math.max(110,viewportH*.20);
+ const safeBottom=Math.max(safeTop+120,viewportH*.72);
+ let delta=0;
+ if(systemTop<safeTop)delta=systemTop-safeTop;
+ else if(systemBottom>safeBottom)delta=systemBottom-safeBottom;
+ if(Math.abs(delta)<2)return;
+ autoTabScrolling=true;
+ manualScrollStartY=window.scrollY;
+ window.scrollBy({top:delta,left:0,behavior:'auto'});
+ requestAnimationFrame(()=>{autoTabScrolling=false;manualScrollStartY=window.scrollY});
 }
 async function metronomeClick(accent=false,generation=countInGeneration){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
