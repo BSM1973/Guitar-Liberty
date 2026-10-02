@@ -3160,9 +3160,7 @@ function backingLoopSourceTime(api){
  const leadSeconds=Math.max(0,currentBackingLeadBeats)*(60/sourceBpm);
  const range=api?practiceTicks():null;
  if(!range)return leadSeconds;
- const quarterTicks=Math.max(1,api?.score?.masterBars?.[0]?.calculateDuration?.()||960);
- // alphaTab uses 960 ticks per quarter in the practice timeline. Keep the
- // explicit fallback stable even when score metadata does not expose duration.
+ // alphaTab uses 960 ticks per quarter in the practice timeline.
  const musicalBeats=Math.max(0,+range.start||0)/960;
  return leadSeconds+musicalBeats*(60/sourceBpm);
 }
@@ -3430,9 +3428,11 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   if(!practiceLoop){lastLoopTick=tick;return;}
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
-   // alphaTab has wrapped to the selected first measure. Re-anchor the backing
-   // at the same musical point, skipping its file-embedded count-in.
-   restartBackingAtLoopStart(api);
+   // alphaTab has wrapped to the selected first measure. Between repetitions,
+   // re-anchor the backing after its embedded count-in. On the final repetition
+   // the series transition below owns the next backing start at the new BPM.
+   const loopRepeatTarget=Math.max(1,+loopRepeats.value||1);
+   if(practiceIteration+1<loopRepeatTarget)restartBackingAtLoopStart(api);
    practiceIteration++;if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
    const max=Math.max(1,+loopRepeats.value||1);
    if(practiceIteration>=max){
