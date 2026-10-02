@@ -1241,7 +1241,8 @@ metronomeToggle.onclick=async()=>{
   if(!metronomeEnabled)stopMetronome();
   return;
  }
- if(metronomeEnabled)await startMetronome();else stopMetronome();
+ // ON only arms the metronome. It starts with PLAY, never by itself.
+ if(!metronomeEnabled)stopMetronome();
 };
 metronomeVolume.oninput=()=>metronomeVolumeLabel.textContent=metronomeVolume.value+'%';
 metronomeSignature.onchange=()=>{
@@ -1258,7 +1259,10 @@ metronomeSignature.onchange=()=>{
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
   return;
  }
- if(metronomeEnabled){stopMetronome();startMetronome()}
+ // A meter change while stopped must stay silent. During actual playback,
+ // restart the clock on the new meter.
+ const transportPlaying=alphaTabMode?window.guitarLibertyAlphaTab?.playerState===1:playing;
+ if(metronomeEnabled&&transportPlaying){stopMetronome();startMetronome()}
 };
 function cancelPendingWistiaResume(){
  wistiaResumeGeneration++;
@@ -1273,8 +1277,9 @@ function cancelPracticeTransition({stopBackingAudio=false,stopVideo=false}={}){
  if(practiceTimer){clearTimeout(practiceTimer);practiceTimer=null;}
  const overlay=document.querySelector('#countInOverlay');if(overlay){overlay.classList.remove('active');overlay.hidden=true;}
  if(countInMetronomeSuspended){
+  // Cancellation returns to an armed/silent state. Only PLAY may start clicks.
   countInMetronomeSuspended=false;
-  if(metronomeEnabled)startMetronome();
+  stopMetronome();
  }
  cancelDelayedPlayback();
  if(stopBackingAudio)stopBacking(false);
@@ -1655,9 +1660,10 @@ function advanceAutoBpm({deferMetronome=false}={}){
  if(metronomeEnabled){
   const scheduledThrough=metronomeNextTime;
   stopMetronome();metronomeNextTime=scheduledThrough;
-  // Defer only when another Auto BPM series will actually follow. At the goal
-  // there is no count-in to restore the clock, so keep the metronome alive.
-  if(!deferMetronome||reached)startMetronome({afterScheduled:true});
+  // Keep the click tied to the transport. A following series/count-in starts
+  // it again at the new BPM; reaching the goal leaves it armed and silent.
+  const transportPlaying=alphaTabMode?window.guitarLibertyAlphaTab?.playerState===1:playing;
+  if(!deferMetronome&&!reached&&transportPlaying)startMetronome({afterScheduled:true});
  }
  return {next,reached};
 }
@@ -1698,6 +1704,7 @@ function playNote(string,fret,holdBeats=null){
 }
 function stop(){
  alphaTabResumePending=false;
+ stopMetronome();
  pausePracticeClock();
  if(alphaTabMode&&window.guitarLibertyAlphaTab?.player){try{window.guitarLibertyAlphaTab.stop()}catch(e){}}
  cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});
@@ -3362,7 +3369,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
    if(state&&firstName)state.textContent='TAB • '+firstName;
   }
  });
- api.playerStateChanged.on(e=>{if(!isActiveLoad())return;const stateAt=Date.now();if(e.state===1){naturalEndCounted=false;playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY;startSession();if(practiceLoop)beginPracticePassage(stateAt)}else if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock(stateAt);if(!videoEnabled)document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else{const endTick=scoreEndTick(),stoppedTick=Math.max(lastLoopTick,+api.tickPosition||0),naturalEnd=!practiceLoop&&!naturalEndCounted&&endTick>0&&stoppedTick>=endTick-1;if(naturalEnd){naturalEndCounted=true;sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;try{api.tickPosition=0}catch(_){}lastLoopTick=-1;document.querySelector('#play').textContent='▶ PLAY';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';}});
+ api.playerStateChanged.on(e=>{if(!isActiveLoad())return;const stateAt=Date.now();if(metronomeEnabled&&!countInActive){if(e.state===1)startMetronome();else stopMetronome();}if(e.state===1){naturalEndCounted=false;playbackFollowEnabled=true;manualScrollUntil=0;manualScrollStartY=window.scrollY;startSession();if(practiceLoop)beginPracticePassage(stateAt)}else if(sessionStarted&&sessionFirstPracticeAt)pausePracticeClock(stateAt);if(!videoEnabled)document.querySelector('#play').textContent=e.state===1?'■ STOP':'▶ PLAY';if(e.state===1){startSession();sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession()}if(e.state===1)practiceStatus.textContent=practiceLoop?'En cours • Répétition '+(practiceIteration+1)+'/'+Math.max(1,+loopRepeats.value||1):'En cours';else{const endTick=scoreEndTick(),stoppedTick=Math.max(lastLoopTick,+api.tickPosition||0),naturalEnd=!practiceLoop&&!naturalEndCounted&&endTick>0&&stoppedTick>=endTick-1;if(naturalEnd){naturalEndCounted=true;sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();stopBacking(false);pauseLocalPracticeVideo();pauseWistiaPracticeVideo();alphaTabResumePending=false;leadInResumePending=false;leadInRemainingMs=0;try{api.tickPosition=0}catch(_){}lastLoopTick=-1;document.querySelector('#play').textContent='▶ PLAY';if(sessionRepCount||sessionSeriesCount)saveCurrentSession();}if(!practiceTimer&&practiceStatus.textContent.indexOf('Série terminée')!==0)practiceStatus.textContent='Prêt';}});
  api.playerPositionChanged.on(e=>{
   if(!isActiveLoad())return;
   const lockedPageY=!playbackFollowEnabled?window.scrollY:null;
