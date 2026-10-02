@@ -1138,30 +1138,42 @@ function updatePlayCursor(api,tick){
 }
 function followPlayedSystem(sys){
  if(!playbackFollowEnabled||!sys||!playCursor)return;
- // Follow the orange cursor's REAL DOM position. This avoids any accumulated
- // mismatch between alphaTab's internal system coordinates and the document
- // after several staff lines.
+ const paper=document.querySelector('.paper');
+ if(!paper)return;
+ // The tablature has its own vertical scroller (.paper max-height:62vh).
+ // Follow the orange cursor INSIDE that scroller first; scrolling the window
+ // cannot reveal staff lines that are clipped by .paper.
  const cursorRect=playCursor.getBoundingClientRect();
- const viewportH=Math.max(document.documentElement.clientHeight||0,window.innerHeight||0);
- if(!viewportH||!Number.isFinite(cursorRect.top))return;
- const safeTop=Math.max(105,viewportH*.18);
- const safeBottom=Math.min(viewportH-90,viewportH*.68);
- let delta=0;
- // Scroll before the cursor reaches the bottom edge so the NEXT tablature line
- // is already visible. Loop/repeat jumps upward are handled symmetrically.
- if(cursorRect.bottom>safeBottom)delta=cursorRect.bottom-safeBottom;
- else if(cursorRect.top<safeTop)delta=cursorRect.top-safeTop;
- if(Math.abs(delta)<2)return;
- autoTabScrolling=true;
- autoTabScrollUntil=performance.now()+350;
- manualScrollStartY=window.scrollY;
- window.scrollBy({top:delta,left:0,behavior:'auto'});
- // Programmatic scroll events are asynchronous in Chromium/Electron. Do not
- // release the guard until their delivery window has safely elapsed.
- setTimeout(()=>{
-  autoTabScrolling=false;
+ const paperRect=paper.getBoundingClientRect();
+ if(!Number.isFinite(cursorRect.top)||!Number.isFinite(paperRect.top))return;
+ const innerTop=paperRect.top+Math.max(55,paper.clientHeight*.16);
+ const innerBottom=paperRect.bottom-Math.max(80,paper.clientHeight*.24);
+ let paperDelta=0;
+ if(cursorRect.bottom>innerBottom)paperDelta=cursorRect.bottom-innerBottom;
+ else if(cursorRect.top<innerTop)paperDelta=cursorRect.top-innerTop;
+ if(Math.abs(paperDelta)>=2){
+  autoTabScrolling=true;
+  autoTabScrollUntil=performance.now()+350;
   manualScrollStartY=window.scrollY;
- },380);
+  const before=paper.scrollTop;
+  paper.scrollTop=Math.max(0,Math.min(paper.scrollHeight-paper.clientHeight,before+paperDelta));
+  setTimeout(()=>{
+   autoTabScrolling=false;
+   manualScrollStartY=window.scrollY;
+  },380);
+ }
+ // Only keep the tablature panel itself visible in the page. Its internal
+ // scrollTop is what follows every staff line from first to last.
+ const viewportH=Math.max(document.documentElement.clientHeight||0,window.innerHeight||0);
+ const visibleTop=Math.max(90,viewportH*.10),visibleBottom=viewportH-70;
+ let pageDelta=0;
+ if(paperRect.top<visibleTop)pageDelta=paperRect.top-visibleTop;
+ else if(paperRect.bottom>visibleBottom)pageDelta=Math.min(paperRect.bottom-visibleBottom,Math.max(0,paperRect.top-visibleTop));
+ if(Math.abs(pageDelta)>=2){
+  autoTabScrolling=true;autoTabScrollUntil=performance.now()+350;manualScrollStartY=window.scrollY;
+  window.scrollBy({top:pageDelta,left:0,behavior:'auto'});
+  setTimeout(()=>{autoTabScrolling=false;manualScrollStartY=window.scrollY},380);
+ }
 }
 async function metronomeClick(accent=false,generation=countInGeneration){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
