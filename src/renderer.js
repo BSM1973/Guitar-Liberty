@@ -3460,9 +3460,15 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       lastLoopTick=-1;
       countInThenPlay(api,()=>{
        // The next Auto BPM series belongs to this exact alphaTab instance.
-       // A score/transport replacement during count-in must not restart media
-       // or playback through the stale API that completed the previous series.
+       // Re-assert the exact loop start at the LAST possible moment. alphaTab
+       // can emit a late position event after pause/tempo change; without this
+       // guard a later series may resume from that stale beat (e.g. beat 3).
        if(!practiceLoop||window.guitarLibertyAlphaTab!==api)return;
+       const freshRange=practiceTicks();
+       if(!freshRange)return;
+       try{api.tickPosition=freshRange.start}catch(_){}
+       lastLoopTick=-1;
+       updatePlayCursor(api,freshRange.start);
        startAlphaPracticePlayback(api,{restartAccompaniment:true});
       });
      }
