@@ -1054,14 +1054,14 @@ playWithMeNext?.addEventListener('click',()=>{
 });
 playWithMeStop?.addEventListener('click',stopPlayWithMe);
 
-let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,playbackFollowEnabled=true,manualScrollStartY=0;
+let alphaPlayedBeat=null,manualScrollUntil=0,autoTabScrolling=false,autoTabScrollUntil=0,playbackFollowEnabled=true,manualScrollStartY=0;
 let alphaTabLoadGeneration=0,libraryLoadGeneration=0,alphaTabClickHandler=null,alphaTabPendingResolve=null,currentAlphaTabSource=null;
 function invalidateAlphaTabLoad(){
  alphaTabLoadGeneration++;
  if(alphaTabPendingResolve){alphaTabPendingResolve(false);alphaTabPendingResolve=null;}
 }
 window.addEventListener('wheel',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
-window.addEventListener('scroll',()=>{if(!autoTabScrolling&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
+window.addEventListener('scroll',()=>{if(!autoTabScrolling&&performance.now()>autoTabScrollUntil&&Math.abs(window.scrollY-manualScrollStartY)>12){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil=Infinity;playbackFollowEnabled=false}},{passive:true});
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){manualScrollUntil=Infinity;playbackFollowEnabled=false}});
 function updatePlayCursor(api,tick){
@@ -1151,9 +1151,16 @@ function followPlayedSystem(sys){
  else if(systemBottom>safeBottom)delta=systemBottom-safeBottom;
  if(Math.abs(delta)<2)return;
  autoTabScrolling=true;
+ // scroll events can be delivered after requestAnimationFrame. Keep a short
+ // grace window so our own programmatic movement is never mistaken for a
+ // user's manual scroll and cannot disable playback following after line 4.
+ autoTabScrollUntil=performance.now()+250;
  manualScrollStartY=window.scrollY;
  window.scrollBy({top:delta,left:0,behavior:'auto'});
- requestAnimationFrame(()=>{autoTabScrolling=false;manualScrollStartY=window.scrollY});
+ requestAnimationFrame(()=>{
+  manualScrollStartY=window.scrollY;
+  requestAnimationFrame(()=>{autoTabScrolling=false;manualScrollStartY=window.scrollY});
+ });
 }
 async function metronomeClick(accent=false,generation=countInGeneration){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
