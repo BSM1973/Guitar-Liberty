@@ -3467,9 +3467,12 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
    paintLessonComplete();
    paintLessonMastery();
   }
-  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),lastWorkedTempo=previousSession?(+previousSession.end||+previousSession.best||0):0,completedTempos=previousRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0,savedTempo=savedExerciseTempo(currentPracticeTitle),resumeTempo=savedTempo||confirmedTempo||lastWorkedTempo,previousGoal=savedExerciseGoal(currentPracticeTitle)||(previousSession&&Number.isFinite(+previousSession.goal)?+previousSession.goal:0);
-  tempo.value=resumeTempo||score.tempo||tempo.value;
-  targetBpm.value=Math.max(previousGoal,+tempo.value||0);
+  const previousRows=readHistory().filter(x=>(x.exercise||x.title)===currentPracticeTitle),previousSession=latestExerciseSession(previousRows),previousGoal=savedExerciseGoal(currentPracticeTitle)||(previousSession&&Number.isFinite(+previousSession.goal)?+previousSession.goal:0);
+  // Every newly loaded tablature starts at the Guitare Liberty reference tempo.
+  // History and the score's authored tempo remain useful data, but never override
+  // the initial practice tempo. The student can then change BPM or use Auto BPM.
+  tempo.value=50;
+  targetBpm.value=Math.max(previousGoal,50);
   syncTempo();setAlphaTempo(api);
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
@@ -3603,7 +3606,7 @@ async function loadBundledScore(button){
   if(!isCurrentLibraryLoad())return;
   const loaded=await loadWithAlphaTab({name:button.textContent.trim()+'.gp',ext:'.gp',bytes});
   if(!loaded)return;
-  if(currentPracticeTitle&&savedExerciseTempo(currentPracticeTitle)){tempo.value=savedExerciseTempo(currentPracticeTitle);syncTempo();if(window.guitarLibertyAlphaTab)setAlphaTempo(window.guitarLibertyAlphaTab)}
+  // loadWithAlphaTab establishes the universal 50 BPM starting point.
  }catch(err){
   if(!isCurrentLibraryLoad())return;
   console.error(err);
