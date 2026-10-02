@@ -3452,21 +3452,21 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
       practiceStatus.textContent='Objectif atteint • '+next+' BPM';
       if(sessionRepCount||sessionSeriesCount)saveCurrentSession();
      }else{
-      // Auto BPM starts a genuinely new series. alphaTab has already wrapped
-      // to the loop start when we detect the completed repetition, so pause it
-      // there and run the configured count-in before allowing the next series.
-      try{api.pause();api.tickPosition=range.start}catch(_){}
+      // A new Auto BPM series is a transport boundary, not another native
+      // alphaTab loop wrap. Disable native looping while pausing/seeking so no
+      // late wrap event can move the cursor after we reset it.
+      try{api.isLooping=false;api.pause();api.tickPosition=range.start}catch(_){}
       pauseAlphaPracticeAccompaniment();
       lastLoopTick=-1;
       countInThenPlay(api,()=>{
-       // The next Auto BPM series belongs to this exact alphaTab instance.
-       // Re-assert the exact loop start at the LAST possible moment. alphaTab
-       // can emit a late position event after pause/tempo change; without this
-       // guard a later series may resume from that stale beat (e.g. beat 3).
        if(!practiceLoop||window.guitarLibertyAlphaTab!==api)return;
        const freshRange=practiceTicks();
        if(!freshRange)return;
-       try{api.tickPosition=freshRange.start}catch(_){}
+       try{
+        api.playbackRange={startTick:freshRange.start,endTick:freshRange.end};
+        api.tickPosition=freshRange.start;
+        api.isLooping=true;
+       }catch(_){}
        lastLoopTick=-1;
        updatePlayCursor(api,freshRange.start);
        startAlphaPracticePlayback(api,{restartAccompaniment:true});
