@@ -2545,9 +2545,11 @@ function startAlphaPracticePlayback(api,{restartAccompaniment=false,resumeAccomp
    return;
   }
   alphaTabMediaPreparing=true;
-  backingAudio.currentTime=0;delete backingAudio._guitarLibertyRestoreTime;
+  // First PLAY starts at file time 0 and lets the embedded count-in lead the TAB.
+  // LOOP/Auto-BPM restarts jump past that count-in and start both transports together.
+  backingAudio.currentTime=restartAccompaniment?backingLoopSourceTime(api):0;delete backingAudio._guitarLibertyRestoreTime;
   const startGeneration=++mediaStartGeneration,startBacking=backingAudio;
-  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;alphaTabMediaPreparing=false;scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;api.play();},currentBackingLeadBeats*(60000/bpm))};
+  const startBackingLeadIn=()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking)return;alphaTabMediaPreparing=false;if(restartAccompaniment){if(window.guitarLibertyAlphaTab===api&&!startBacking.paused)api.play();return;}scheduleLeadInStart(()=>{if(startGeneration!==mediaStartGeneration||backingAudio!==startBacking||startBacking.paused||window.guitarLibertyAlphaTab!==api)return;api.play();},currentBackingLeadBeats*(60000/bpm))};
   const backingPromise=startBacking.play();
   if(backingPromise?.then)backingPromise.then(startBackingLeadIn).catch(e=>{if(startGeneration===mediaStartGeneration&&backingAudio===startBacking)failStart('Backing',e)});
   else if(startGeneration===mediaStartGeneration&&backingAudio===startBacking&&!startBacking.paused)startBackingLeadIn();
@@ -3150,6 +3152,31 @@ function syncBackingTempo(){
  const bpm=Math.max(1,+tempo.value||50);
  backingAudio.playbackRate=Math.max(.5,Math.min(2,bpm/50));
 }
+// Backing files may contain an audible count-in before musical beat 1.
+// Keep it for the first PLAY only. LOOP restarts seek directly to the musical
+// position matching the selected loop start, so the count-in is never replayed.
+function backingLoopSourceTime(api){
+ const sourceBpm=50;
+ const leadSeconds=Math.max(0,currentBackingLeadBeats)*(60/sourceBpm);
+ const range=api?practiceTicks():null;
+ if(!range)return leadSeconds;
+ const quarterTicks=Math.max(1,api?.score?.masterBars?.[0]?.calculateDuration?.()||960);
+ // alphaTab uses 960 ticks per quarter in the practice timeline. Keep the
+ // explicit fallback stable even when score metadata does not expose duration.
+ const musicalBeats=Math.max(0,+range.start||0)/960;
+ return leadSeconds+musicalBeats*(60/sourceBpm);
+}
+function restartBackingAtLoopStart(api){
+ if(!backingAudio||!backingEnabled)return;
+ syncBackingTempo();
+ const track=backingAudio,target=backingLoopSourceTime(api);
+ try{
+  const max=Number.isFinite(track.duration)&&track.duration>0?Math.max(0,track.duration-.05):target;
+  track.currentTime=Math.min(target,max);
+  const promise=track.play();
+  if(promise?.catch)promise.catch(e=>console.error('Backing loop restart',e));
+ }catch(e){console.error('Backing loop seek',e)}
+}
 function restoreBackingTime(time){
  const track=backingAudio,target=Math.max(0,+time||0);
  if(!track||!(target>0))return;
@@ -3403,6 +3430,9 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   if(!practiceLoop){lastLoopTick=tick;return;}
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
+   // alphaTab has wrapped to the selected first measure. Re-anchor the backing
+   // at the same musical point, skipping its file-embedded count-in.
+   restartBackingAtLoopStart(api);
    practiceIteration++;if(!sessionFirstPracticeAt){sessionFirstPracticeAt=Date.now();sessionStartHint=''}sessionRepCount++;sessionBest=Math.max(sessionBest,+tempo.value||0);paintSession();updatePracticeProgress(practiceIteration);
    const max=Math.max(1,+loopRepeats.value||1);
    if(practiceIteration>=max){
