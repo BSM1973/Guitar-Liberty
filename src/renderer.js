@@ -3050,6 +3050,15 @@ function openVideo(){
    wistiaFrame.src='https://fast.wistia.net/embed/iframe/'+encodeURIComponent(requestedWistiaId)+'?seo=false&videoFoam=true&autoPlay=false&controlsVisibleOnLoad=true';
  }
  videoToggle.classList.add('active');videoToggle.textContent='🎬 VIDÉO ON';
+ // VIDEO ON is an explicit request to view the player. Once its container is
+ // visible, place it directly below the top reading area for both local video
+ // and Wistia without starting playback or moving the tablature itself.
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(!videoEnabled||videoStage.hidden)return;
+  const headerOffset=96;
+  const y=Math.max(0,window.scrollY+videoStage.getBoundingClientRect().top-headerOffset);
+  window.scrollTo({top:y,left:0,behavior:'smooth'});
+ }));
  if(armedVideoStart||activeVideoPlayback){
   if(practiceLoop){
    if(alphaTabMode&&activeApi){const range=practiceTicks();if(range){try{activeApi.tickPosition=range.start}catch(_){}}}
