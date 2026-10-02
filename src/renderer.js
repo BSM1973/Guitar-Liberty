@@ -580,18 +580,15 @@ function refreshDashboard(){
  const goLiberty=q('#libertyGo');
  if(goLiberty){
   goLiberty.textContent=stage==='learn'?'▶ VOIR LA TAB':stage==='play'?'▶ JOUER LE COURS':'▶ PASSER EN MODE LIBERTÉ';
-  goLiberty.onclick=async()=>{
-   // The Chemin de Liberté action follows the CURRENT pedagogical stage.
-   // Load the proposed course when needed, then navigate to the relevant
-   // workspace area without starting playback or the guided-session UI.
-   if(next){
-    const active=next.classList.contains('active')&&currentPracticeTitle===next.childNodes[0].textContent.trim();
-    if(!active)await loadBundledScore(next);
-   }
-   requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    const target=stage==='free'?document.querySelector('.liberty-mode'):stage==='play'?document.querySelector('.toolbar'):document.querySelector('.score-head');
-    target?.scrollIntoView({behavior:'smooth',block:'start'});
-   }));
+  goLiberty.onclick=()=>{
+   // This action belongs to the course already displayed. Never switch to the
+   // next curriculum item here: simply take the student to the workspace area
+   // that matches the current Chemin de Liberté stage.
+   const target=stage==='free'?document.querySelector('.liberty-mode'):stage==='play'?document.querySelector('.toolbar'):document.querySelector('.score-head');
+   if(!target)return;
+   const headerOffset=104;
+   const y=Math.max(0,window.scrollY+target.getBoundingClientRect().top-headerOffset);
+   window.scrollTo({top:y,left:0,behavior:'smooth'});
   };
  }
 
