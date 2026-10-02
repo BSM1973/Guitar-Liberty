@@ -179,24 +179,9 @@
  <label>Compte <select id="countIn"><option value="0">OFF</option><option value="1">1 mesure</option><option value="2">2 mesures</option></select></label>
  <div class="practice-feedback"><span id="practiceStatus">Prêt</span><div class="practice-progress"><i id="practiceProgress"></i></div></div>
 </div>
-<section class="liberty-mode">
- <div class="liberty-mode-head"><div><small>MODE LIBERTÉ</small><strong>APPRENDRE → JOUER → SE LIBÉRER</strong></div><span id="libertyState">TAB 100%</span></div>
- <p id="libertyText">Commence avec la tablature complète, puis réduis progressivement son aide visuelle sans arrêter la musique.</p>
- <div class="liberty-mode-controls"><label>Niveau <select id="libertyLevel"><option value="100">TAB 100%</option><option value="75">TAB 75%</option><option value="50">TAB 50%</option><option value="25">TAB 25%</option><option value="0">SANS TAB</option></select></label><label>Progression <select id="libertyAuto"><option value="off">MANUELLE</option><option value="auto">AUTOMATIQUE</option></select></label><label>Cycle <select id="libertyCycle"><option value="playback">SUR LE MORCEAU</option><option value="repetition">PAR RÉPÉTITION</option></select></label><label>Seuil <select id="libertyStartFade"><option value="1">DÈS LE 2e PASSAGE</option><option value="2">APRÈS 2 PASSAGES</option><option value="3">APRÈS 3 PASSAGES</option></select></label><button id="libertyReset" type="button">↶ TAB COMPLÈTE</button></div><div class="liberty-stage" id="libertyStage"><i></i><span>APPRENDRE</span><span>JOUER</span><span>SE LIBÉRER</span></div>
-</section>
-<section class="play-with-me">
- <div class="play-with-me-head"><div><small>JOUE AVEC MOI</small><strong>ÉCOUTE • RÉPONDS • JOUE</strong></div><span id="playWithMeState">PRÊT</span></div>
- <p id="playWithMeText">Guitare Liberty joue une mesure. À toi de la rejouer juste après.</p>
- <div class="play-with-me-controls">
-  <label>Départ <input id="playWithMeBar" type="number" min="1" value="1"></label>
-  <label>Format <select id="playWithMeLength"><option value="1">1 mesure / 1 mesure</option><option value="2">2 mesures / 2 mesures</option></select></label><label>Réponse <select id="playWithMeAnswerMode"><option value="manual">LIBRE</option><option value="timed">MÊME DURÉE</option></select></label><label>Répéter <select id="playWithMeRepeat"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label><label>Départ <select id="playWithMeLead"><option value="0">DIRECT</option><option value="1">1 TEMPS</option><option value="2">2 TEMPS</option><option value="4">1 MESURE</option></select></label><label>Session <select id="playWithMeSessionLength"><option value="all">TAB COMPLÈTE</option><option value="4">4 PHRASES</option><option value="8">8 PHRASES</option><option value="12">12 PHRASES</option></select></label>
-  <button id="playWithMeStart" type="button">▶ COMMENCER</button>
-  <button id="playWithMeReplay" type="button" disabled>↺ RÉÉCOUTER</button><button id="playWithMeRestart" type="button" disabled>↶ RECOMMENCER</button><button id="playWithMeResume" type="button" disabled>▶ REFAIRE LA SESSION</button><button id="playWithMeNext" type="button" disabled>→ PHRASE SUIVANTE</button><button id="playWithMeStop" type="button" disabled>■ ARRÊTER</button>
- </div>
- <div class="play-with-me-turns"><div id="playWithMeListen"><b>1</b><span>ÉCOUTE</span><small>Guitare Liberty joue</small></div><div id="playWithMeAnswer"><b>2</b><span>À TOI</span><small>Rejoue la phrase</small></div></div><div class="play-with-me-progress"><span id="playWithMeProgress">PHRASE 1</span><span id="playWithMeCountdown">—</span><span id="playWithMeRepeatState">PASSAGE 1/1</span><span id="playWithMeSessionProgress">0%</span><span id="playWithMeElapsed">00:00</span><span id="playWithMeRound">0 RÉPONSE</span></div>
- <details class="play-with-me-history"><summary>HISTORIQUE JOUE AVEC MOI <span id="playWithMeHistoryCount">0 session</span></summary><div id="playWithMeHistorySummary">Aucune progression enregistrée.</div><div id="playWithMeExerciseSummary">Aucun bilan pour cet exercice.</div><div id="playWithMeTrend">TENDANCE • —</div><div id="playWithMeNextGoal">PROCHAINE ÉTAPE • TERMINE UNE SESSION POUR OBTENIR UN REPÈRE</div><div id="playWithMeHistoryList"><p>Aucune session terminée.</p></div><button id="playWithMeHistoryClear" type="button">EFFACER L’HISTORIQUE</button></details>
-</section>
-<div class="session-stats"><span>SESSION</span><b id="sessionTime">00:00</b><span>Séries <b id="sessionSeries">0</b></span><span>Répétitions <b id="sessionReps">0</b></span><span>Meilleur BPM <b id="sessionBestBpm">0</b></span><span>Progression <b id="sessionGain">+0 BPM</b></span><button id="resetSession" type="button">Réinitialiser</button></div>
+
+
+
 
 
 
@@ -221,6 +206,24 @@
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div class="paper"><div class="exercise-label">Ex.1</div><div id="countInOverlay" class="count-in-overlay" hidden><small>PRÉPARE-TOI</small><strong id="countInNumber">4</strong></div><div id="tab" class="tab-score"></div></div>
 <div class="transport"><div id="progress"></div></div>
+<section class="liberty-mode">
+ <div class="liberty-mode-head"><div><small>MODE LIBERTÉ</small><strong>APPRENDRE → JOUER → SE LIBÉRER</strong></div><span id="libertyState">TAB 100%</span></div>
+ <p id="libertyText">Commence avec la tablature complète, puis réduis progressivement son aide visuelle sans arrêter la musique.</p>
+ <div class="liberty-mode-controls"><label>Niveau <select id="libertyLevel"><option value="100">TAB 100%</option><option value="75">TAB 75%</option><option value="50">TAB 50%</option><option value="25">TAB 25%</option><option value="0">SANS TAB</option></select></label><label>Progression <select id="libertyAuto"><option value="off">MANUELLE</option><option value="auto">AUTOMATIQUE</option></select></label><label>Cycle <select id="libertyCycle"><option value="playback">SUR LE MORCEAU</option><option value="repetition">PAR RÉPÉTITION</option></select></label><label>Seuil <select id="libertyStartFade"><option value="1">DÈS LE 2e PASSAGE</option><option value="2">APRÈS 2 PASSAGES</option><option value="3">APRÈS 3 PASSAGES</option></select></label><button id="libertyReset" type="button">↶ TAB COMPLÈTE</button></div><div class="liberty-stage" id="libertyStage"><i></i><span>APPRENDRE</span><span>JOUER</span><span>SE LIBÉRER</span></div>
+</section>
+<section class="play-with-me">
+ <div class="play-with-me-head"><div><small>JOUE AVEC MOI</small><strong>ÉCOUTE • RÉPONDS • JOUE</strong></div><span id="playWithMeState">PRÊT</span></div>
+ <p id="playWithMeText">Guitare Liberty joue une mesure. À toi de la rejouer juste après.</p>
+ <div class="play-with-me-controls">
+  <label>Départ <input id="playWithMeBar" type="number" min="1" value="1"></label>
+  <label>Format <select id="playWithMeLength"><option value="1">1 mesure / 1 mesure</option><option value="2">2 mesures / 2 mesures</option></select></label><label>Réponse <select id="playWithMeAnswerMode"><option value="manual">LIBRE</option><option value="timed">MÊME DURÉE</option></select></label><label>Répéter <select id="playWithMeRepeat"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label><label>Départ <select id="playWithMeLead"><option value="0">DIRECT</option><option value="1">1 TEMPS</option><option value="2">2 TEMPS</option><option value="4">1 MESURE</option></select></label><label>Session <select id="playWithMeSessionLength"><option value="all">TAB COMPLÈTE</option><option value="4">4 PHRASES</option><option value="8">8 PHRASES</option><option value="12">12 PHRASES</option></select></label>
+  <button id="playWithMeStart" type="button">▶ COMMENCER</button>
+  <button id="playWithMeReplay" type="button" disabled>↺ RÉÉCOUTER</button><button id="playWithMeRestart" type="button" disabled>↶ RECOMMENCER</button><button id="playWithMeResume" type="button" disabled>▶ REFAIRE LA SESSION</button><button id="playWithMeNext" type="button" disabled>→ PHRASE SUIVANTE</button><button id="playWithMeStop" type="button" disabled>■ ARRÊTER</button>
+ </div>
+ <div class="play-with-me-turns"><div id="playWithMeListen"><b>1</b><span>ÉCOUTE</span><small>Guitare Liberty joue</small></div><div id="playWithMeAnswer"><b>2</b><span>À TOI</span><small>Rejoue la phrase</small></div></div><div class="play-with-me-progress"><span id="playWithMeProgress">PHRASE 1</span><span id="playWithMeCountdown">—</span><span id="playWithMeRepeatState">PASSAGE 1/1</span><span id="playWithMeSessionProgress">0%</span><span id="playWithMeElapsed">00:00</span><span id="playWithMeRound">0 RÉPONSE</span></div>
+ <details class="play-with-me-history"><summary>HISTORIQUE JOUE AVEC MOI <span id="playWithMeHistoryCount">0 session</span></summary><div id="playWithMeHistorySummary">Aucune progression enregistrée.</div><div id="playWithMeExerciseSummary">Aucun bilan pour cet exercice.</div><div id="playWithMeTrend">TENDANCE • —</div><div id="playWithMeNextGoal">PROCHAINE ÉTAPE • TERMINE UNE SESSION POUR OBTENIR UN REPÈRE</div><div id="playWithMeHistoryList"><p>Aucune session terminée.</p></div><button id="playWithMeHistoryClear" type="button">EFFACER L’HISTORIQUE</button></details>
+</section>
+<div class="session-stats"><span>SESSION</span><b id="sessionTime">00:00</b><span>Séries <b id="sessionSeries">0</b></span><span>Répétitions <b id="sessionReps">0</b></span><span>Meilleur BPM <b id="sessionBestBpm">0</b></span><span>Progression <b id="sessionGain">+0 BPM</b></span><button id="resetSession" type="button">Réinitialiser</button></div>
 <section class="session-insight">
  <div class="session-insight-head"><div><small>BILAN DE SÉANCE</small><strong>CE QUE TU AS CONSTRUIT AUJOURD'HUI</strong></div><span id="sessionInsightState">PRÊT POUR UNE SÉANCE</span></div>
  <div class="session-insight-grid">
