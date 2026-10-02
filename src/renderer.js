@@ -1137,30 +1137,31 @@ function updatePlayCursor(api,tick){
  followPlayedSystem(sys);
 }
 function followPlayedSystem(sys){
- if(!playbackFollowEnabled||!sys)return;
- const tabRect=tab.getBoundingClientRect();
- const systemTop=tabRect.top+sys.y;
- const systemBottom=systemTop+Math.max(1,sys.h||0);
+ if(!playbackFollowEnabled||!sys||!playCursor)return;
+ // Follow the orange cursor's REAL DOM position. This avoids any accumulated
+ // mismatch between alphaTab's internal system coordinates and the document
+ // after several staff lines.
+ const cursorRect=playCursor.getBoundingClientRect();
  const viewportH=Math.max(document.documentElement.clientHeight||0,window.innerHeight||0);
- // Keep the played staff inside a stable reading zone instead of centering
- // on every tick. This follows line changes, repeats and loop jumps smoothly.
- const safeTop=Math.max(110,viewportH*.20);
- const safeBottom=Math.max(safeTop+120,viewportH*.72);
+ if(!viewportH||!Number.isFinite(cursorRect.top))return;
+ const safeTop=Math.max(105,viewportH*.18);
+ const safeBottom=Math.min(viewportH-90,viewportH*.68);
  let delta=0;
- if(systemTop<safeTop)delta=systemTop-safeTop;
- else if(systemBottom>safeBottom)delta=systemBottom-safeBottom;
+ // Scroll before the cursor reaches the bottom edge so the NEXT tablature line
+ // is already visible. Loop/repeat jumps upward are handled symmetrically.
+ if(cursorRect.bottom>safeBottom)delta=cursorRect.bottom-safeBottom;
+ else if(cursorRect.top<safeTop)delta=cursorRect.top-safeTop;
  if(Math.abs(delta)<2)return;
  autoTabScrolling=true;
- // scroll events can be delivered after requestAnimationFrame. Keep a short
- // grace window so our own programmatic movement is never mistaken for a
- // user's manual scroll and cannot disable playback following after line 4.
- autoTabScrollUntil=performance.now()+250;
+ autoTabScrollUntil=performance.now()+350;
  manualScrollStartY=window.scrollY;
  window.scrollBy({top:delta,left:0,behavior:'auto'});
- requestAnimationFrame(()=>{
+ // Programmatic scroll events are asynchronous in Chromium/Electron. Do not
+ // release the guard until their delivery window has safely elapsed.
+ setTimeout(()=>{
+  autoTabScrolling=false;
   manualScrollStartY=window.scrollY;
-  requestAnimationFrame(()=>{autoTabScrolling=false;manualScrollStartY=window.scrollY});
- });
+ },380);
 }
 async function metronomeClick(accent=false,generation=countInGeneration){
  countInAudio ||= new (window.AudioContext||window.webkitAudioContext)();
