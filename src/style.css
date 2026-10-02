@@ -316,3 +316,37 @@ main{display:block;min-height:calc(100vh - 92px)}
  #appWorkspace:not([hidden]){grid-template-columns:190px minmax(0,1fr)}
  #appWorkspace>.course-nav{width:190px}
 }
+
+
+/* Lisibilité générale : typographie sensiblement agrandie. */
+html{font-size:18px}
+body{font-size:16px;line-height:1.5}
+button,input,select,textarea{font-size:14px}
+small{font-size:12px}
+.course-nav summary{font-size:14px}
+.level-menu>summary{font-size:15px}
+.category-menu>summary{font-size:13px}
+.library-exercise{font-size:13px;line-height:1.4}
+.library-exercise small{font-size:11px}
+.student-dashboard,.student-dashboard p,.student-dashboard span,
+.lesson-card,.lesson-card p,.lesson-card span,
+.history-panel,.history-panel p,.history-panel span,
+.guitar-memory,.guitar-memory p,.guitar-memory span,
+.journal,.journal p,.journal span,
+.ai-coach,.ai-coach p,.ai-coach span,
+.ai-listening,.ai-listening p,.ai-listening span{font-size:14px}
+.student-dashboard strong,.lesson-card strong,.guitar-memory strong,
+.ai-coach strong,.ai-listening strong{font-size:16px}
+.toolbar,.toolbar label,.toolbar button{font-size:14px}
+.score-head h2{font-size:26px}
+.score-head p,.score-meta{font-size:14px}
+#bpm,#scoreTempo{font-size:15px}
+.guitar-memory-head small{font-size:12px}
+.guitar-memory-head strong{font-size:19px}
+#memoryCount{font-size:12px}
+.memory-timeline{font-size:14px}
+.home-page{font-size:16px}
+.home-hero p{font-size:16px;line-height:1.6}
+.home-actions button{font-size:13px}
+.home-page .level-menu>summary{font-size:16px}
+.home-page .category-menu>summary{font-size:14px}
