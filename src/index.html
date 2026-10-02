@@ -220,10 +220,7 @@
  <small id="journalHint" class="journal-hint">Il n’y a pas de bonne réponse. Ce journal appartient au musicien, pas aux statistiques.</small>
  <div id="journalEntries" class="journal-entries"><p>Aucune note pour le moment.</p></div>
 </section>
-<section class="guitar-memory">
- <div class="guitar-memory-head"><div><small>MÉMOIRE DU GUITARISTE</small><strong>TON HISTOIRE MUSICALE</strong></div><span id="memoryCount">AUCUN SOUVENIR</span></div>
- <div id="memoryTimeline" class="memory-timeline"><p>Ta première séance écrira ici le début de ton histoire.</p></div>
-</section>
+
 <details class="history-panel"><summary>HISTORIQUE D’ENTRAÎNEMENT <span id="historyCount">0 session</span></summary><div class="history-summary"><span>Record <b id="historyRecord">—</b></span><span>Sessions <b id="historySessions">0</b></span><span>Temps total <b id="historyTime">00:00</b></span><span>Série actuelle <b id="historyStreak">0 jour</b></span></div><div class="exercise-progress"><div><span>PROGRESSION DE LA TABLATURE</span><b id="exerciseProgressTitle">—</b></div><canvas id="bpmChart" width="760" height="150"></canvas><div id="exerciseProgressStats">Aucune donnée pour cette tablature.</div><div class="personal-best"><span>RECORD PERSONNEL</span><strong id="personalBest">—</strong><span id="recordDelta">Commence une session pour établir ton record.</span></div><div class="mastery"><div><span>MAÎTRISE</span><strong id="masteryLevel">Nouveau</strong></div><div class="mastery-track"><i id="masteryBar"></i></div><span id="masteryInfo">0 %</span></div></div><div id="historyList" class="history-list"><p>Aucune session enregistrée.</p></div><button id="clearHistory" type="button">Effacer l’historique</button></details>
 <section class="lesson-card">
  <div class="lesson-card-head"><strong>FICHE DU COURS</strong><div class="lesson-validation"><span id="lessonLearningState">À DÉCOUVRIR</span><button id="lessonComplete" type="button">✓ COURS TERMINÉ</button></div></div>
@@ -245,6 +242,10 @@
 <div class="toolbar"><button id="play">▶ PLAY</button><span id="importStatus"></span><div class="backing-controls"><button id="backingToggle" type="button">♫ BACKING ON</button><button id="videoToggle" type="button">🎬 BACKING VIDÉO</button><button id="tutorialToggle" type="button">▶ TUTORIEL</button><label>Backing <input id="backingVolume" type="range" min="0" max="100" value="80"><b id="backingVolumeLabel">80%</b></label></div><label>Tempo <input id="tempo" type="range" min="40" max="240" value="90"><b id="bpm">90 BPM</b></label></div>
 <div class="paper"><div class="exercise-label">Ex.1</div><div id="countInOverlay" class="count-in-overlay" hidden><small>PRÉPARE-TOI</small><strong id="countInNumber">4</strong></div><div id="tab" class="tab-score"></div></div>
 <div class="transport"><div id="progress"></div></div>
+<section class="guitar-memory">
+ <div class="guitar-memory-head"><div><small>MÉMOIRE DU GUITARISTE</small><strong>TON HISTOIRE MUSICALE</strong></div><span id="memoryCount">AUCUN SOUVENIR</span></div>
+ <div id="memoryTimeline" class="memory-timeline"><p>Ta première séance écrira ici le début de ton histoire.</p></div>
+</section>
 </section>
 </main>
 <script src="../assets/vendor/alphaTab.min.js"></script>
