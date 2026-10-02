@@ -350,3 +350,42 @@ small{font-size:12px}
 .home-actions button{font-size:13px}
 .home-page .level-menu>summary{font-size:16px}
 .home-page .category-menu>summary{font-size:14px}
+
+
+/* Plancher de lisibilité pour tous les micro-textes de l'interface.
+   !important neutralise les anciennes règles 7–12 px dispersées dans les composants. */
+body small,
+body label,
+body summary,
+body button,
+body input,
+body select,
+body textarea,
+body time,
+body [class*="hint"],
+body [class*="meta"],
+body [class*="status"],
+body [class*="count"],
+body [class*="legend"]{
+ font-size:max(14px, .875rem)!important;
+}
+.course-nav small,.course-nav span,.course-nav p,
+.student-dashboard small,.student-dashboard span,
+.history-panel small,.history-panel span,
+.lesson-card small,.lesson-card span,
+.guitar-memory small,.guitar-memory span,
+.guitar-journal small,.guitar-journal span,
+.music-goals small,.music-goals span,
+.time-session small,.time-session span,
+.ai-coach small,.ai-coach span,
+.ai-listening small,.ai-listening span,
+.play-with-me small,.play-with-me span,
+.liberty-mode small,.liberty-mode span{
+ font-size:14px!important;
+ line-height:1.45;
+}
+.library-exercise small{font-size:13px!important}
+.fretboard-legend,.fretboard-coach small{font-size:13px!important}
+.fret-cell.fret-number{font-size:12px!important}
+.fret-cell .note-dot{font-size:11px!important}
+#resetAll{font-size:13px!important}
