@@ -3696,7 +3696,18 @@ async function loadBundledScore(button){
 document.querySelectorAll('#appWorkspace .library-exercise').forEach(b=>b.onclick=()=>{if(!b.classList.contains('course-locked')){openWorkspace('score');loadBundledScore(b)}});
 document.querySelectorAll('#homePage .library-exercise').forEach(b=>b.onclick=()=>{
  const target=courseButtons().find(x=>x.dataset.score===b.dataset.score);
- if(target&&!target.classList.contains('course-locked')){openWorkspace('score');loadBundledScore(target)}
+ if(target&&!target.classList.contains('course-locked')){
+  openWorkspace('score');
+  // A course opened from Home always starts at the top of its workspace.
+  // Do it before and after the asynchronous score render so alphaTab/layout
+  // changes cannot leave the student halfway down the course page.
+  window.scrollTo({top:0,left:0,behavior:'auto'});
+  const loaded=loadBundledScore(target);
+  Promise.resolve(loaded).finally(()=>requestAnimationFrame(()=>{
+   window.scrollTo({top:0,left:0,behavior:'auto'});
+   const paper=document.querySelector('.paper');if(paper)paper.scrollTop=0;
+  }));
+ }
 });
 refreshCourseProgress();
 if(importButton) importButton.onclick=async()=>{
