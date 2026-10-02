@@ -530,8 +530,8 @@ function refreshDashboard(){
  q('#dashValidated').textContent=done.length+' cours validé'+(done.length>1?'s':'')+' • '+libertySummary;
  q('#todayCourse').textContent=next?'Travaille : '+next.childNodes[0].textContent.trim():'Tous les cours disponibles sont validés.';
  q('#todayGoal').textContent=next?'Objectif : '+(next.dataset.bpm||targetBpm.value)+' BPM • '+(next.dataset.difficulty||'progression régulière'):'Continue à consolider tes acquis.';
- const go=()=>{if(next){next.click();next.scrollIntoView({behavior:'smooth',block:'center'})}};
- q('#continueCourse').onclick=go;q('#todayStart').onclick=()=>{go();startGuided()};
+ const go=()=>{if(next)next.click()};
+ q('#todayStart').onclick=()=>{go();startGuided()};
  // Chemin de Liberté: derive a simple, explainable next step from existing
  // course/session data. No opaque scoring and no change to the playback engine.
  const currentName=next?next.childNodes[0].textContent.trim():(buttons.length?'Parcours consolidé':'Premier cours');
