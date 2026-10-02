@@ -3297,7 +3297,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  });
  window.guitarLibertyAlphaTab=api;
  const isActiveLoad=()=>isCurrentGeneration()&&window.guitarLibertyAlphaTab===api;
- api.playerReady.on(()=>{if(!isActiveLoad())return;importStatus.textContent=file.name+' — tablature prête à jouer';});
+ api.playerReady.on(()=>{if(!isActiveLoad())return;importStatus.textContent='';});
  // Clicking the rendered score seeks the player and immediately moves our
  // custom orange cursor. Keep the validated playback/repeat cursor untouched.
  alphaTabClickHandler=ev=>{
@@ -3446,12 +3446,12 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   tab.classList.remove('alphatab-score');tab.innerHTML='';
   document.querySelector('#play').textContent='▶ PLAY';
  };
- api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=file.name+' — tablature affichée'; });
+ api.renderFinished.on(()=>{ if(!isActiveLoad())return; tab.style.minHeight='420px'; playCursor=null; requestAnimationFrame(()=>{if(!isActiveLoad())return;drawLeftHandFingerings(api);paintSmartFretboard()}); importStatus.textContent=''; });
  api.scoreLoaded.on(score=>{
   if(!isActiveLoad()||completed)return;
   try{
    completed=true;
-  const loadedTitle=score.title||file.name.replace(/\.[^.]+$/,'');
+  const loadedTitle=(score.title||file.name.replace(/\.[^.]+$/,'')).replace(/\bposition(?=[A-ZÀ-ÖØ-Þ])/g,'position ');
   if(!restoring&&sessionStarted&&currentPracticeTitle!==loadedTitle){pausePracticeClock();cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');try{api.pause()}catch(_){}resetTrainingSession();practiceIteration=0;lastLoopTick=-1;updatePracticeProgress(0);}
   if(!restoring)document.querySelector('#play').textContent='▶ PLAY';
   // A successfully parsed Guitar Pro score supersedes any unresolved MXL/MIDI
@@ -3476,7 +3476,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   syncTempo();setAlphaTempo(api);
   document.querySelector('#title').textContent=currentPracticeTitle;renderPlayWithMeHistory();renderExerciseProgress();paintMeasureMemory();paintSmartFretboard();refreshDashboard();if(!sessionStarted)paintSessionInsight();
   document.querySelector('#subtitle').textContent='Guitar Pro • rendu alphaTab';
-  importStatus.textContent=file.name+' — import réussi';
+  importStatus.textContent='';
    // Publish the restoration source only after the score and all dependent
    // practice UI state have initialized successfully. A partially initialized
    // score must never become the fallback for a later failed import.
