@@ -577,7 +577,23 @@ function refreshDashboard(){
  if(hs)hs.textContent=humanState;if(ht)ht.textContent=humanTitle;if(hx)hx.textContent=humanText;
  document.querySelectorAll('[data-human-level]').forEach((el,i)=>{el.classList.toggle('done',i<humanLevel);el.classList.toggle('active',i===humanLevel)});
 
- const goLiberty=q('#libertyGo');if(goLiberty)goLiberty.onclick=()=>{go();if(stage!=='learn')startGuided()};
+ const goLiberty=q('#libertyGo');
+ if(goLiberty){
+  goLiberty.textContent=stage==='learn'?'▶ VOIR LA TAB':stage==='play'?'▶ JOUER LE COURS':'▶ PASSER EN MODE LIBERTÉ';
+  goLiberty.onclick=async()=>{
+   // The Chemin de Liberté action follows the CURRENT pedagogical stage.
+   // Load the proposed course when needed, then navigate to the relevant
+   // workspace area without starting playback or the guided-session UI.
+   if(next){
+    const active=next.classList.contains('active')&&currentPracticeTitle===next.childNodes[0].textContent.trim();
+    if(!active)await loadBundledScore(next);
+   }
+   requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const target=stage==='free'?document.querySelector('.liberty-mode'):stage==='play'?document.querySelector('.toolbar'):document.querySelector('.score-head');
+    target?.scrollIntoView({behavior:'smooth',block:'start'});
+   }));
+  };
+ }
 
 }
 function refreshCourseProgress(){
