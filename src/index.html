@@ -168,17 +168,7 @@
 </section>
 
 <div id="tutorialNotice" class="tutorial-notice" hidden><strong>VIDÉO TUTORIEL</strong><span id="tutorialNoticeText">Tutoriel à venir pour ce cours.</span></div><div id="videoStage" class="video-stage" hidden><iframe id="wistiaFrame" title="Vidéo de cours" allow="autoplay; fullscreen" class="wistia_embed" name="wistia_embed" frameborder="0" scrolling="no"></iframe><video id="practiceVideo" playsinline preload="auto" controls hidden></video></div>
-<div class="practice-panel">
- <strong>MODE ENTRAÎNEMENT</strong>
- <label>Début <input id="loopStart" type="number" min="1" value="1"></label>
- <label>Fin <input id="loopEnd" type="number" min="1" value="4"></label>
- <button id="loopToggle">↻ LOOP OFF</button>
- <label>Répétitions <input id="loopRepeats" type="number" min="1" max="99" value="4"></label>
- <label>Auto BPM <select id="autoBpm"><option value="0">OFF</option><option value="1">+1</option><option value="2">+2</option><option value="5">+5</option></select></label>
- <label>Objectif <input id="targetBpm" type="number" min="40" max="240" value="120"><span>BPM</span></label>
- <label>Compte <select id="countIn"><option value="0">OFF</option><option value="1">1 mesure</option><option value="2">2 mesures</option></select></label>
- <div class="practice-feedback"><span id="practiceStatus">Prêt</span><div class="practice-progress"><i id="practiceProgress"></i></div></div>
-</div>
+
 
 
 
@@ -196,6 +186,17 @@
   <span><small>TEMPO CONSEILLÉ</small><b id="lessonTempo">—</b></span>
  </div><div class="lesson-mastery"><span>MAÎTRISE DU COURS</span><div><i id="lessonMasteryBar"></i></div><b id="lessonMasteryText">Découverte</b></div>
 </section>
+<div class="practice-panel">
+ <strong>MODE ENTRAÎNEMENT</strong>
+ <label>Début <input id="loopStart" type="number" min="1" value="1"></label>
+ <label>Fin <input id="loopEnd" type="number" min="1" value="4"></label>
+ <button id="loopToggle">↻ LOOP OFF</button>
+ <label>Répétitions <input id="loopRepeats" type="number" min="1" max="99" value="4"></label>
+ <label>Auto BPM <select id="autoBpm"><option value="0">OFF</option><option value="1">+1</option><option value="2">+2</option><option value="5">+5</option></select></label>
+ <label>Objectif <input id="targetBpm" type="number" min="40" max="240" value="120"><span>BPM</span></label>
+ <label>Compte <select id="countIn"><option value="0">OFF</option><option value="1">1 mesure</option><option value="2">2 mesures</option></select></label>
+ <div class="practice-feedback"><span id="practiceStatus">Prêt</span><div class="practice-progress"><i id="practiceProgress"></i></div></div>
+</div>
 <div class="metronome-panel">
  <button id="metronomeToggle" type="button">♩ MÉTRONOME OFF</button>
  <label>Volume <input id="metronomeVolume" type="range" min="0" max="100" value="65"><b id="metronomeVolumeLabel">65%</b></label>
