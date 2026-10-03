@@ -389,3 +389,24 @@ body [class*="legend"]{
 .fret-cell.fret-number{font-size:12px!important}
 .fret-cell .note-dot{font-size:11px!important}
 #resetAll{font-size:13px!important}
+
+
+/* Professional section identity palette */
+:root{
+ --gl-tab:#6689a8;
+ --gl-liberty:#806fa3;
+ --gl-play:#4f948e;
+ --gl-session:#b18a50;
+ --gl-path:#638d70;
+ --gl-history:#66798d;
+ --gl-memory:#91666d;
+ --gl-journal:#786d91;
+}
+.paper{border:1px solid color-mix(in srgb,var(--gl-tab) 62%,#303743);box-shadow:0 10px 30px #0005,0 0 0 1px color-mix(in srgb,var(--gl-tab) 10%,transparent)}
+.liberty-mode{border-color:color-mix(in srgb,var(--gl-liberty) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-liberty) 8%,transparent)}
+.play-with-me{border-color:color-mix(in srgb,var(--gl-play) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-play) 8%,transparent)}
+.session-stats,.session-insight{border-color:color-mix(in srgb,var(--gl-session) 68%,#303743);box-shadow:0 0 18px color-mix(in srgb,var(--gl-session) 7%,transparent)}
+.learning-path{border-color:color-mix(in srgb,var(--gl-path) 72%,#292f3a);box-shadow:0 0 18px color-mix(in srgb,var(--gl-path) 7%,transparent)}
+.history-panel{border-color:color-mix(in srgb,var(--gl-history) 72%,#292f3a);box-shadow:0 0 18px color-mix(in srgb,var(--gl-history) 7%,transparent)}
+.guitar-memory{border-color:color-mix(in srgb,var(--gl-memory) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-memory) 7%,transparent)}
+.guitar-journal{border-color:color-mix(in srgb,var(--gl-journal) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-journal) 7%,transparent)}
