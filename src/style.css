@@ -410,3 +410,28 @@ body [class*="legend"]{
 .history-panel{border-color:color-mix(in srgb,var(--gl-history) 72%,#292f3a);box-shadow:0 0 18px color-mix(in srgb,var(--gl-history) 7%,transparent)}
 .guitar-memory{border-color:color-mix(in srgb,var(--gl-memory) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-memory) 7%,transparent)}
 .guitar-journal{border-color:color-mix(in srgb,var(--gl-journal) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-journal) 7%,transparent)}
+
+
+/* Professional pre-TAB section identity */
+:root{
+ --gl-dashboard:#667f99;
+ --gl-goals:#8873a0;
+ --gl-time:#9a7b59;
+ --gl-guided:#5e8a80;
+ --gl-human:#8b6f62;
+ --gl-ai:#6c78a0;
+ --gl-listen:#557f8c;
+ --gl-practice:#a07e4f;
+ --gl-lesson:#6e876d;
+ --gl-metronome:#81758f;
+}
+.student-dashboard{border-color:color-mix(in srgb,var(--gl-dashboard) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-dashboard) 7%,transparent)}
+.music-goals{border-color:color-mix(in srgb,var(--gl-goals) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-goals) 7%,transparent)}
+.time-session{border-color:color-mix(in srgb,var(--gl-time) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-time) 7%,transparent)}
+.guided-session{border-color:color-mix(in srgb,var(--gl-guided) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-guided) 7%,transparent)}
+.human-coach{border-color:color-mix(in srgb,var(--gl-human) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-human) 7%,transparent)}
+.ai-coach{border-color:color-mix(in srgb,var(--gl-ai) 72%,#353d49);box-shadow:0 0 20px color-mix(in srgb,var(--gl-ai) 8%,transparent)}
+.ai-listening{border-color:color-mix(in srgb,var(--gl-listen) 72%,#303743);box-shadow:0 0 20px color-mix(in srgb,var(--gl-listen) 8%,transparent)}
+.practice-panel{border-color:color-mix(in srgb,var(--gl-practice) 72%,#292f3a);box-shadow:0 0 18px color-mix(in srgb,var(--gl-practice) 7%,transparent)}
+.lesson-card{border-color:color-mix(in srgb,var(--gl-lesson) 72%,#303743);box-shadow:0 0 18px color-mix(in srgb,var(--gl-lesson) 7%,transparent)}
+.metronome-panel{border-color:color-mix(in srgb,var(--gl-metronome) 72%,#303743);box-shadow:0 0 18px color-mix(in srgb,var(--gl-metronome) 7%,transparent)}
