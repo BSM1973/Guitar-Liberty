@@ -4234,3 +4234,7 @@ if(importButton) importButton.onclick=async()=>{
   alert('Impossible d’afficher cette tablature : '+err.message);
  }
 };
+
+
+const backToTop=document.querySelector('#backToTop');
+if(backToTop)backToTop.onclick=()=>window.scrollTo({top:0,left:0,behavior:'smooth'});
