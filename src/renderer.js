@@ -1111,14 +1111,12 @@ window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDo
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
  let modelBeat=alphaPlayedBeat;
- // Query the playback tick cache on EVERY position event. playedBeatChanged is
- // perfect for repeats, but alphaTab can intentionally keep the same played
- // beat across a tie. tickCache still advances through the metrical destination
- // beat, so it takes priority whenever it returns a beat.
+ // Keep alphaTab's repeat-aware playback beat as the measure owner. The orange
+ // cursor itself is deliberately NOT note-driven: its X position is quantized
+ // to the written metrical beats of that measure.
  if(api.tickCache?.findBeat){
   try{
-   const tracks=new Set();
-   const scoreTracks=api.score?.tracks||[];
+   const tracks=new Set(),scoreTracks=api.score?.tracks||[];
    for(let i=0;i<scoreTracks.length;i++)tracks.add(i);
    if(!tracks.size)tracks.add(0);
    const timedBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat;
@@ -1128,53 +1126,40 @@ function updatePlayCursor(api,tick){
  let target=null;
  if(modelBeat){
   outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-   if(beat.beat===modelBeat){target={beat,system};break outer;}
+   if(beat.beat===modelBeat){target={beat,bar,system};break outer;}
   }
  }
- // Never let a lookup failure make the orange cursor disappear.
  if(!target){
   for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
    const bt=beat.beat?.absolutePlaybackStart??beat.beat?.absoluteStart??beat.beat?.playbackStart;
    if(bt==null||bt>tick)continue;
-   if(!target||bt>=target.tick)target={tick:bt,beat,system};
+   if(!target||bt>=target.tick)target={tick:bt,beat,bar,system};
   }
  }
  if(!target)return;
- const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
+ const beatBounds=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
+ const barBounds=target.bar?.visualBounds||target.bar?.realBounds||target.bar?.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
- if(!b||!sys)return;
- let cursorX=b.x+b.w/2;
- // A playback beat can span several metrical beats (e.g. a half note starting
- // on beat 3). There is no new alphaTab beat event on beat 4, so derive the
- // quarter-beat boundary from tick time while keeping the repeat-aware beat.
+ if(!beatBounds||!sys)return;
  const beatModel=target.beat.beat;
- const beatStart=beatModel?.absolutePlaybackStart??beatModel?.absoluteStart??beatModel?.playbackStart;
- const beatDuration=beatModel?.playbackDuration??beatModel?.duration;
- const quarterTicks=api.score?.masterBars?.[beatModel?.voice?.bar?.masterBar?.index]?.timeSignatureDenominator
-   ? 960*4/api.score.masterBars[beatModel.voice.bar.masterBar.index].timeSignatureDenominator
-   : 960;
- if(Number.isFinite(beatStart)&&Number.isFinite(beatDuration)&&beatDuration>quarterTicks&&Number.isFinite(tick)){
-  const elapsed=Math.max(0,tick-beatStart);
-  const metricalStep=Math.floor(elapsed/quarterTicks);
-  if(metricalStep>0){
-   // Find the next visible beat position; if none exists because the note is
-   // sustained, use the following bar boundary as the visual destination.
-   let nextX=null;
-   let seen=false;
-   outerNext:for(const s2 of lookup.staffSystems||[])for(const m2 of s2.bars||[])for(const bar2 of m2.bars||[])for(const bt2 of bar2.beats||[]){
-    if(seen){
-     // A new staff line restarts X near the left edge. Interpolating toward it
-     // while keeping the old system Y made the cursor visibly run backwards.
-     if(s2!==target.system)break outerNext;
-     const nb=bt2.visualBounds||bt2.realBounds||bt2.bounds;if(nb){nextX=nb.x+nb.w/2;break outerNext;}
-    }
-    if(bt2===target.beat)seen=true;
-   }
-   if(Number.isFinite(nextX)){
-    const steps=Math.max(1,Math.ceil(beatDuration/quarterTicks));
-    cursorX=(b.x+b.w/2)+(nextX-(b.x+b.w/2))*Math.min(metricalStep/steps,.75);
-   }
-  }
+ const masterIndex=beatModel?.voice?.bar?.masterBar?.index;
+ const masterBar=Number.isInteger(masterIndex)?api.score?.masterBars?.[masterIndex]:null;
+ const numerator=Math.max(1,+masterBar?.timeSignatureNumerator||4);
+ const denominator=Math.max(1,+masterBar?.timeSignatureDenominator||4);
+ const pulseTicks=960*4/denominator;
+ const relativeBeatStart=+beatModel?.playbackStart;
+ const absoluteBeatStart=beatModel?.absolutePlaybackStart??beatModel?.absoluteStart;
+ let elapsedInBeat=Number.isFinite(tick)&&Number.isFinite(absoluteBeatStart)?Math.max(0,tick-absoluteBeatStart):0;
+ const beatDuration=+(beatModel?.playbackDuration??beatModel?.duration);
+ if(Number.isFinite(beatDuration)&&beatDuration>0)elapsedInBeat=Math.min(elapsedInBeat,Math.max(0,beatDuration-1));
+ const measureTick=Number.isFinite(relativeBeatStart)?Math.max(0,relativeBeatStart+elapsedInBeat):0;
+ const pulseIndex=Math.max(0,Math.min(numerator-1,Math.floor(measureTick/pulseTicks)));
+ let cursorX=beatBounds.x+beatBounds.w/2;
+ if(barBounds&&Number.isFinite(barBounds.x)&&Number.isFinite(barBounds.w)&&barBounds.w>0){
+  // One stable visual stop per written beat, independent of note density,
+  // rests, ties or sustained chords. A small half-cell inset keeps beats 1
+  // and N clear of the bar lines.
+  cursorX=barBounds.x+barBounds.w*((pulseIndex+.5)/numerator);
  }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
