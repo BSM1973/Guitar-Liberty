@@ -1110,10 +1110,6 @@ window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){manualScrollUntil=Infinity;playbackFollowEnabled=false}});
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
- // playedBeatChanged is the same sequencer event that drives the audible note.
- // Keep the orange cursor attached to that exact rendered beat. This is stable
- // through ties, rests and repeated passages because no written/playback tick
- // conversion or synthetic interpolation is involved.
  let modelBeat=alphaPlayedBeat;
  if(!modelBeat&&api.tickCache?.findBeat){
   try{
@@ -1126,13 +1122,58 @@ function updatePlayCursor(api,tick){
  if(!modelBeat)return;
  let target=null;
  outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-  if(beat.beat===modelBeat){target={beat,system};break outer;}
+  if(beat.beat===modelBeat){target={beat,bar,system};break outer;}
  }
  if(!target)return;
- const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
+ const currentBounds=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
- if(!b||!sys)return;
- const cursorX=b.x+b.w/2;
+ if(!currentBounds||!sys)return;
+ const current=modelBeat;
+ const masterIndex=current?.voice?.bar?.masterBar?.index;
+ const masterBar=Number.isInteger(masterIndex)?api.score?.masterBars?.[masterIndex]:null;
+ const numerator=Math.max(1,+masterBar?.timeSignatureNumerator||4);
+ const denominator=Math.max(1,+masterBar?.timeSignatureDenominator||4);
+ const pulseTicks=960*4/denominator;
+ const writtenStart=+(current?.playbackStart??0);
+ const duration=Math.max(1,+(current?.playbackDuration??current?.duration??pulseTicks));
+ // playerPositionChanged uses the expanded playback timeline. During repeats
+ // absolute written ticks cannot be subtracted from it. Instead, measure the
+ // elapsed part of the CURRENT sequencer beat from its own duration and the
+ // next playedBeatChanged boundary. alphaPlayedBeat is therefore the repeat-
+ // aware owner; tick is used only to advance a local clock between events.
+ if(updatePlayCursor._beat!==current){
+  updatePlayCursor._beat=current;
+  updatePlayCursor._tick=tick;
+ }
+ const origin=Number.isFinite(updatePlayCursor._tick)?updatePlayCursor._tick:tick;
+ const elapsed=Math.max(0,Math.min(duration-1,(+tick||0)-(+origin||0)));
+ const writtenNow=Math.max(0,writtenStart+elapsed);
+ const pulseIndex=Math.max(0,Math.min(numerator-1,Math.floor(writtenNow/pulseTicks)));
+ const pulseWritten=pulseIndex*pulseTicks;
+ const points=[];
+ for(const rb of target.bar?.beats||[]){
+  const m=rb.beat,b=rb.visualBounds||rb.realBounds||rb.bounds;
+  const t=+(m?.playbackStart);
+  if(b&&Number.isFinite(t))points.push({t,x:b.x+b.w/2});
+ }
+ points.sort((a,b)=>a.t-b.t);
+ let cursorX=currentBounds.x+currentBounds.w/2;
+ const exact=points.find(p=>Math.abs(p.t-pulseWritten)<1);
+ if(exact)cursorX=exact.x;
+ else if(points.length){
+  let left=null,right=null;
+  for(const p of points){if(p.t<=pulseWritten)left=p;if(p.t>pulseWritten){right=p;break}}
+  if(left&&right&&right.t>left.t){
+   cursorX=left.x+(right.x-left.x)*((pulseWritten-left.t)/(right.t-left.t));
+  }else if(left){
+   // No following note/rest exists (typical full-measure rest or sustained
+   // final note). Extrapolate using the last real rhythmic spacing so beats
+   // 2/3/4 remain visible instead of freezing on beat 1.
+   const prev=points.length>1?points[points.length-2]:null;
+   const step=prev&&left.t>prev.t?(left.x-prev.x)/((left.t-prev.t)/pulseTicks):Math.max(18,currentBounds.w);
+   cursorX=left.x+step*((pulseWritten-left.t)/pulseTicks);
+  }else cursorX=right.x;
+ }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  followPlayedSystem(sys);
@@ -3302,7 +3343,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
  if(playWithMeActive||playWithMeAnswerTimer||playWithMeCountdownTimer||playWithMeElapsedTimer)stopPlayWithMe();
  if(previousApi){try{previousApi.destroy()}catch(_){try{previousApi.stop()}catch(__){}}if(window.guitarLibertyAlphaTab===previousApi)window.guitarLibertyAlphaTab=null;}
  index=0;playing=false;clearInternalTimer();stopAllVoices();
- practiceScore=null;playCursor=null;alphaPlayedBeat=null;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
+ practiceScore=null;playCursor=null;alphaPlayedBeat=null;updatePlayCursor._beat=null;updatePlayCursor._tick=0;lastLoopTick=-1;practiceIteration=0;updatePracticeProgress(0);
  if(alphaTabClickHandler){tab.removeEventListener('click',alphaTabClickHandler);alphaTabClickHandler=null;}
  tab.classList.remove('alphatab-score');tab.innerHTML='';
  alphaTabMode=true;
