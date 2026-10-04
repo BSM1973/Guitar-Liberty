@@ -627,7 +627,7 @@ function refreshDashboard(){
 function refreshCourseProgress(){
  const buttons=courseButtons(),p=lessonProgress();let completed=0;
  buttons.forEach((b,i)=>{
-   const id=b.dataset.score,done=!!p[id],unlocked=i===0||!!p[buttons[i-1].dataset.score];
+   const id=b.dataset.score,done=!!p[id],unlocked=b.dataset.alwaysUnlocked==='true'||i===0||!!p[buttons[i-1].dataset.score];
    b.classList.toggle('course-complete',done);b.classList.toggle('course-locked',!unlocked);
    b.disabled=!unlocked;b.setAttribute('aria-disabled',String(!unlocked));
    let badge=b.querySelector('.course-state');
