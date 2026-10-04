@@ -299,6 +299,11 @@ main{display:block;min-height:calc(100vh - 92px)}
  background:#101319;
  display:block;
  min-height:calc(100vh - 92px);
+ max-height:calc(100vh - 92px);
+ overflow-y:auto;
+ overflow-x:hidden;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
 }
 #appWorkspace>.course-nav .level-menu{
  width:100%;
