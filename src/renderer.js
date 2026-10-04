@@ -1110,17 +1110,16 @@ window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){manualScrollUntil=Infinity;playbackFollowEnabled=false}});
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
+ // The sequencer event is the authoritative written beat during repeats.
+ // Do not re-resolve it from the global tick cache: repeated passages reuse
+ // written measures while the playback timeline keeps advancing.
  let modelBeat=alphaPlayedBeat;
- // Keep alphaTab's repeat-aware playback beat as the measure owner. The orange
- // cursor itself is deliberately NOT note-driven: its X position is quantized
- // to the written metrical beats of that measure.
- if(api.tickCache?.findBeat){
+ if(!modelBeat&&api.tickCache?.findBeat){
   try{
    const tracks=new Set(),scoreTracks=api.score?.tracks||[];
    for(let i=0;i<scoreTracks.length;i++)tracks.add(i);
    if(!tracks.size)tracks.add(0);
-   const timedBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat;
-   if(timedBeat)modelBeat=timedBeat;
+   modelBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat||null;
   }catch(_){}
  }
  let target=null;
@@ -1129,37 +1128,46 @@ function updatePlayCursor(api,tick){
    if(beat.beat===modelBeat){target={beat,bar,system};break outer;}
   }
  }
- if(!target){
-  for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-   const bt=beat.beat?.absolutePlaybackStart??beat.beat?.absoluteStart??beat.beat?.playbackStart;
-   if(bt==null||bt>tick)continue;
-   if(!target||bt>=target.tick)target={tick:bt,beat,bar,system};
-  }
- }
  if(!target)return;
- const beatBounds=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
- const barBounds=target.bar?.visualBounds||target.bar?.realBounds||target.bar?.bounds;
+ const currentBounds=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
- if(!beatBounds||!sys)return;
- const beatModel=target.beat.beat;
- const masterIndex=beatModel?.voice?.bar?.masterBar?.index;
+ if(!currentBounds||!sys)return;
+ const currentModel=target.beat.beat;
+ const currentWrittenTick=+(currentModel?.playbackStart??0);
+ const masterIndex=currentModel?.voice?.bar?.masterBar?.index;
  const masterBar=Number.isInteger(masterIndex)?api.score?.masterBars?.[masterIndex]:null;
- const numerator=Math.max(1,+masterBar?.timeSignatureNumerator||4);
  const denominator=Math.max(1,+masterBar?.timeSignatureDenominator||4);
  const pulseTicks=960*4/denominator;
- const relativeBeatStart=+beatModel?.playbackStart;
- const absoluteBeatStart=beatModel?.absolutePlaybackStart??beatModel?.absoluteStart;
- let elapsedInBeat=Number.isFinite(tick)&&Number.isFinite(absoluteBeatStart)?Math.max(0,tick-absoluteBeatStart):0;
- const beatDuration=+(beatModel?.playbackDuration??beatModel?.duration);
- if(Number.isFinite(beatDuration)&&beatDuration>0)elapsedInBeat=Math.min(elapsedInBeat,Math.max(0,beatDuration-1));
- const measureTick=Number.isFinite(relativeBeatStart)?Math.max(0,relativeBeatStart+elapsedInBeat):0;
- const pulseIndex=Math.max(0,Math.min(numerator-1,Math.floor(measureTick/pulseTicks)));
- let cursorX=beatBounds.x+beatBounds.w/2;
- if(barBounds&&Number.isFinite(barBounds.x)&&Number.isFinite(barBounds.w)&&barBounds.w>0){
-  // One stable visual stop per written beat, independent of note density,
-  // rests, ties or sustained chords. A small half-cell inset keeps beats 1
-  // and N clear of the bar lines.
-  cursorX=barBounds.x+barBounds.w*((pulseIndex+.5)/numerator);
+ // Work in WRITTEN measure time, anchored by playedBeatChanged. This survives
+ // repeat #2/#3 because it never subtracts a written absolute tick from the
+ // sequencer's expanded playback tick.
+ const candidates=[];
+ for(const beat of target.bar?.beats||[]){
+  const m=beat.beat,b=beat.visualBounds||beat.realBounds||beat.bounds;
+  const written=+(m?.playbackStart);
+  if(b&&Number.isFinite(written))candidates.push({written,x:b.x+b.w/2});
+ }
+ candidates.sort((a,b)=>a.written-b.written);
+ const pulseIndex=Math.max(0,Math.floor(currentWrittenTick/pulseTicks));
+ const pulseWritten=pulseIndex*pulseTicks;
+ let cursorX=currentBounds.x+currentBounds.w/2;
+ // Prefer the real alphaTab glyph position at this metrical boundary.
+ const exact=candidates.find(x=>Math.abs(x.written-pulseWritten)<1);
+ if(exact)cursorX=exact.x;
+ else if(candidates.length){
+  // A sustained note/rest may leave no glyph on the next metrical beat.
+  // Interpolate only between REAL surrounding alphaTab beat positions; never
+  // divide the graphical bar into equal cells.
+  let left=null,right=null;
+  for(const x of candidates){
+   if(x.written<=pulseWritten)left=x;
+   if(x.written>pulseWritten){right=x;break}
+  }
+  if(left&&right&&right.written>left.written){
+   const ratio=(pulseWritten-left.written)/(right.written-left.written);
+   cursorX=left.x+(right.x-left.x)*Math.max(0,Math.min(1,ratio));
+  }else if(left)cursorX=left.x;
+  else if(right)cursorX=right.x;
  }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
