@@ -376,16 +376,22 @@ function aiCoachContext(){
  return {course:currentPracticeTitle||'Cours Guitare Liberty',tempo:+tempo.value||0,target:+targetBpm.value||0,reps:st.reps||sessionRepCount||0,best:st.best||sessionBest||0,seconds:st.seconds||0,loop:!!practiceLoop};
 }
 function paintAiCoach(mode='analysis'){
- const x=aiCoachContext(),title=document.querySelector('#aiCoachTitle'),advice=document.querySelector('#aiCoachAdvice');
+ const x=aiCoachContext(),title=document.querySelector('#aiCoachTitle'),advice=document.querySelector('#aiCoachAdvice'),goal=MUSIC_GOALS[currentMusicGoal()];
  if(mode==='tab'){
   title.textContent='Comprendre : '+x.course;
-  advice.textContent='Observe d’abord les positions, les doigtés et le rythme. Travaille une mesure à la fois, puis relie les mesures sans accélérer tant que les changements ne sont pas propres.';
+  advice.textContent=goal&&currentMusicGoal()==='fretboard'?goal.plan(x):'Observe d’abord les positions, les doigtés et le rythme. Travaille une mesure à la fois, puis relie les mesures sans accélérer tant que les changements ne sont pas propres.';
   return;
  }
  if(mode==='plan'){
+  title.textContent=goal?'Plan • '+goal.label:'Plan de travail personnalisé';
+  if(goal){advice.textContent=goal.plan(x);return}
   const start=Math.max(40,Math.min(x.tempo,x.best||x.tempo)),step=Math.max(1,Math.min(5,+autoBpm.value||2));
-  title.textContent='Plan de travail personnalisé';
   advice.textContent='Commence à '+start+' BPM. Fais '+Math.max(4,+loopRepeats.value||4)+' répétitions propres du passage difficile, puis augmente de '+step+' BPM. Objectif actuel : '+x.target+' BPM.';
+  return;
+ }
+ if(goal){
+  title.textContent='Cap actuel • '+goal.label;
+  advice.textContent=goal.action+' Outil prioritaire : '+goal.tool+'.';
   return;
  }
  title.textContent=x.best?'Analyse de ta progression':'Conseil pour démarrer';
@@ -458,11 +464,11 @@ function paintGuided(){
  }
 }
 const MUSIC_GOALS={
- impro:{label:'IMPROVISER',title:'Chercher la liberté musicale.',text:'Privilégie les phrases, les respirations et l’utilisation personnelle des notes apprises.'},
- clean:{label:'JOUER PLUS PROPRE',title:'Faire sonner chaque geste.',text:'Privilégie un tempo confortable, la détente et la netteté avant toute accélération.'},
- rhythm:{label:'RYTHME',title:'Habiter la pulsation.',text:'Privilégie le métronome, le placement et plusieurs répétitions régulières au même tempo.'},
- fretboard:{label:'CONNAÎTRE LE MANCHE',title:'Construire tes repères.',text:'Observe les positions, les notes communes et les déplacements plutôt que de mémoriser mécaniquement.'},
- speed:{label:'GAGNER EN AISANCE',title:'Faire évoluer le tempo intelligemment.',text:'Augmente seulement quand le geste reste détendu, précis et musical.'}
+ impro:{label:'IMPROVISER',title:'Chercher la liberté musicale.',text:'Privilégie les phrases, les respirations et l’utilisation personnelle des notes apprises.',action:'Utilise le backing puis JOUE AVEC MOI pour transformer le cours en phrases personnelles.',tool:'BACKING + JOUE AVEC MOI',plan:(x)=>'Joue d’abord le cours à '+x.tempo+' BPM, puis garde le backing et improvise avec les notes du passage. Termine par un échange dans JOUE AVEC MOI sans chercher à accélérer.'},
+ clean:{label:'JOUER PLUS PROPRE',title:'Faire sonner chaque geste.',text:'Privilégie un tempo confortable, la détente et la netteté avant toute accélération.',action:'Active ÉCOUTE IA et retravaille en priorité la mesure la moins précise.',tool:'ÉCOUTE IA + LOOP',plan:(x)=>'Reste à un tempo confortable autour de '+x.tempo+' BPM. Utilise ÉCOUTE IA, isole la mesure la moins précise avec LOOP et valide plusieurs passages propres avant toute hausse de tempo.'},
+ rhythm:{label:'RYTHME',title:'Habiter la pulsation.',text:'Privilégie le métronome, le placement et plusieurs répétitions régulières au même tempo.',action:'Travaille avec le MÉTRONOME et répète le même passage plusieurs fois sans accélérer.',tool:'MÉTRONOME + LOOP',plan:(x)=>'Travaille à '+x.tempo+' BPM avec le MÉTRONOME. Fais au moins '+Math.max(4,+loopRepeats.value||4)+' répétitions au même tempo et cherche d’abord un placement régulier avant Auto BPM.'},
+ fretboard:{label:'CONNAÎTRE LE MANCHE',title:'Construire tes repères.',text:'Observe les positions, les notes communes et les déplacements plutôt que de mémoriser mécaniquement.',action:'Utilise la TAB comme carte : repère les positions, les cordes et les déplacements avant de jouer sans aide.',tool:'TAB + MODE LIBERTÉ',plan:(x)=>'Observe la TAB de '+x.course+', repère les positions et les déplacements, puis réduis progressivement l’aide avec MODE LIBERTÉ. Le tempo reste secondaire tant que les repères ne sont pas clairs.'},
+ speed:{label:'GAGNER EN AISANCE',title:'Faire évoluer le tempo intelligemment.',text:'Augmente seulement quand le geste reste détendu, précis et musical.',action:'Utilise LOOP + AUTO BPM par petits paliers jusqu’à ton objectif sans sacrifier la propreté.',tool:'LOOP + AUTO BPM',plan:(x)=>{const step=Math.max(1,Math.min(5,+autoBpm.value||1));return 'Commence à '+Math.max(40,Math.min(x.tempo,x.best||x.tempo))+' BPM, fais '+Math.max(4,+loopRepeats.value||4)+' répétitions régulières puis augmente de '+step+' BPM vers '+x.target+' BPM.'}}
 };
 function currentMusicGoal(){return localStorage.getItem(MUSIC_GOAL_KEY)||''}
 function paintMusicGoal(){
@@ -472,7 +478,7 @@ function paintMusicGoal(){
  if(!g){state.textContent='CHOISIS TON CAP';advice.innerHTML='<strong>Ton objectif peut changer quand tu veux.</strong><small>Guitare Liberty utilisera ce cap pour orienter ses conseils, sans t’enfermer dans un programme.</small>';return}
  state.textContent=g.label;advice.innerHTML='<strong>'+g.title+'</strong><small>'+g.text+'</small>';
 }
-document.querySelectorAll('[data-music-goal]').forEach(b=>b.onclick=()=>{localStorage.setItem(MUSIC_GOAL_KEY,b.dataset.musicGoal);paintMusicGoal();refreshDashboard()});
+document.querySelectorAll('[data-music-goal]').forEach(b=>b.onclick=()=>{localStorage.setItem(MUSIC_GOAL_KEY,b.dataset.musicGoal);paintMusicGoal();refreshDashboard();paintAiCoach('analysis')});
 paintMusicGoal();
 
 let guidedMinutes=0;
