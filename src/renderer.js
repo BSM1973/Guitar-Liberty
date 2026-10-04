@@ -565,18 +565,43 @@ function refreshDashboard(){
  const selectedGoal=MUSIC_GOALS[currentMusicGoal()];
  if(selectedGoal)reason=selectedGoal.text;
  if(stateEl)stateEl.textContent=state;if(recEl)recEl.textContent=recommendation;if(reasonEl)reasonEl.textContent=reason;
- // Humanist coach: progress vocabulary is descriptive, never punitive.
+ // Humanist coach: recognize progress quality, not only speed.
  let humanLevel=0,humanState='À DÉCOUVRIR',humanTitle='Chaque séance compte.',humanText='Ici, on mesure les progrès pour mieux t’accompagner, jamais pour te juger.';
- if(currentRows.length||currentReps){humanLevel=1;humanState='EN APPRENTISSAGE';humanTitle='Tu construis tes repères.';humanText='Prends le temps d’installer le geste. La régularité viendra avant la vitesse.';}
- if(currentReps>=3){humanLevel=2;humanState='EN PROGRÈS';humanTitle='Ton travail commence à s’installer.';humanText='Les répétitions portent leurs fruits. Garde un tempo où ton jeu reste confortable et musical.';}
+ const humanGoal=MUSIC_GOALS[currentMusicGoal()],humanGoalLabel=humanGoal?humanGoal.label:'';
+ const humanSong=typeof measureMasteryForCurrent==='function'?measureMasteryForCurrent():{};
+ const humanMeasures=Object.values(humanSong||{}),humanAnalyzed=humanMeasures.length;
+ const humanMastered=humanMeasures.filter(x=>(+x.bestNotes||0)>=90&&(+x.bestTiming||0)>=80).length;
+ const humanAvgNotes=humanAnalyzed?Math.round(humanMeasures.reduce((n,x)=>n+(+x.bestNotes||0),0)/humanAnalyzed):0;
+ const humanAvgTiming=humanAnalyzed?Math.round(humanMeasures.reduce((n,x)=>n+(+x.bestTiming||0),0)/humanAnalyzed):0;
+ const humanHistory=humanMeasures.flatMap(x=>Array.isArray(x.history)?x.history:[]).sort((a,b)=>(+a.at||0)-(+b.at||0));
+ const humanRecent=humanHistory.slice(-Math.min(4,humanHistory.length)),humanPrevious=humanHistory.slice(-Math.min(8,humanHistory.length),-Math.min(4,humanHistory.length));
+ const humanRecentNotes=humanRecent.length?Math.round(humanRecent.reduce((n,x)=>n+(+x.notes||0),0)/humanRecent.length):0;
+ const humanRecentTiming=humanRecent.length?Math.round(humanRecent.reduce((n,x)=>n+(+x.timing||0),0)/humanRecent.length):0;
+ const humanPrevNotes=humanPrevious.length?Math.round(humanPrevious.reduce((n,x)=>n+(+x.notes||0),0)/humanPrevious.length):0;
+ const humanPrevTiming=humanPrevious.length?Math.round(humanPrevious.reduce((n,x)=>n+(+x.timing||0),0)/humanPrevious.length):0;
+ if(currentRows.length||currentReps){humanLevel=1;humanState='EN APPRENTISSAGE';humanTitle='Tu construis tes repères.';humanText='Tu reviens jouer, répéter et observer ton geste. Cette régularité est déjà une progression.';}
+ if(currentReps>=3){humanLevel=2;humanState='EN PROGRÈS';humanTitle='Ton travail commence à s’installer.';humanText='Tes répétitions construisent de la stabilité. Le prochain progrès n’est pas forcément plus rapide : il peut être plus propre, plus régulier ou plus libre.';}
+ if(humanPrevious.length&&humanRecentNotes>=humanPrevNotes+3){humanLevel=Math.max(humanLevel,2);humanState='PRÉCISION EN PROGRÈS';humanTitle='Ton jeu devient plus précis.';humanText='Tes dernières analyses montrent une amélioration des notes, même sans hausse de tempo. C’est un progrès concret.';}
+ if(humanPrevious.length&&humanRecentTiming>=humanPrevTiming+3){humanLevel=Math.max(humanLevel,2);humanState='TIMING EN PROGRÈS';humanTitle='Ta pulsation devient plus stable.';humanText='Ton timing s’améliore sur les dernières analyses. Garde cette régularité : elle vaut davantage qu’une accélération prématurée.';}
+ if(humanMastered&&humanAnalyzed){humanLevel=Math.max(humanLevel,2);humanState='GESTE QUI SE STABILISE';humanTitle=humanMastered+' mesure'+(humanMastered>1?'s':'')+' déjà maîtrisée'+(humanMastered>1?'s':'')+'.';humanText='ÉCOUTE IA confirme une progression mesurable : précision moyenne '+humanAvgNotes+' % • timing '+humanAvgTiming+' %. Continue à consolider sans te presser.';}
  const completedTempos=currentRows.map(x=>Number.isFinite(+x.end)?+x.end:Number.isFinite(+x.best)?+x.best:0).filter(v=>v>0).sort((a,b)=>b-a),confirmedTempo=completedTempos.length>=2?completedTempos[1]:0;
- if(confirmedTempo>=suggested){humanLevel=3;humanState='TEMPO CONSOLIDÉ';humanTitle='Ce tempo devient un repère stable.';humanText='Tu as terminé plusieurs séances à ce niveau. Garde maintenant la fluidité, le son et le confort plutôt que de chercher automatiquement plus de BPM.';}
+ if(confirmedTempo>=suggested){humanLevel=Math.max(humanLevel,3);humanState='TEMPO CONSOLIDÉ';humanTitle='Ce tempo devient un repère stable.';humanText='Tu as retrouvé ce niveau sur plusieurs séances. La réussite maintenant, c’est de conserver le son, le timing et le confort.';}
  if(currentLiberty<100&&currentRows.length){
   const humanNoTabSessions=currentRows.filter(x=>Number.isFinite(+x.libertyLevel)&&+x.libertyLevel===0).length;
   humanLevel=Math.max(humanLevel,3);
-  if(currentLiberty===0&&humanNoTabSessions>=2){humanLevel=Math.max(humanLevel,4);humanState='AUTONOMIE CONSOLIDÉE';humanTitle='Cette liberté devient un repère stable.';humanText='Tu as retrouvé ce passage sans TAB sur plusieurs séances. Continue à le jouer pour la musique, le son et le plaisir plutôt que pour valider un niveau.';}
-  else if(currentLiberty===0){humanState='JOUÉ SANS TAB';humanTitle='Tu as déjà joué ce passage sans TAB.';humanText='Garde maintenant cette liberté musicale sans chercher à la prouver : retrouve-la avec confort, écoute et plaisir.';}
-  else{humanState='AUTONOMIE EN COURS';humanTitle='Tu prends progressivement le relais sur la TAB.';humanText='Tu as déjà réduit l’aide visuelle jusqu’à '+currentLiberty+' %. Ce repère est là pour t’accompagner, pas pour t’obliger à retirer davantage de TAB.';}
+  if(currentLiberty===0&&humanNoTabSessions>=2){humanLevel=Math.max(humanLevel,4);humanState='AUTONOMIE CONSOLIDÉE';humanTitle='Tu retrouves ce passage sans dépendre de la TAB.';humanText='Cette autonomie revient sur plusieurs séances : c’est une vraie victoire musicale, indépendamment du tempo.';}
+  else if(currentLiberty===0){humanState='JOUÉ SANS TAB';humanTitle='Tu as osé retirer la TAB.';humanText='Jouer sans aide visuelle montre que tes repères commencent à devenir musicaux. Retrouve-les avec écoute et confort.';}
+  else{humanState='AUTONOMIE EN COURS';humanTitle='Tu prends progressivement le relais sur la TAB.';humanText='Tu as réduit l’aide visuelle jusqu’à '+currentLiberty+' %. Cette autonomie compte autant qu’un nouveau record de BPM.';}
+ }
+ if(humanGoal){
+  const goalWins={
+   impro:'Ton cap est '+humanGoalLabel+' : valorise aussi les phrases que tu inventes, les respirations et ta capacité à jouer avec le backing.',
+   clean:'Ton cap est '+humanGoalLabel+' : une meilleure précision ou un son plus net compte comme une victoire, même au même tempo.',
+   rhythm:'Ton cap est '+humanGoalLabel+' : un timing plus stable au même BPM est un progrès majeur.',
+   fretboard:'Ton cap est '+humanGoalLabel+' : reconnaître une position ou jouer avec moins de TAB est déjà une avancée.',
+   speed:'Ton cap est '+humanGoalLabel+' : l’aisance signifie accélérer seulement quand le geste reste propre, régulier et détendu.'
+  };
+  humanText+=' '+goalWins[currentMusicGoal()];
  }
  if(pct===100&&buttons.length){humanLevel=4;humanState='PARCOURS CONSOLIDÉ';humanTitle='Tu as construit une vraie autonomie.';humanText='La maîtrise n’est pas une fin : utilise maintenant ces acquis pour jouer, créer et te libérer de la TAB.';}
  const hs=q('#humanCoachState'),ht=q('#humanCoachTitle'),hx=q('#humanCoachText');
