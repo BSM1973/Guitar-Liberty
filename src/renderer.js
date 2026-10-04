@@ -1110,9 +1110,10 @@ window.addEventListener('touchmove',()=>{if(!autoTabScrolling){manualScrollUntil
 window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){manualScrollUntil=Infinity;playbackFollowEnabled=false}});
 function updatePlayCursor(api,tick){
  const lookup=api.boundsLookup||api.renderer?.boundsLookup;if(!lookup?.staffSystems)return;
- // The sequencer event is the authoritative written beat during repeats.
- // Do not re-resolve it from the global tick cache: repeated passages reuse
- // written measures while the playback timeline keeps advancing.
+ // playedBeatChanged is the same sequencer event that drives the audible note.
+ // Keep the orange cursor attached to that exact rendered beat. This is stable
+ // through ties, rests and repeated passages because no written/playback tick
+ // conversion or synthetic interpolation is involved.
  let modelBeat=alphaPlayedBeat;
  if(!modelBeat&&api.tickCache?.findBeat){
   try{
@@ -1122,53 +1123,16 @@ function updatePlayCursor(api,tick){
    modelBeat=api.tickCache.findBeat(tracks,tick)?.currentBeat||null;
   }catch(_){}
  }
+ if(!modelBeat)return;
  let target=null;
- if(modelBeat){
-  outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
-   if(beat.beat===modelBeat){target={beat,bar,system};break outer;}
-  }
+ outer:for(const system of lookup.staffSystems||[])for(const master of system.bars||[])for(const bar of master.bars||[])for(const beat of bar.beats||[]){
+  if(beat.beat===modelBeat){target={beat,system};break outer;}
  }
  if(!target)return;
- const currentBounds=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
+ const b=target.beat.visualBounds||target.beat.realBounds||target.beat.bounds;
  const sys=target.system.visualBounds||target.system.realBounds||target.system.bounds;
- if(!currentBounds||!sys)return;
- const currentModel=target.beat.beat;
- const currentWrittenTick=+(currentModel?.playbackStart??0);
- const masterIndex=currentModel?.voice?.bar?.masterBar?.index;
- const masterBar=Number.isInteger(masterIndex)?api.score?.masterBars?.[masterIndex]:null;
- const denominator=Math.max(1,+masterBar?.timeSignatureDenominator||4);
- const pulseTicks=960*4/denominator;
- // Work in WRITTEN measure time, anchored by playedBeatChanged. This survives
- // repeat #2/#3 because it never subtracts a written absolute tick from the
- // sequencer's expanded playback tick.
- const candidates=[];
- for(const beat of target.bar?.beats||[]){
-  const m=beat.beat,b=beat.visualBounds||beat.realBounds||beat.bounds;
-  const written=+(m?.playbackStart);
-  if(b&&Number.isFinite(written))candidates.push({written,x:b.x+b.w/2});
- }
- candidates.sort((a,b)=>a.written-b.written);
- const pulseIndex=Math.max(0,Math.floor(currentWrittenTick/pulseTicks));
- const pulseWritten=pulseIndex*pulseTicks;
- let cursorX=currentBounds.x+currentBounds.w/2;
- // Prefer the real alphaTab glyph position at this metrical boundary.
- const exact=candidates.find(x=>Math.abs(x.written-pulseWritten)<1);
- if(exact)cursorX=exact.x;
- else if(candidates.length){
-  // A sustained note/rest may leave no glyph on the next metrical beat.
-  // Interpolate only between REAL surrounding alphaTab beat positions; never
-  // divide the graphical bar into equal cells.
-  let left=null,right=null;
-  for(const x of candidates){
-   if(x.written<=pulseWritten)left=x;
-   if(x.written>pulseWritten){right=x;break}
-  }
-  if(left&&right&&right.written>left.written){
-   const ratio=(pulseWritten-left.written)/(right.written-left.written);
-   cursorX=left.x+(right.x-left.x)*Math.max(0,Math.min(1,ratio));
-  }else if(left)cursorX=left.x;
-  else if(right)cursorX=right.x;
- }
+ if(!b||!sys)return;
+ const cursorX=b.x+b.w/2;
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
  playCursor.style.left=cursorX+'px';playCursor.style.top=sys.y+'px';playCursor.style.height=sys.h+'px';playCursor.style.display='block';
  followPlayedSystem(sys);
