@@ -235,6 +235,9 @@ main{display:block;min-height:calc(100vh - 92px)}
 .home-page .category-menu>summary{padding:11px 13px}
 .home-page .library-exercise{width:calc(100% - 20px)}
 .header-actions{justify-self:end;display:flex;align-items:center;gap:10px}
+.course-count{display:flex;align-items:baseline;gap:6px;padding:8px 11px;border:1px solid #303743;border-radius:7px;background:#10141b;color:#aeb7c4;white-space:nowrap}
+.course-count strong{font-size:16px;line-height:1;color:#e9b44c}
+.course-count span{font-size:10px;font-weight:900;letter-spacing:.1em}
 #resetAll{
  border:1px solid #6b3d3d;background:#211516;color:#f1c4c4;border-radius:7px;
  padding:9px 14px;font-size:10px;font-weight:900;letter-spacing:.1em;cursor:pointer;
