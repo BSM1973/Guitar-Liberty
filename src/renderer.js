@@ -133,6 +133,7 @@ async function loadGuitarSample(string){
 const tab=document.querySelector('#tab'),progress=document.querySelector('#progress'),tempo=document.querySelector('#tempo');
 const loopStart=document.querySelector('#loopStart'),loopEnd=document.querySelector('#loopEnd'),loopToggle=document.querySelector('#loopToggle'),loopRepeats=document.querySelector('#loopRepeats'),autoBpm=document.querySelector('#autoBpm'),targetBpm=document.querySelector('#targetBpm'),countIn=document.querySelector('#countIn'),practiceStatus=document.querySelector('#practiceStatus'),practiceProgress=document.querySelector('#practiceProgress'),sessionTime=document.querySelector('#sessionTime'),sessionSeries=document.querySelector('#sessionSeries'),sessionReps=document.querySelector('#sessionReps'),sessionBestBpm=document.querySelector('#sessionBestBpm'),sessionGain=document.querySelector('#sessionGain'),resetSession=document.querySelector('#resetSession'),historyList=document.querySelector('#historyList'),historyCount=document.querySelector('#historyCount'),clearHistory=document.querySelector('#clearHistory'),historyRecord=document.querySelector('#historyRecord'),historySessions=document.querySelector('#historySessions'),historyTime=document.querySelector('#historyTime'),historyStreak=document.querySelector('#historyStreak'),bpmChart=document.querySelector('#bpmChart'),exerciseProgressTitle=document.querySelector('#exerciseProgressTitle'),exerciseProgressStats=document.querySelector('#exerciseProgressStats'),personalBest=document.querySelector('#personalBest'),recordDelta=document.querySelector('#recordDelta'),masteryLevel=document.querySelector('#masteryLevel'),masteryBar=document.querySelector('#masteryBar'),masteryInfo=document.querySelector('#masteryInfo'),pathList=document.querySelector('#pathList'),pathSummary=document.querySelector('#pathSummary');
 let practiceLoop=false,practiceScore=null,practiceTimer=null,practiceIteration=0,lastLoopTick=-1,naturalEndCounted=false,countInAudio=null,playCursor=null;
+let selectedAlphaMeasure=null,quickMeasureLoop=false;
 let sessionStarted=null,sessionFirstPracticeAt=null,sessionPausedAt=null,sessionPausedMs=0,sessionStartHint='',sessionSeriesCount=0,sessionRepCount=0,sessionBest=0,sessionStartBpm=0,sessionClock=null,sessionLowestLibertyLevel=100,sessionHistorySaved=false,currentPracticeTitle='Exercice';
 const HISTORY_KEY='guitarLibertyPracticeHistory';
 const PLAY_WITH_ME_HISTORY_KEY='guitarLibertyPlayWithMeHistoryV1';
@@ -1745,6 +1746,7 @@ function playNote(string,fret,holdBeats=null){
  }).catch(err=>console.error('Guitar note playback unavailable:',GUITAR_SAMPLES[string],err));
 }
 function stop(){
+ if(quickMeasureLoop){quickMeasureLoop=false;practiceLoop=false;practiceIteration=0;lastLoopTick=-1;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(window.guitarLibertyAlphaTab);practiceStatus.textContent='Prêt';}
  alphaTabResumePending=false;
  stopMetronome();
  pausePracticeClock();
@@ -2477,6 +2479,21 @@ document.addEventListener('keydown',e=>{
  if(playButton)playButton.click();
 },{capture:true});
 
+// Raccourci L : la mesure cliquée tourne sans limite jusqu'à STOP.
+document.addEventListener('keydown',e=>{
+ if((e.key!=='l'&&e.key!=='L')||e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;
+ if(isEditableShortcutTarget(e.target)||!alphaTabMode||!window.guitarLibertyAlphaTab||!Number.isInteger(selectedAlphaMeasure))return;
+ e.preventDefault();e.stopPropagation();
+ const api=window.guitarLibertyAlphaTab,measure=Math.max(1,Math.min(selectedAlphaMeasure,practiceBars().length||selectedAlphaMeasure));
+ cancelPracticeTransition({stopBackingAudio:true,stopVideo:true});try{api.pause()}catch(_){}pausePracticeClock();
+ alphaTabResumePending=false;leadInResumePending=false;quickMeasureLoop=true;practiceLoop=true;practiceIteration=0;lastLoopTick=-1;
+ loopStart.value=String(measure);loopEnd.value=String(measure);loopToggle.textContent='↻ LOOP ON';loopToggle.classList.add('active');
+ setPracticeRange(api);const range=practiceTicks();if(!range){quickMeasureLoop=false;practiceLoop=false;return;}
+ try{api.tickPosition=range.start}catch(_){}updatePlayCursor(api,range.start);setAlphaTempo(api);
+ practiceStatus.textContent='Boucle infinie • mesure '+measure+' • STOP pour quitter';document.querySelector('#play').textContent='■ STOP';
+ countInThenPlay(api,()=>{if(quickMeasureLoop&&window.guitarLibertyAlphaTab===api)startAlphaPracticePlayback(api,{restartAccompaniment:true});});
+},{capture:true});
+
 function isWistiaPlaying(){
  if(!videoEnabled||!wistiaPlayer)return false;
  try{return typeof wistiaPlayer.state==='function'?wistiaPlayer.state()==='playing':wistiaPlayer.state==='playing'}catch(_){return false}
@@ -2669,6 +2686,7 @@ function startInternalPracticePlayback(startScore){
  releaseScore();
 }
 document.querySelector('#play').onclick=async()=>{
+ if(quickMeasureLoop&&alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1){stop();return;}
  if(sessionHistorySaved&&sessionStarted){
   // A completed result is already immutable in history. PLAY now starts a new
   // practice session instead of appending counters to a session that can no
@@ -3440,6 +3458,8 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
    if(d<best){best=d;hit=beat;}
   }
   if(!hit?.beat)return;
+  const selectedMasterIndex=hit.beat?.voice?.bar?.masterBar?.index??hit.bar?.bar?.masterBar?.index??hit.bar?.masterBar?.index;
+  if(Number.isInteger(selectedMasterIndex))selectedAlphaMeasure=selectedMasterIndex+1;
   const bt=hit.beat.absolutePlaybackStart??hit.beat.absoluteStart??hit.beat.playbackStart;
   if(!Number.isFinite(bt))return;
   const armedSeek=!!(countInActive||backingStartTimer||leadInResumePending||alphaTabMediaPreparing);
@@ -3512,6 +3532,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   if(!practiceLoop){lastLoopTick=tick;return;}
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
+   if(quickMeasureLoop){restartBackingAtLoopStart(api);lastLoopTick=tick;practiceStatus.textContent='Boucle infinie • mesure '+loopStart.value+' • STOP pour quitter';return;}
    // alphaTab has wrapped to the selected first measure. Between repetitions,
    // re-anchor the backing after its embedded count-in. On the final repetition
    // the series transition below owns the next backing start at the new BPM.
