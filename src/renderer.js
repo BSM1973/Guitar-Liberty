@@ -1337,8 +1337,8 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
   for(let b=0;b<pulseCount;b++)countPlan.push({accent:b===0,pulseQuarterLength});
  }
  const total=countPlan.length;
- let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : '+total;
- if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent=String(total);
+ let beat=0;clearTimeout(practiceTimer);practiceTimer=null;practiceStatus.textContent='Compte : 1 / '+total;
+ if(overlay){overlay.hidden=false;overlay.classList.add('active')}if(number)number.textContent='1';
  // The count-in owns its clicks. Pause the free-running metronome so both
  // clocks cannot sound on top of each other, then restore it for playback.
  const generation=++countInGeneration;
@@ -1367,7 +1367,7 @@ function countInThenPlay(api,startPlayback=()=>api.play()){
     practiceStatus.textContent='En cours';
     if(overlay){overlay.classList.remove('active');overlay.hidden=true}finishCountIn();return;
    }
-   const remaining=total-beat;practiceStatus.textContent='Compte : '+remaining;if(number){number.textContent=String(remaining);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
+   const current=beat+1;practiceStatus.textContent='Compte : '+current+' / '+total;if(number){number.textContent=String(current);number.classList.remove('pulse');void number.offsetWidth;number.classList.add('pulse')}
    metronomeClick(!!countPlan[beat]?.accent,generation);
    scheduleCountBeat();
   },beatMs);
