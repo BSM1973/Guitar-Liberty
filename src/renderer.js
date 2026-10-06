@@ -1170,12 +1170,21 @@ function updatePlayCursor(api,tick){
   if(left&&right&&right.t>left.t){
    cursorX=left.x+(right.x-left.x)*((pulseWritten-left.t)/(right.t-left.t));
   }else if(left){
-   // No following note/rest exists (typical full-measure rest or sustained
-   // final note). Extrapolate using the last real rhythmic spacing so every
-   // eighth-note pulse remains visible instead of freezing on the last event.
-   const prev=points.length>1?points[points.length-2]:null;
-   const step=prev&&left.t>prev.t?(left.x-prev.x)/((left.t-prev.t)/pulseTicks):Math.max(18,currentBounds.w);
-   cursorX=left.x+step*((pulseWritten-left.t)/pulseTicks);
+   // At the end of a measure there is no following rendered beat to anchor
+   // interpolation. Never extrapolate beyond the current bar: use the bar's
+   // real right edge as the temporal end anchor. This keeps the "&" of beat 4
+   // inside its own measure instead of visually spilling into the next one.
+   const barBounds=target.bar?.visualBounds||target.bar?.realBounds||target.bar?.bounds;
+   const barRight=barBounds&&Number.isFinite(barBounds.x)&&Number.isFinite(barBounds.w)?barBounds.x+barBounds.w:null;
+   if(Number.isFinite(barRight)&&measureTicks>left.t){
+    const endX=Math.max(left.x,barRight-3);
+    const ratio=Math.max(0,Math.min(1,(pulseWritten-left.t)/(measureTicks-left.t)));
+    cursorX=left.x+(endX-left.x)*ratio;
+   }else{
+    const prev=points.length>1?points[points.length-2]:null;
+    const step=prev&&left.t>prev.t?(left.x-prev.x)/((left.t-prev.t)/pulseTicks):Math.max(18,currentBounds.w);
+    cursorX=left.x+step*((pulseWritten-left.t)/pulseTicks);
+   }
   }else cursorX=right.x;
  }
  if(!playCursor){playCursor=document.createElement('div');playCursor.className='gl-play-cursor';tab.appendChild(playCursor)}
