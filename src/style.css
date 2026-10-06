@@ -446,3 +446,6 @@ body [class*="legend"]{
 
 
 .back-to-top-wrap{display:flex;justify-content:center;padding:10px 0 28px}.back-to-top-wrap button{padding:11px 22px;border:1px solid #596879;border-radius:999px;background:#10141b;color:#d9dee5;font-weight:800;letter-spacing:.08em;cursor:pointer;box-shadow:0 0 18px #6689a814;transition:border-color .18s ease,background .18s ease,transform .18s ease}.back-to-top-wrap button:hover{border-color:#8298ad;background:#151b23;transform:translateY(-1px)}
+
+#tabAudioToggle:not(:disabled){border-color:#46505e}
+#tabAudioToggle.active{border-color:#e9b44c;color:#e9b44c}
