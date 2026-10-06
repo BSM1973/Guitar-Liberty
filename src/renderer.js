@@ -2944,6 +2944,7 @@ if(resetAll)resetAll.onclick=()=>{
 };
 
 const backingToggle=document.querySelector('#backingToggle');
+const tabAudioToggle=document.querySelector('#tabAudioToggle');
 const backingVolume=document.querySelector('#backingVolume');
 const backingVolumeLabel=document.querySelector('#backingVolumeLabel');
 const videoToggle=document.querySelector('#videoToggle');
@@ -3288,6 +3289,7 @@ function setBackingTrack(url){
  const backingActive=backingEnabled&&!!url;
  backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
  backingToggle.classList.toggle('active',backingActive);
+ window.guitarLibertyRefreshTabAudio?.();
 }
 if(backingToggle)backingToggle.onclick=()=>{
  if(!currentBackingUrl){
@@ -3307,6 +3309,7 @@ if(backingToggle)backingToggle.onclick=()=>{
  const backingActive=backingEnabled&&!!currentBackingUrl;
  backingToggle.textContent=backingActive?'♫ BACKING ON':'♫ BACKING OFF';
  backingToggle.classList.toggle('active',backingActive);
+ window.guitarLibertyRefreshTabAudio?.();
  if(!backingEnabled)stopBacking(false);
  if(armedBackingStart||activeBackingPlayback){
   if(practiceLoop){
@@ -3318,6 +3321,33 @@ if(backingToggle)backingToggle.onclick=()=>{
   practiceStatus.textContent=practiceLoop?'Prêt • boucle '+loopStart.value+'–'+loopEnd.value:'Prêt';
  }
 };
+if(tabAudioToggle){
+ let tabAudioEnabled=true;
+ const refreshTabAudioToggle=()=>{
+  const available=backingEnabled&&!!currentBackingUrl;
+  tabAudioToggle.disabled=!available;
+  tabAudioToggle.textContent=tabAudioEnabled?'🎸 TAB ON':'🎸 TAB OFF';
+  tabAudioToggle.classList.toggle('active',available&&tabAudioEnabled);
+ };
+ const applyTabAudio=()=>{
+  const api=window.guitarLibertyAlphaTab;
+  if(api){
+   // alphaTab's master volume controls only the rendered TAB audio; transport,
+   // cursor, loops and backing synchronization keep running normally.
+   try{api.masterVolume=tabAudioEnabled?1:0}catch(_){}
+  }
+ };
+ tabAudioToggle.onclick=()=>{
+  if(!(backingEnabled&&currentBackingUrl))return;
+  tabAudioEnabled=!tabAudioEnabled;
+  applyTabAudio();
+  refreshTabAudioToggle();
+ };
+ // Score loads replace the alphaTab API, so re-apply the chosen TAB audio state
+ // whenever playback/score selection refreshes the control.
+ window.guitarLibertyRefreshTabAudio=()=>{applyTabAudio();refreshTabAudioToggle()};
+ refreshTabAudioToggle();
+}
 if(backingVolume)backingVolume.oninput=syncBackingVolume;
 syncBackingVolume();
 const importButton=document.querySelector('#importScore');
@@ -3394,7 +3424,7 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   display:{layoutMode:'page',barsPerRow:4,justifyLastSystem:true,resources:{effectFontSize:12}} ,
   notation:{notationMode:'guitarpro',fingeringMode:'ScoreDefault',elements:{guitarTuning:false,effectTempo:false,effectFingering:false,effectText:true,effectMarker:true,effectChordNames:true,effectPickStroke:true}}
  });
- window.guitarLibertyAlphaTab=api;
+ window.guitarLibertyAlphaTab=api;window.guitarLibertyRefreshTabAudio?.();
  const isActiveLoad=()=>isCurrentGeneration()&&window.guitarLibertyAlphaTab===api;
  api.playerReady.on(()=>{if(!isActiveLoad())return;importStatus.textContent='';});
  // Clicking the rendered score seeks the player and immediately moves our
