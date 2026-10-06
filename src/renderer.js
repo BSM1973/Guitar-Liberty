@@ -2906,7 +2906,19 @@ function openWorkspace(target){
  });
 }
 function showHome(){stop();appWorkspace.hidden=true;homePage.hidden=false;const back=document.querySelector('#homeBack');if(back)back.hidden=true;window.scrollTo({top:0,behavior:'smooth'});}
-document.querySelector('#homeStart')?.addEventListener('click',()=>openWorkspace('dashboard'));
+document.querySelector('#homeStart')?.addEventListener('click',()=>{
+ const target=guidedCurrentButton()||courseButtons().find(b=>!b.classList.contains('course-locked'))||courseButtons()[0];
+ openWorkspace('dashboard');
+ if(!target)return;
+ // Starting the journey must load the current course itself, not only open
+ // its dashboard. Keep the workspace at the top while alphaTab renders.
+ window.scrollTo({top:0,left:0,behavior:'auto'});
+ const loaded=loadBundledScore(target);
+ Promise.resolve(loaded).finally(()=>requestAnimationFrame(()=>{
+  window.scrollTo({top:0,left:0,behavior:'auto'});
+  const paper=document.querySelector('.paper');if(paper)paper.scrollTop=0;
+ }));
+});
 document.querySelector('#homeLibrary')?.addEventListener('click',()=>openWorkspace('courses'));
 document.querySelector('#homeImport')?.addEventListener('click',()=>{openWorkspace('courses');setTimeout(()=>document.querySelector('#importScore')?.click(),120)});
 document.querySelectorAll('[data-home-target]').forEach(b=>b.addEventListener('click',()=>openWorkspace(b.dataset.homeTarget)));
