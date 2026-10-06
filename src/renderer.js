@@ -1133,7 +1133,11 @@ function updatePlayCursor(api,tick){
  const masterBar=Number.isInteger(masterIndex)?api.score?.masterBars?.[masterIndex]:null;
  const numerator=Math.max(1,+masterBar?.timeSignatureNumerator||4);
  const denominator=Math.max(1,+masterBar?.timeSignatureDenominator||4);
- const pulseTicks=960*4/denominator;
+ // Visual playhead grid: always advance by an eighth note. Keep the existing
+ // repeat-aware sequencer owner and score-geometry interpolation unchanged.
+ const pulseTicks=960/2;
+ const measureTicks=Math.max(pulseTicks,960*4*numerator/denominator);
+ const pulseCount=Math.max(1,Math.ceil(measureTicks/pulseTicks));
  const writtenStart=+(current?.playbackStart??0);
  const duration=Math.max(1,+(current?.playbackDuration??current?.duration??pulseTicks));
  // playerPositionChanged uses the expanded playback timeline. During repeats
@@ -1148,7 +1152,7 @@ function updatePlayCursor(api,tick){
  const origin=Number.isFinite(updatePlayCursor._tick)?updatePlayCursor._tick:tick;
  const elapsed=Math.max(0,Math.min(duration-1,(+tick||0)-(+origin||0)));
  const writtenNow=Math.max(0,writtenStart+elapsed);
- const pulseIndex=Math.max(0,Math.min(numerator-1,Math.floor(writtenNow/pulseTicks)));
+ const pulseIndex=Math.max(0,Math.min(pulseCount-1,Math.floor(writtenNow/pulseTicks)));
  const pulseWritten=pulseIndex*pulseTicks;
  const points=[];
  for(const rb of target.bar?.beats||[]){
@@ -1167,8 +1171,8 @@ function updatePlayCursor(api,tick){
    cursorX=left.x+(right.x-left.x)*((pulseWritten-left.t)/(right.t-left.t));
   }else if(left){
    // No following note/rest exists (typical full-measure rest or sustained
-   // final note). Extrapolate using the last real rhythmic spacing so beats
-   // 2/3/4 remain visible instead of freezing on beat 1.
+   // final note). Extrapolate using the last real rhythmic spacing so every
+   // eighth-note pulse remains visible instead of freezing on the last event.
    const prev=points.length>1?points[points.length-2]:null;
    const step=prev&&left.t>prev.t?(left.x-prev.x)/((left.t-prev.t)/pulseTicks):Math.max(18,currentBounds.w);
    cursorX=left.x+step*((pulseWritten-left.t)/pulseTicks);
