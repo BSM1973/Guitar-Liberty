@@ -2686,7 +2686,7 @@ function startInternalPracticePlayback(startScore){
  releaseScore();
 }
 document.querySelector('#play').onclick=async()=>{
- if(quickMeasureLoop&&alphaTabMode&&window.guitarLibertyAlphaTab?.playerState===1){stop();return;}
+ if(quickMeasureLoop&&alphaTabMode){stop();return;}
  if(sessionHistorySaved&&sessionStarted){
   // A completed result is already immutable in history. PLAY now starts a new
   // practice session instead of appending counters to a session that can no
