@@ -3532,7 +3532,15 @@ async function loadWithAlphaTab(file,{restoring=false}={}){
   if(!practiceLoop){lastLoopTick=tick;return;}
   const range=practiceTicks();if(!range)return;
   if(lastLoopTick>=0&&tick<lastLoopTick){
-   if(quickMeasureLoop){restartBackingAtLoopStart(api);lastLoopTick=tick;practiceStatus.textContent='Boucle infinie • mesure '+loopStart.value+' • STOP pour quitter';return;}
+   if(quickMeasureLoop){
+    // Re-anchor the custom cursor at the first beat after alphaTab wraps.
+    // Preserve alphaTab's own looping transport: do not seek or restart it here.
+    alphaPlayedBeat=null;updatePlayCursor._beat=null;updatePlayCursor._tick=null;
+    restartBackingAtLoopStart(api);
+    lastLoopTick=tick;
+    practiceStatus.textContent='Boucle infinie • mesure '+loopStart.value+' • STOP pour quitter';
+    return;
+   }
    // alphaTab has wrapped to the selected first measure. Between repetitions,
    // re-anchor the backing after its embedded count-in. On the final repetition
    // the series transition below owns the next backing start at the new BPM.
