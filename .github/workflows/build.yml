@@ -20,7 +20,7 @@ jobs:
           name: Guitar-Liberty-macOS-arm64
           path: release/Guitar Liberty-darwin-arm64
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
 
   windows-x64:
     runs-on: windows-latest
@@ -36,4 +36,4 @@ jobs:
           name: Guitar-Liberty-Windows-x64
           path: release/Guitar Liberty-win32-x64
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
