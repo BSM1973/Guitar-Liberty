@@ -2930,6 +2930,12 @@ function openWorkspace(target){
  if(!back){back=document.createElement('button');back.id='homeBack';back.className='home-back';back.textContent='⌂ ACCUEIL';document.body.appendChild(back);back.onclick=showHome;}
  back.hidden=false;
  requestAnimationFrame(()=>{
+  // The modular workspace owns navigation when its icon rail is available.
+  // Keep the historical scroll behavior only as a safe fallback.
+  if(window.guitarLibertyWorkspaceUI?.openTarget){
+   window.guitarLibertyWorkspaceUI.openTarget(target);
+   return;
+  }
   if(target==='dashboard')document.querySelector('.student-dashboard')?.scrollIntoView({behavior:'smooth',block:'start'});
   if(target==='courses')document.querySelector('.course-nav')?.scrollIntoView({behavior:'smooth',block:'start'});
   if(target==='coach')document.querySelector('.ai-coach')?.scrollIntoView({behavior:'smooth',block:'start'});
