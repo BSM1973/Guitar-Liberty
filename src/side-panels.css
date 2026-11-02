@@ -515,3 +515,103 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
 @media(prefers-reduced-motion:reduce){
  #appWorkspace .gl-workspace-layout-action{transition:none}
 }
+
+
+/* Additional named workspaces scroll inside their own control strip, never
+   shrinking the tablature, transport or main editing canvas. */
+#appWorkspace .gl-workspace-preset-list{
+ display:flex;flex:1 1 420px;min-width:0;
+ align-items:center;gap:7px;
+ overflow-x:auto;overflow-y:hidden;
+ padding:2px 0 6px;
+ scrollbar-width:thin;scrollbar-color:#53657c transparent;
+}
+#appWorkspace .gl-workspace-preset-list>.gl-workspace-preset{
+ flex:0 0 auto;min-width:118px;max-width:230px;
+ overflow:hidden;text-overflow:ellipsis;
+ white-space:nowrap;
+}
+#appWorkspace .gl-workspace-preset-list>.gl-workspace-preset-create{
+ background:#24303f;color:#e1c58c;
+ border:1px dashed #b29565;
+}
+#appWorkspace .gl-workspace-preset-list>.gl-workspace-preset-create:hover{
+ background:#33465d;border-style:solid;color:#ffe2ab;
+}
+#appWorkspace .gl-workspace-layout-delete{
+ background:#352a35;border-color:#81636e;color:#f1c7d2;
+}
+#appWorkspace .gl-workspace-layout-delete:hover{
+ background:#563642;border-color:#e3a1b3;color:#ffe2e8;
+}
+#appWorkspace .gl-workspace-layout-action[hidden]{display:none!important}
+#appWorkspace .gl-workspace-name-overlay[hidden]{display:none!important}
+#appWorkspace .gl-workspace-name-overlay{
+ position:fixed;inset:0;z-index:220;
+ display:flex;align-items:center;justify-content:center;
+ padding:20px;box-sizing:border-box;
+ background:rgba(5,10,20,.80);
+ backdrop-filter:blur(5px);
+}
+#appWorkspace .gl-workspace-name-form{
+ display:flex;flex-direction:column;gap:13px;
+ width:min(430px,calc(100vw - 42px));max-height:calc(100vh - 42px);
+ overflow-y:auto;box-sizing:border-box;
+ padding:25px;
+ border:1px solid #be9559;border-radius:16px;
+ background:linear-gradient(165deg,#26384f 0%,#152337 85%);
+ box-shadow:0 20px 70px #000c, inset 0 1px 0 #ffffff1a;
+}
+#appWorkspace .gl-workspace-name-title{
+ margin:0 0 5px;
+ color:#f3d6a0;font:800 18px/1.35 Arial,sans-serif;
+ letter-spacing:.035em;
+}
+#appWorkspace .gl-workspace-name-label{
+ color:#b9c8db;font:700 11px/1.3 Arial,sans-serif;
+ letter-spacing:.05em;
+}
+#appWorkspace .gl-workspace-name-form input{
+ width:100%;min-width:0;height:46px;
+ padding:8px 12px;box-sizing:border-box;
+ border:1px solid #728198;border-radius:9px;
+ background:#0d192b;color:#fff6e7;
+ font:600 16px/1.35 Arial,sans-serif;
+}
+#appWorkspace .gl-workspace-name-form input:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+#appWorkspace .gl-workspace-name-error{
+ margin:0;min-height:15px;
+ color:#ffb3b3;font:600 12px/1.35 Arial,sans-serif;
+}
+#appWorkspace .gl-workspace-name-actions{
+ display:flex;justify-content:flex-end;gap:9px;
+}
+#appWorkspace .gl-workspace-name-actions button{
+ min-height:39px;padding:9px 15px;
+ border-radius:9px;border:1px solid #65768c;
+ background:#283a4e;color:#d9e5f2;
+ font:800 12px/1.2 Arial,sans-serif;cursor:pointer;
+}
+#appWorkspace .gl-workspace-name-actions button[type=submit]{
+ background:#53452f;border-color:#e8ba68;color:#ffe0ae;
+}
+#appWorkspace .gl-workspace-name-actions button:hover{
+ border-color:#e8ba68;filter:brightness(1.13);
+}
+#appWorkspace .gl-workspace-name-actions button:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+#appWorkspace .gl-workspace-name-actions button:disabled{
+ opacity:.5;cursor:wait;
+}
+@media(max-width:740px){
+ #appWorkspace .gl-workspace-preset-list{
+  flex-basis:100%;min-width:0;
+ }
+ #appWorkspace .gl-workspace-preset-list>.gl-workspace-preset{
+  flex:0 0 auto;min-width:120px;
+ }
+ #appWorkspace .gl-workspace-name-form{padding:18px}
+}

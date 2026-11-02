@@ -106,18 +106,54 @@
       { id: 'improv', label: 'IMPROVISATION', dock: 'liberty' }
     ];
     const presetButtons = new Map();
-    for (const preset of workspacePresets) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'gl-workspace-preset';
-      button.textContent = preset.label;
-      button.setAttribute('data-gl-workspace', preset.id);
-      button.setAttribute('aria-pressed', String(preset.id === 'learning'));
-      button.title = preset.label + ' — disposition personnalisable';
-      if (preset.id === 'learning') button.classList.add('is-active');
-      presetButtons.set(preset.id, button);
-      workspacePresetBar.append(button);
+    const presetButtonList = document.createElement('div');
+    presetButtonList.className = 'gl-workspace-preset-list';
+    presetButtonList.setAttribute('aria-label', 'Choisir un espace de travail');
+    const createWorkspaceButton = document.createElement('button');
+    createWorkspaceButton.type = 'button';
+    createWorkspaceButton.className = 'gl-workspace-preset gl-workspace-preset-create';
+    createWorkspaceButton.textContent = 'NOUVEL ESPACE';
+    createWorkspaceButton.title = 'Créer un espace de travail avec un nom personnalisé';
+    createWorkspaceButton.setAttribute('aria-label', 'Créer un espace de travail');
+
+    // Only pre-defined presets are protected. Extra presets are loaded from
+    // the native app-data file, not from names interpolated into HTML.
+    function renderWorkspacePresets(definitions) {
+      const fixed = [
+        {id:'learning',label:'APPRENTISSAGE',dock:'courses',builtIn:true},
+        {id:'practice',label:'ENTRAÎNEMENT',dock:'practice',builtIn:true},
+        {id:'improv',label:'IMPROVISATION',dock:'liberty',builtIn:true}
+      ];
+      const extra = Array.isArray(definitions) ? definitions.filter(function (item) {
+        return item && typeof item.id === 'string' &&
+          /^custom-[1-9]\d*$/.test(item.id) &&
+          typeof item.label === 'string' && item.label.length >= 1 &&
+          item.label.length <= 32 && !fixed.some(base => base.id === item.id);
+      }).slice(0,8).map(item => ({
+        id:item.id,label:item.label,dock:null,builtIn:false
+      })) : [];
+      workspacePresets.splice(0, workspacePresets.length, ...fixed, ...extra);
+      presetButtons.clear();
+      presetButtonList.replaceChildren();
+      for (const preset of workspacePresets) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gl-workspace-preset';
+        button.textContent = preset.label;
+        button.setAttribute('data-gl-workspace', preset.id);
+        button.setAttribute('aria-pressed', String(preset.id === 'learning'));
+        button.title = preset.label + ' — disposition personnalisable';
+        if (preset.id === 'learning') button.classList.add('is-active');
+        button.addEventListener('click', function () {
+          switchWorkspaceProfile(preset.id);
+        });
+        presetButtons.set(preset.id, button);
+        presetButtonList.append(button);
+      }
+      presetButtonList.append(createWorkspaceButton);
     }
+    renderWorkspacePresets(workspacePresets);
+    workspacePresetBar.append(presetButtonList);
     const presetActions = document.createElement('div');
     presetActions.className = 'gl-workspace-preset-actions';
     const saveLayoutButton = document.createElement('button');
@@ -136,7 +172,20 @@
     layoutStatus.className = 'gl-workspace-layout-status';
     layoutStatus.setAttribute('role', 'status');
     layoutStatus.setAttribute('aria-live', 'polite');
-    presetActions.append(saveLayoutButton, resetLayoutButton);
+    const renameWorkspaceButton = document.createElement('button');
+    renameWorkspaceButton.type = 'button';
+    renameWorkspaceButton.className = 'gl-workspace-layout-action';
+    renameWorkspaceButton.textContent = 'RENOMMER';
+    renameWorkspaceButton.title = 'Renommer cet espace personnalisé';
+    renameWorkspaceButton.hidden = true;
+    const deleteWorkspaceButton = document.createElement('button');
+    deleteWorkspaceButton.type = 'button';
+    deleteWorkspaceButton.className = 'gl-workspace-layout-action gl-workspace-layout-delete';
+    deleteWorkspaceButton.textContent = 'SUPPRIMER';
+    deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
+    deleteWorkspaceButton.hidden = true;
+    presetActions.append(saveLayoutButton, resetLayoutButton,
+      renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
     content.prepend(transportDock);
@@ -219,6 +268,34 @@
     drawer.prepend(resizeHandle);
     workspace.prepend(rail);
     workspace.append(drawer);
+
+    // Native-looking navy name dialog, scoped to the musical workspace.
+    // Names are always rendered as text; no user-entered HTML is evaluated.
+    const workspaceNameOverlay = document.createElement('div');
+    workspaceNameOverlay.className = 'gl-workspace-name-overlay';
+    workspaceNameOverlay.hidden = true;
+    workspaceNameOverlay.innerHTML = `
+      <form class="gl-workspace-name-form" role="dialog"
+            aria-modal="true" aria-labelledby="glWorkspaceNameTitle">
+        <h2 id="glWorkspaceNameTitle" class="gl-workspace-name-title"></h2>
+        <label class="gl-workspace-name-label" for="glWorkspaceNameInput">
+          NOM DE L’ESPACE DE TRAVAIL
+        </label>
+        <input id="glWorkspaceNameInput" type="text" maxlength="32"
+               autocomplete="off" spellcheck="false" required>
+        <p class="gl-workspace-name-error" role="alert" aria-live="assertive"></p>
+        <div class="gl-workspace-name-actions">
+          <button type="button" class="gl-workspace-name-cancel">ANNULER</button>
+          <button type="submit" class="gl-workspace-name-submit">VALIDER</button>
+        </div>
+      </form>`;
+    workspace.append(workspaceNameOverlay);
+    const workspaceNameForm = workspaceNameOverlay.querySelector('form');
+    const workspaceNameInput = workspaceNameOverlay.querySelector('#glWorkspaceNameInput');
+    const workspaceNameTitle = workspaceNameOverlay.querySelector('#glWorkspaceNameTitle');
+    const workspaceNameError = workspaceNameOverlay.querySelector('.gl-workspace-name-error');
+    const workspaceNameCancel = workspaceNameOverlay.querySelector('.gl-workspace-name-cancel');
+    const workspaceNameSubmit = workspaceNameOverlay.querySelector('.gl-workspace-name-submit');
 
     const groups = new Map();
     let active = null;
@@ -395,12 +472,29 @@
         button.setAttribute('aria-pressed', String(selected));
         button.disabled = workspaceSwitchBusy;
       });
-      saveLayoutButton.disabled = workspaceSwitchBusy || suppressPresetSaving;
-      resetLayoutButton.disabled = workspaceSwitchBusy || suppressPresetSaving;
+      const unavailable = workspaceSwitchBusy || suppressPresetSaving;
+      saveLayoutButton.disabled = unavailable;
+      resetLayoutButton.disabled = unavailable;
+      const isCustom = workspacePresets.some(preset =>
+        preset.id === activeWorkspaceId && !preset.builtIn);
+      renameWorkspaceButton.hidden = !isCustom;
+      deleteWorkspaceButton.hidden = !isCustom;
+      renameWorkspaceButton.disabled = unavailable;
+      deleteWorkspaceButton.disabled = unavailable;
+      createWorkspaceButton.disabled = unavailable ||
+        workspacePresets.filter(preset => !preset.builtIn).length >= 8;
     }
 
     function showWorkspaceStatus(message) {
       layoutStatus.textContent = message;
+    }
+
+    async function refreshWorkspacePresets() {
+      if (!window.guitarAudio?.workspaceList) return;
+      const definitions = await window.guitarAudio.workspaceList();
+      if (!Array.isArray(definitions)) throw new Error('Liste des espaces indisponible');
+      renderWorkspacePresets(definitions);
+      updatePresetButtons();
     }
 
     function applyPresetView(id) {
@@ -758,8 +852,133 @@
       }
     }
 
-    presetButtons.forEach(function (button, id) {
-      button.addEventListener('click', function () { switchWorkspaceProfile(id); });
+    // Create and rename never manipulate a lesson or audio player. Only the
+    // named preset list and its saved window arrangement are modified.
+    let workspaceNameMode = 'create';
+    let workspaceNameBusy = false;
+    let workspaceNamePreviousFocus = null;
+    let workspaceNameEditedId = null;
+    function closeWorkspaceNameDialog() {
+      if (workspaceNameBusy) return;
+      workspaceNameOverlay.hidden = true;
+      workspaceNameError.textContent = '';
+      workspaceNamePreviousFocus?.focus?.();
+      workspaceNamePreviousFocus = null;
+    }
+    function openWorkspaceNameDialog(mode) {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceCreate) return;
+      const preset = workspacePresets.find(item => item.id === activeWorkspaceId);
+      if (mode === 'rename' && (!preset || preset.builtIn)) return;
+      workspaceNameMode = mode;
+      workspaceNameEditedId = mode === 'rename' ? activeWorkspaceId : null;
+      workspaceNamePreviousFocus = document.activeElement;
+      workspaceNameTitle.textContent = mode === 'create'
+        ? 'CRÉER UN ESPACE DE TRAVAIL' : 'RENOMMER L’ESPACE DE TRAVAIL';
+      workspaceNameSubmit.textContent = mode === 'create' ? 'CRÉER' : 'ENREGISTRER';
+      workspaceNameInput.value = mode === 'rename' ? preset.label : '';
+      workspaceNameInput.disabled = false;
+      workspaceNameSubmit.disabled = false;
+      workspaceNameError.textContent = '';
+      workspaceNameOverlay.hidden = false;
+      workspaceNameInput.focus();
+      if (mode === 'rename') workspaceNameInput.select();
+    }
+    createWorkspaceButton.addEventListener('click', function () {
+      openWorkspaceNameDialog('create');
+    });
+    renameWorkspaceButton.addEventListener('click', function () {
+      openWorkspaceNameDialog('rename');
+    });
+    workspaceNameCancel.addEventListener('click', closeWorkspaceNameDialog);
+    workspaceNameOverlay.addEventListener('click', function (event) {
+      if (event.target === workspaceNameOverlay) closeWorkspaceNameDialog();
+    });
+    workspaceNameOverlay.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeWorkspaceNameDialog();
+      }
+    });
+    workspaceNameForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (workspaceNameBusy || workspaceSwitchBusy) return;
+      const name = workspaceNameInput.value.trim().replace(/\s+/g, ' ');
+      if (!name || name.length > 32) {
+        workspaceNameError.textContent = 'Saisis un nom de 1 à 32 caractères.';
+        workspaceNameInput.focus();
+        return;
+      }
+      const alreadyNamed = workspacePresets.some(preset =>
+        preset.id !== workspaceNameEditedId &&
+        preset.label.toLocaleLowerCase('fr') === name.toLocaleLowerCase('fr'));
+      if (alreadyNamed) {
+        workspaceNameError.textContent = 'Un espace porte déjà ce nom.';
+        return;
+      }
+      workspaceNameBusy = true;
+      workspaceSwitchBusy = true;
+      workspaceNameInput.disabled = true;
+      workspaceNameSubmit.disabled = true;
+      updatePresetButtons();
+      try {
+        let nextWorkspaceId = null;
+        if (workspaceNameMode === 'create') {
+          const created = await window.guitarAudio.workspaceCreate(name);
+          if (!created?.id) throw new Error('Création non confirmée');
+          nextWorkspaceId = created.id;
+        } else {
+          const renamed = await window.guitarAudio.workspaceRename(workspaceNameEditedId, name);
+          if (!renamed?.id) throw new Error('Renommage non confirmé');
+        }
+        await refreshWorkspacePresets();
+        workspaceNameBusy = false;
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+        closeWorkspaceNameDialog();
+        if (nextWorkspaceId) {
+          const switched = await switchWorkspaceProfile(nextWorkspaceId);
+          showWorkspaceStatus(switched
+            ? 'Nouvel espace créé' : 'Espace créé — sélectionne-le pour l’ouvrir');
+        } else {
+          showWorkspaceStatus('Espace renommé');
+        }
+      } catch (error) {
+        console.error('Nom de l’espace de travail :', error);
+        workspaceNameError.textContent = error?.message || 'Opération impossible';
+      } finally {
+        workspaceNameBusy = false;
+        workspaceSwitchBusy = false;
+        workspaceNameInput.disabled = false;
+        workspaceNameSubmit.disabled = false;
+        updatePresetButtons();
+      }
+    });
+
+    deleteWorkspaceButton.addEventListener('click', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceDelete) return;
+      const previous = workspacePresets.find(item => item.id === activeWorkspaceId);
+      if (!previous || previous.builtIn) return;
+      if (!window.confirm('Supprimer définitivement l’espace « ' + previous.label +
+          ' » et sa disposition ? Les trois espaces principaux seront conservés.')) return;
+      // The native bridge refuses deleting an active preset, so switch first.
+      if (!(await switchWorkspaceProfile('learning'))) return;
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      try {
+        const result = await window.guitarAudio.workspaceDelete(previous.id);
+        if (!result?.deleted) throw new Error('Suppression non confirmée');
+        try { localStorage.removeItem(PRESET_KEY + previous.id); } catch (_) {}
+        await refreshWorkspacePresets();
+        showWorkspaceStatus('Espace supprimé');
+      } catch (error) {
+        console.error('Suppression de l’espace :', error);
+        showWorkspaceStatus('Suppression impossible');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
     });
 
     saveLayoutButton.addEventListener('click', async function () {
@@ -851,6 +1070,11 @@
           restorationRequested = true;
           let saved;
           if (window.guitarAudio.workspaceGet) {
+            // Populate dynamic names before selecting the last active preset.
+            if (window.guitarAudio.workspaceList) {
+              await refreshWorkspacePresets();
+              if (generation !== workspaceGeneration) return;
+            }
             const layout = await window.guitarAudio.workspaceGet();
             if (generation !== workspaceGeneration) return;
             if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
