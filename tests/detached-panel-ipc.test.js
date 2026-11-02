@@ -561,3 +561,140 @@ test('workspace save and reset reject foreign senders or inactive presets', asyn
   assert.equal(state.id,'learning');
   assert.equal(h.windows.length,2);
 });
+
+
+test('named custom spaces are validated, unique and cannot overwrite built-in names', async t => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-named-spaces-'));
+  t.after(() => fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const list=h.handlers.get('gl-workspace-list');
+  const create=h.handlers.get('gl-workspace-create');
+  const rename=h.handlers.get('gl-workspace-rename');
+  assert.deepEqual(JSON.parse(JSON.stringify(list({sender}))).map(p=>p.id),
+    ['learning','practice','improv']);
+  const created=create({sender},'  Blues   Jazz  ');
+  assert.deepEqual(JSON.parse(JSON.stringify(created)),
+    {id:'custom-1',label:'Blues Jazz',builtIn:false});
+  assert.equal(list({sender}).length,4);
+  assert.throws(()=>create({sender},'blues jazz'),/déjà ce nom/);
+  assert.throws(()=>create({sender},'APPRENTISSAGE'),/déjà ce nom/);
+  assert.throws(()=>create({sender},'   '),/1 à 32/);
+  assert.throws(()=>create({sender},'x'.repeat(33)),/1 à 32/);
+  assert.throws(()=>rename({sender},'learning','Cours'),/personnalisés/);
+  assert.throws(()=>rename({sender},'custom-1','Entraînement'),/déjà ce nom/);
+  const renamed=rename({sender},'custom-1','Mes accords');
+  assert.deepEqual(JSON.parse(JSON.stringify(renamed)),
+    {id:'custom-1',label:'Mes accords',builtIn:false});
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(saved.customWorkspaces,[{id:'custom-1',label:'Mes accords'}]);
+  const next=bootMain({layoutDirectory:folder});await Promise.resolve();
+  assert.equal(next.handlers.get('gl-workspace-list')({
+    sender:next.windows[1].webContents
+  }).at(-1).label,'Mes accords');
+});
+
+test('custom workspace has its own floating panels and remains active after restart',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-personal-layout-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const create=h.handlers.get('gl-workspace-create');
+  const select=h.handlers.get('gl-workspace-switch');
+  const open=h.handlers.get('gl-panel-open');
+  const named=create({sender},'Impro Fusion');
+  const selected=await select({sender},named.id);
+  assert.equal(selected.id,named.id);
+  await open({sender},'practice','ENTRAÎNEMENT');
+  const floating=h.windows[2];
+  floating.setBounds({x:750,y:120,width:590,height:690});
+  await select({sender},'learning');
+  assert.equal(floating.destroyed,true);
+  assert.deepEqual([...h.handlers.get('gl-workspace-get')({sender}).openPanels],[]);
+  const again=await select({sender},named.id);
+  assert.deepEqual([...again.openPanels],['practice']);
+  await open({sender},'practice','ENTRAÎNEMENT',true);
+  assert.deepEqual(h.windows[3].getBounds(),
+    {x:750,y:120,width:590,height:690});
+  h.windows[1].close();
+  const reopened=bootMain({layoutDirectory:folder});await Promise.resolve();
+  const nextSender=reopened.windows[1].webContents;
+  assert.equal(reopened.handlers.get('gl-workspace-get')({sender:nextSender}).id,named.id);
+  const restored=reopened.handlers.get('gl-panel-restore-session')({sender:nextSender});
+  assert.deepEqual([...restored],['practice']);
+});
+
+test('custom presets can be deleted only when inactive; other layouts stay safe',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-custom-delete-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const create=h.handlers.get('gl-workspace-create');
+  const select=h.handlers.get('gl-workspace-switch');
+  const deleteCustom=h.handlers.get('gl-workspace-delete');
+  const first=create({sender},'Solo');
+  const second=create({sender},'Composition');
+  await select({sender},first.id);
+  await assert.rejects(async()=>deleteCustom({sender},first.id),/autre espace/);
+  await select({sender},second.id);
+  assert.deepEqual(JSON.parse(JSON.stringify(deleteCustom({sender},first.id))),
+    {id:first.id,deleted:true});
+  assert.throws(()=>deleteCustom({sender},'learning'),/trois espaces/);
+  assert.throws(()=>deleteCustom({sender},'ghost'),/trois espaces/);
+  assert.deepEqual(h.handlers.get('gl-workspace-list')({sender}).map(p=>p.id),
+    ['learning','practice','improv',second.id]);
+  await select({sender},'learning');
+  assert.deepEqual(JSON.parse(JSON.stringify(deleteCustom({sender},second.id))),
+    {id:second.id,deleted:true});
+  assert.equal(h.handlers.get('gl-workspace-list')({sender}).length,3);
+  const contents=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(contents.customWorkspaces,[]);
+  assert.ok(contents.workspaces.learning,'default profile must survive');
+});
+
+test('custom workspace count and authorization are enforced in native IPC', async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-custom-limit-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const bad={};
+  const create=h.handlers.get('gl-workspace-create');
+  const list=h.handlers.get('gl-workspace-list');
+  const rename=h.handlers.get('gl-workspace-rename');
+  const remove=h.handlers.get('gl-workspace-delete');
+  assert.throws(()=>create({sender:bad},'Test'),/non autorisé/);
+  assert.throws(()=>list({sender:bad}),/non autorisé/);
+  assert.throws(()=>rename({sender:bad},'custom-1','Test'),/non autorisé/);
+  assert.throws(()=>remove({sender:bad},'custom-1'),/non autorisé/);
+  for(let i=1;i<=8;i++){
+    const custom=create({sender},'Cours '+i);
+    assert.equal(custom.id,'custom-'+i);
+  }
+  assert.throws(()=>create({sender},'Cours 9'),/Huit espaces/);
+  assert.equal(list({sender}).length,11);
+});
+
+test('malformed custom preset metadata is rejected without losing base profiles', async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-custom-corrupt-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  fs.writeFileSync(path.join(folder,'detached-panel-layouts.json'),JSON.stringify({
+    version:1,activeWorkspace:'custom-999',
+    customWorkspaces:[
+      {id:'custom-1',label:'Ma séance'},
+      {id:'evil;id',label:'Not allowed'},
+      {id:'custom-2',label:'Ma séance'},
+      {id:'custom-3',label:'APPRENTISSAGE'}
+    ],
+    workspaces:{'custom-1':{panels:{},openPanels:['coach']}}
+  }));
+  const h=bootMain({layoutDirectory:folder});await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const ids=h.handlers.get('gl-workspace-list')({sender}).map(p=>p.id);
+  assert.deepEqual(ids,['learning','practice','improv','custom-1']);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).id,'learning');
+  await h.handlers.get('gl-workspace-switch')({sender},'custom-1');
+  assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})],
+    ['coach']);
+});
