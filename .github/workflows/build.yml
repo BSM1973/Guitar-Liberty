@@ -16,6 +16,15 @@ jobs:
       - run: npm install
       - run: npm test
       - run: npm run pack:mac
+      
+      - name: Intégrer les licences Chromium
+        run: |
+          DIST="release/Guitar Liberty-darwin-arm64"
+          APP="$DIST/Guitar Liberty.app"
+          test -f "$DIST/LICENSES.chromium.html"
+          mkdir -p "$APP/Contents/Resources"
+          cp "$DIST/LICENSES.chromium.html" "$APP/Contents/Resources/"
+
       - uses: actions/upload-artifact@v4
         with:
           name: Guitar-Liberty-macOS-arm64
