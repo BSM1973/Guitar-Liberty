@@ -30,6 +30,11 @@ function harness(existing={}) {
       setItem:(k,v)=>data.set(k,v)
     },
     groups,activeWorkspaceId:'learning',workspaceSwitchBusy:false,
+    presetButtons:new Map(['learning','practice','improv'].map(id => [id,{
+      classList:{toggle:()=>{}},
+      setAttribute:()=>{},
+      disabled:false
+    }])),
     suppressPresetSaving:false,active:{id:'courses'},
     updateDrawerGeometry:()=>{},
     updatePresetButtons:()=>{},
