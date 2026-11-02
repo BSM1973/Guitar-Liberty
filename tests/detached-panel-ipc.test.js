@@ -473,3 +473,91 @@ test('invalid or unauthorized workspace requests cannot alter the active preset'
   assert.equal(get({sender}).id,'learning');
   assert.equal(h.windows.length,2);
 });
+
+
+test('ENREGISTRER saves the active workspace geometry without changing other profiles', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-layout-save-'));
+  t.after(() => fs.rmSync(directory, {recursive:true, force:true}));
+  const h = bootMain({layoutDirectory:directory});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const open = h.handlers.get('gl-panel-open');
+  const switchTo = h.handlers.get('gl-workspace-switch');
+  const save = h.handlers.get('gl-workspace-save');
+  await open({sender}, 'coach', 'COACHS');
+  h.windows[2].setBounds({x:250,y:100,width:510,height:660});
+  assert.deepEqual(JSON.parse(JSON.stringify(save({sender}, 'learning'))),
+    {id:'learning',saved:true});
+  await switchTo({sender}, 'practice');
+  await open({sender}, 'play-with-me', 'JOUE AVEC MOI');
+  h.windows[3].setBounds({x:750,y:100,width:510,height:700});
+  assert.deepEqual(JSON.parse(JSON.stringify(save({sender}, 'practice'))),
+    {id:'practice',saved:true});
+  const saved = JSON.parse(fs.readFileSync(path.join(directory,
+    'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(saved.workspaces.learning.panels.coach,
+    {x:250,y:100,width:510,height:660});
+  assert.deepEqual(saved.workspaces.practice.panels['play-with-me'],
+    {x:750,y:100,width:510,height:700});
+  assert.deepEqual(saved.workspaces.learning.openPanels,['coach']);
+  assert.deepEqual(saved.workspaces.practice.openPanels,['play-with-me']);
+});
+
+test('RÉINITIALISER closes only the selected preset and retains other layouts', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-layout-reset-'));
+  t.after(() => fs.rmSync(directory,{recursive:true,force:true}));
+  const h = bootMain({layoutDirectory:directory});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const open = h.handlers.get('gl-panel-open');
+  const switchTo = h.handlers.get('gl-workspace-switch');
+  const reset = h.handlers.get('gl-workspace-reset');
+  await open({sender}, 'coach', 'COACHS');
+  h.windows[2].setBounds({x:150,y:90,width:520,height:650});
+  await switchTo({sender},'practice');
+  await open({sender}, 'practice', 'ENTRAÎNEMENT');
+  h.windows[3].setBounds({x:840,y:110,width:500,height:700});
+  await switchTo({sender},'improv');
+  await open({sender}, 'liberty', 'MODE LIBERTÉ');
+  h.windows[4].setBounds({x:1000,y:80,width:440,height:610});
+  const resetResult = await reset({sender},'improv');
+  assert.deepEqual(JSON.parse(JSON.stringify(resetResult)),
+    {id:'improv',reset:true,openPanels:[]});
+  assert.equal(h.windows[4].destroyed,true);
+  assert.equal(h.windows[1].destroyed,false,'central score must remain open');
+  const closed = sender.sent.filter(entry => entry.channel === 'gl-panel-closed').at(-1);
+  assert.deepEqual([...closed.args],['liberty','workspace-reset']);
+  const saved = JSON.parse(fs.readFileSync(
+    path.join(directory,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(saved.workspaces.improv.openPanels,[]);
+  assert.deepEqual(saved.workspaces.improv.panels,{});
+  assert.deepEqual(saved.workspaces.learning.openPanels,['coach']);
+  assert.deepEqual(saved.workspaces.practice.openPanels,['practice']);
+  assert.deepEqual(saved.workspaces.practice.panels.practice,
+    {x:840,y:110,width:500,height:700});
+  const learning = await switchTo({sender},'learning');
+  assert.deepEqual([...learning.openPanels],['coach']);
+  await open({sender},'coach','COACHS',true);
+  assert.deepEqual(h.windows[5].getBounds(),
+    {x:150,y:90,width:520,height:650});
+});
+
+test('workspace save and reset reject foreign senders or inactive presets', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(),'gl-layout-auth-'));
+  t.after(() => fs.rmSync(directory,{recursive:true,force:true}));
+  const h = bootMain({layoutDirectory:directory});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const impostor = {sent:[]};
+  const save = h.handlers.get('gl-workspace-save');
+  const reset = h.handlers.get('gl-workspace-reset');
+  assert.throws(() => save({sender:impostor},'learning'),/non autorisé/);
+  assert.throws(() => save({sender},'unknown'),/non autorisé/);
+  assert.throws(() => save({sender},'practice'),/non actif/);
+  await assert.rejects(reset({sender:impostor},'learning'),/non autorisée/);
+  await assert.rejects(reset({sender},'unknown'),/non autorisée/);
+  await assert.rejects(reset({sender},'practice'),/non actif/);
+  const state = h.handlers.get('gl-workspace-get')({sender});
+  assert.equal(state.id,'learning');
+  assert.equal(h.windows.length,2);
+});
