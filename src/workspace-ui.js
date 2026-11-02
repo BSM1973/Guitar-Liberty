@@ -153,11 +153,129 @@
     const drawerBody = document.createElement('div');
     drawerBody.className = 'gl-context-body';
     drawer.append(drawerHead, drawerBody);
+    // A single resize handle serves all contextual panels without touching
+    // any original feature component or the tablature.
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'gl-panel-resize-handle';
+    resizeHandle.setAttribute('role', 'separator');
+    resizeHandle.setAttribute('aria-orientation', 'vertical');
+    resizeHandle.setAttribute('aria-label', 'Redimensionner le panneau latéral');
+    resizeHandle.setAttribute('title', 'Glisser pour ajuster la largeur. Double-clic : largeur initiale.');
+    resizeHandle.tabIndex = 0;
+    drawer.prepend(resizeHandle);
     workspace.prepend(rail);
     workspace.append(drawer);
 
     const groups = new Map();
     let active = null;
+
+    // Keep the tablature comfortably wide on large screens. When there is
+    // insufficient room, overlay the drawer rather than squeezing the score.
+    const WIDTH_KEY = 'guitar-liberty-panel-width';
+    const DEFAULT_WIDTH = 400;
+    const MIN_SCORE_WIDTH = 950;
+    const WIDTH_STEP = 20;
+    let storedWidth = DEFAULT_WIDTH;
+    try {
+      const saved = Number.parseInt(localStorage.getItem(WIDTH_KEY), 10);
+      if (Number.isFinite(saved)) storedWidth = saved;
+    } catch (_) {}
+    let panelWidth = storedWidth;
+    let draggingPointerId = null;
+
+    function panelBounds() {
+      const railWidth = window.innerWidth <= 740 ? 58 : 78;
+      const minimum = window.innerWidth < 700 ? 260 : 300;
+      const maximum = Math.max(minimum, Math.min(640, window.innerWidth - railWidth - 220));
+      return { railWidth: railWidth, minimum: minimum, maximum: maximum };
+    }
+
+    function clampWidth(width) {
+      const bounds = panelBounds();
+      return Math.min(bounds.maximum, Math.max(bounds.minimum, Math.round(width)));
+    }
+
+    function updateDrawerGeometry() {
+      const bounds = panelBounds();
+      panelWidth = clampWidth(panelWidth);
+      workspace.style.setProperty('--gl-drawer-width', panelWidth + 'px');
+      resizeHandle.setAttribute('aria-valuemin', String(bounds.minimum));
+      resizeHandle.setAttribute('aria-valuemax', String(bounds.maximum));
+      resizeHandle.setAttribute('aria-valuenow', String(panelWidth));
+      resizeHandle.setAttribute('aria-valuetext', panelWidth + ' pixels');
+      const shouldOverlay = window.innerWidth - bounds.railWidth - panelWidth < MIN_SCORE_WIDTH;
+      const wasOverlay = workspace.classList.contains('gl-panel-overlay');
+      const wasDocked = workspace.classList.contains('gl-panel-docked');
+      workspace.classList.toggle('gl-panel-overlay', shouldOverlay);
+      workspace.classList.toggle('gl-panel-docked', !shouldOverlay);
+      return wasOverlay !== shouldOverlay || wasDocked !== !shouldOverlay;
+    }
+
+    function setDrawerWidth(width, persist) {
+      panelWidth = clampWidth(width);
+      const modeChanged = updateDrawerGeometry();
+      if (persist) {
+        try { localStorage.setItem(WIDTH_KEY, String(panelWidth)); } catch (_) {}
+      }
+      return modeChanged;
+    }
+
+    resizeHandle.addEventListener('pointerdown', function (event) {
+      if (!active || event.button !== 0 || draggingPointerId !== null) return;
+      event.preventDefault();
+      draggingPointerId = event.pointerId;
+      document.documentElement.classList.add('gl-panel-is-resizing');
+      resizeHandle.setPointerCapture(event.pointerId);
+    });
+
+    resizeHandle.addEventListener('pointermove', function (event) {
+      if (draggingPointerId !== event.pointerId) return;
+      const changed = setDrawerWidth(window.innerWidth - event.clientX, false);
+      if (changed) requestScoreLayout();
+    });
+
+    function endPanelResize(event) {
+      if (draggingPointerId !== event.pointerId) return;
+      draggingPointerId = null;
+      document.documentElement.classList.remove('gl-panel-is-resizing');
+      if (resizeHandle.hasPointerCapture(event.pointerId)) {
+        resizeHandle.releasePointerCapture(event.pointerId);
+      }
+      setDrawerWidth(panelWidth, true);
+      requestScoreLayout();
+    }
+
+    resizeHandle.addEventListener('pointerup', endPanelResize);
+    resizeHandle.addEventListener('pointercancel', endPanelResize);
+    resizeHandle.addEventListener('lostpointercapture', function (event) {
+      if (draggingPointerId !== event.pointerId) return;
+      draggingPointerId = null;
+      document.documentElement.classList.remove('gl-panel-is-resizing');
+      setDrawerWidth(panelWidth, true);
+      requestScoreLayout();
+    });
+
+    resizeHandle.addEventListener('dblclick', function () {
+      setDrawerWidth(DEFAULT_WIDTH, true);
+      requestScoreLayout();
+    });
+    resizeHandle.addEventListener('keydown', function (event) {
+      const bounds = panelBounds();
+      const step = event.shiftKey ? WIDTH_STEP * 2 : WIDTH_STEP;
+      let next = panelWidth;
+      if (event.key === 'ArrowLeft') next += step;
+      else if (event.key === 'ArrowRight') next -= step;
+      else if (event.key === 'Home') next = bounds.minimum;
+      else if (event.key === 'End') next = bounds.maximum;
+      else return;
+      event.preventDefault();
+      setDrawerWidth(next, true);
+      requestScoreLayout();
+    });
+
+    // One-way resize listener: never redispatch resize from this callback.
+    window.addEventListener('resize', updateDrawerGeometry);
+    updateDrawerGeometry();
 
     function requestScoreLayout() {
       requestAnimationFrame(function () {
@@ -187,6 +305,7 @@
 
     function closePanel() {
       drawer.hidden = true;
+      document.documentElement.classList.remove('gl-panel-is-resizing');
       workspace.classList.remove('gl-context-open');
       if (active) {
         active.element.hidden = true;
@@ -217,6 +336,7 @@
       group.element.hidden = false;
       drawer.hidden = false;
       workspace.classList.add('gl-context-open');
+      updateDrawerGeometry();
       drawerTitle.textContent = group.label;
       drawerSubtitle.textContent = descriptions[id] || 'Espace musical';
       drawerIcon.innerHTML = svg(group.icon);
