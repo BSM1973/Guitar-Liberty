@@ -301,6 +301,9 @@
         publishSnapshot(groups.get(id), true);
       });
       window.guitarAudio.onPanelClosed(function (id, reason) {
+        // A delayed close from an old workspace must not unset a newly opened
+        // panel that happens to have the same ID in the new workspace.
+        if (reason === 'workspace-switch') return;
         const group = groups.get(id);
         if (!group || !group.detached) return;
         group.detached = false;
@@ -515,6 +518,7 @@
       drawerBody.scrollTop = 0;
       requestScoreLayout();
       publishSnapshot(group);
+      savePresetView();
     }
 
     function closePanel() {
@@ -529,6 +533,7 @@
       active = null;
       scoreButton.classList.add('is-active');
       scoreButton.setAttribute('aria-current', 'page');
+      savePresetView();
       requestScoreLayout();
     }
 
@@ -681,6 +686,47 @@
       }
     }
 
+    async function switchWorkspaceProfile(id) {
+      if (workspace.hidden || workspaceSwitchBusy || id === activeWorkspaceId ||
+          !workspacePresets.some(preset => preset.id === id) ||
+          !window.guitarAudio?.workspaceSwitch) return false;
+      savePresetView();
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      try {
+        const layout = await window.guitarAudio.workspaceSwitch(id);
+        if (!layout || layout.id !== id || !Array.isArray(layout.openPanels)) return false;
+        // The main process has closed the old windows, preserving their layout.
+        groups.forEach(function (group) {
+          group.detached = false;
+          group.lastRemoteMarkup = '';
+          group.button.classList.remove('gl-is-detached');
+          group.button.title = group.label;
+        });
+        closePanel();
+        activeWorkspaceId = id;
+        // The selected layout may contain any number of independent windows.
+        for (const panelId of layout.openPanels) {
+          const group = groups.get(panelId);
+          if (!group || !detachedAllowed.has(panelId)) continue;
+          await openDetachedGroup(group, true);
+        }
+        applyPresetView(id);
+        return true;
+      } catch (error) {
+        console.error('Impossible de changer d’espace de travail :', error);
+        window.alert('Le changement d’espace de travail a échoué.');
+        return false;
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    }
+
+    presetButtons.forEach(function (button, id) {
+      button.addEventListener('click', function () { switchWorkspaceProfile(id); });
+    });
+
     detachButton.addEventListener('click', async function () {
       const group = active;
       if (!group || !detachedAllowed.has(group.id)) return;
@@ -706,7 +752,17 @@
       try {
         if (!restorationRequested) {
           restorationRequested = true;
-          const saved = await window.guitarAudio.panelRestorable();
+          let saved;
+          if (window.guitarAudio.workspaceGet) {
+            const layout = await window.guitarAudio.workspaceGet();
+            if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
+              activeWorkspaceId = layout.id;
+              applyPresetView(layout.id);
+            }
+            saved = layout?.openPanels;
+          } else {
+            saved = await window.guitarAudio.panelRestorable();
+          }
           pendingRestoredIds = Array.isArray(saved) ? saved : [];
         }
         // If the guitarist briefly returns to the welcome page, resume any
