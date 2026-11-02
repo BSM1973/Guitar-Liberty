@@ -828,17 +828,23 @@
           !workspacePresets.some(preset => preset.id === id) ||
           !window.guitarAudio?.workspaceSwitch) return false;
       savePresetView();
+      const previousRestorationRequested = restorationRequested;
+      const previousRestoredIds = pendingRestoredIds?.slice() || null;
       workspaceGeneration++;
       // Cancel pending restoration from the former workspace. In particular,
       // a delayed IPC answer must never reopen its floating panels here.
       restorationRequested = true;
       pendingRestoredIds = [];
       workspaceSwitchBusy = true;
+      let nativeSwitched = false;
       showWorkspaceStatus('');
       updatePresetButtons();
       try {
         const layout = await window.guitarAudio.workspaceSwitch(id);
-        if (!layout || layout.id !== id || !Array.isArray(layout.openPanels)) return false;
+        if (!layout || layout.id !== id || !Array.isArray(layout.openPanels)) {
+          throw new Error('Disposition non valide');
+        }
+        nativeSwitched = true;
         // The main process has closed the old windows, preserving their layout.
         groups.forEach(function (group) {
           group.detached = false;
@@ -857,6 +863,12 @@
         }
         return true;
       } catch (error) {
+        if (!nativeSwitched) {
+          // The old workspace is still authoritative. Restore its pending
+          // windows rather than silently discarding an interrupted session.
+          restorationRequested = previousRestorationRequested;
+          pendingRestoredIds = previousRestoredIds;
+        }
         console.error('Impossible de changer d’espace de travail :', error);
         window.alert('Le changement d’espace de travail a échoué.');
         return false;
