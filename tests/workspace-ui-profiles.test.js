@@ -37,6 +37,9 @@ function harness(existing={}) {
     }])),
     saveLayoutButton:{disabled:false},
     resetLayoutButton:{disabled:false},
+    renameWorkspaceButton:{disabled:false,hidden:true},
+    deleteWorkspaceButton:{disabled:false,hidden:true},
+    createWorkspaceButton:{disabled:false},
     layoutStatus:{textContent:''},
     suppressPresetSaving:false,active:{id:'courses'},
     updateDrawerGeometry:()=>{},
@@ -99,4 +102,28 @@ test('closing a workspace drawer saves a null dock only for that preset',()=>{
   h.api.save();
   assert.equal(JSON.parse(h.data.get('guitar-liberty-workspace-ui-practice')).dock,'practice');
   assert.equal(JSON.parse(h.data.get('guitar-liberty-workspace-ui-learning')).dock,null);
+});
+
+test('named custom preset retains its independent drawer and selected tab', () => {
+  const h=harness();
+  h.context.workspacePresets.push({
+    id:'custom-1',label:'Ma session blues',dock:null,builtIn:false
+  });
+  h.context.presetButtons.set('custom-1',{
+    classList:{toggle:()=>{}},setAttribute:()=>{},disabled:false
+  });
+  h.api.apply('custom-1');
+  assert.equal(h.api.getWidth(),400);
+  assert.equal(h.context.active,null,'custom preset starts with a clear central tablature');
+  h.api.setWidth(610);
+  h.context.active=h.groups.get('coach');
+  h.groups.get('coach').selectedTabIndex=1;
+  h.api.save();
+  h.api.apply('learning');
+  h.api.apply('custom-1');
+  assert.equal(h.api.getWidth(),610);
+  assert.equal(h.context.active.id,'coach');
+  assert.equal(h.groups.get('coach').selectedTabIndex,1);
+  h.api.apply('practice');
+  assert.equal(h.api.getWidth(),400,'Entraînement must not inherit custom width');
 });
