@@ -201,10 +201,11 @@ ipcMain.handle('gl-workspace-get', (event) => {
 // windows, including geometry, instead of relying solely on debounce.
 ipcMain.handle('gl-workspace-save', (event, workspaceId) => {
   if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
-      typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
+      typeof workspaceId !== 'string') {
     throw new Error('Enregistrement non autorisé');
   }
   readPanelLayouts();
+  if (!isWorkspaceId(workspaceId)) throw new Error('Espace de travail non autorisé');
   if (switchingWorkspace || activeWorkspace !== workspaceId) {
     throw new Error('Espace de travail non actif');
   }
@@ -219,10 +220,11 @@ ipcMain.handle('gl-workspace-save', (event, workspaceId) => {
 // audio setting or other user-defined workspace is modified.
 ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
   if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
-      typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
+      typeof workspaceId !== 'string') {
     throw new Error('Réinitialisation non autorisée');
   }
   readPanelLayouts();
+  if (!isWorkspaceId(workspaceId)) throw new Error('Espace de travail non autorisé');
   if (switchingWorkspace || activeWorkspace !== workspaceId) {
     throw new Error('Espace de travail non actif');
   }
