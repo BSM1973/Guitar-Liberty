@@ -118,6 +118,26 @@
       presetButtons.set(preset.id, button);
       workspacePresetBar.append(button);
     }
+    const presetActions = document.createElement('div');
+    presetActions.className = 'gl-workspace-preset-actions';
+    const saveLayoutButton = document.createElement('button');
+    saveLayoutButton.type = 'button';
+    saveLayoutButton.className = 'gl-workspace-layout-action';
+    saveLayoutButton.textContent = 'ENREGISTRER';
+    saveLayoutButton.title = 'Enregistrer les fenêtres et la disposition de cet espace';
+    saveLayoutButton.setAttribute('aria-label', 'Enregistrer la disposition de cet espace');
+    const resetLayoutButton = document.createElement('button');
+    resetLayoutButton.type = 'button';
+    resetLayoutButton.className = 'gl-workspace-layout-action gl-workspace-layout-reset';
+    resetLayoutButton.textContent = 'RÉINITIALISER';
+    resetLayoutButton.title = 'Retrouver la disposition initiale de cet espace uniquement';
+    resetLayoutButton.setAttribute('aria-label', 'Réinitialiser cet espace de travail');
+    const layoutStatus = document.createElement('span');
+    layoutStatus.className = 'gl-workspace-layout-status';
+    layoutStatus.setAttribute('role', 'status');
+    layoutStatus.setAttribute('aria-live', 'polite');
+    presetActions.append(saveLayoutButton, resetLayoutButton);
+    workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
     content.prepend(transportDock);
 
@@ -306,7 +326,7 @@
       window.guitarAudio.onPanelClosed(function (id, reason) {
         // A delayed close from an old workspace must not unset a newly opened
         // panel that happens to have the same ID in the new workspace.
-        if (reason === 'workspace-switch') return;
+        if (reason === 'workspace-switch' || reason === 'workspace-reset') return;
         const group = groups.get(id);
         if (!group || !group.detached) return;
         group.detached = false;
@@ -375,6 +395,12 @@
         button.setAttribute('aria-pressed', String(selected));
         button.disabled = workspaceSwitchBusy;
       });
+      saveLayoutButton.disabled = workspaceSwitchBusy || suppressPresetSaving;
+      resetLayoutButton.disabled = workspaceSwitchBusy || suppressPresetSaving;
+    }
+
+    function showWorkspaceStatus(message) {
+      layoutStatus.textContent = message;
     }
 
     function applyPresetView(id) {
@@ -699,6 +725,7 @@
       savePresetView();
       workspaceGeneration++;
       workspaceSwitchBusy = true;
+      showWorkspaceStatus('');
       updatePresetButtons();
       try {
         const layout = await window.guitarAudio.workspaceSwitch(id);
@@ -732,6 +759,67 @@
 
     presetButtons.forEach(function (button, id) {
       button.addEventListener('click', function () { switchWorkspaceProfile(id); });
+    });
+
+    saveLayoutButton.addEventListener('click', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceSave) return;
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      showWorkspaceStatus('');
+      try {
+        savePresetView(); // Native geometry is flushed by workspaceSave.
+        const result = await window.guitarAudio.workspaceSave(activeWorkspaceId);
+        if (!result?.saved || result.id !== activeWorkspaceId) {
+          throw new Error('Sauvegarde non confirmée');
+        }
+        showWorkspaceStatus('Disposition enregistrée');
+      } catch (error) {
+        console.error('Enregistrement de la disposition :', error);
+        showWorkspaceStatus('Enregistrement impossible');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    });
+
+    resetLayoutButton.addEventListener('click', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceReset) return;
+      const preset = workspacePresets.find(item => item.id === activeWorkspaceId);
+      if (!window.confirm('Réinitialiser uniquement l’espace « ' +
+          (preset?.label || activeWorkspaceId) + ' » ? Les autres espaces seront conservés.')) return;
+      workspaceSwitchBusy = true;
+      workspaceGeneration++;
+      updatePresetButtons();
+      showWorkspaceStatus('');
+      try {
+        const result = await window.guitarAudio.workspaceReset(activeWorkspaceId);
+        if (!result?.reset || result.id !== activeWorkspaceId) {
+          throw new Error('Réinitialisation non confirmée');
+        }
+        // The native process closed floating panels without affecting playback.
+        // Discard any leftover startup restoration for this reset workspace.
+        restorationRequested = true;
+        pendingRestoredIds = [];
+        groups.forEach(function (group) {
+          group.detached = false;
+          group.lastRemoteMarkup = '';
+          group.button.classList.remove('gl-is-detached');
+          group.button.title = group.label;
+          group.selectedTabIndex = 0;
+        });
+        closePanel();
+        try { localStorage.removeItem(PRESET_KEY + activeWorkspaceId); } catch (_) {}
+        applyPresetView(activeWorkspaceId);
+        showWorkspaceStatus('Disposition initiale restaurée');
+      } catch (error) {
+        console.error('Réinitialisation de la disposition :', error);
+        showWorkspaceStatus('Réinitialisation impossible');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
     });
 
     detachButton.addEventListener('click', async function () {
