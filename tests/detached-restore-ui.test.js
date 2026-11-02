@@ -37,10 +37,14 @@ function boot({ids = ['practice', 'play-with-me'], hidden = true} = {}) {
       return true;
     }
   };
-  vm.runInNewContext(workspaceSource.slice(start, end), context);
+  vm.runInNewContext(workspaceSource.slice(start, end) +
+    '\nthis.__getRestorationState = () => ({requested:restorationRequested, pending:pendingRestoredIds});',
+    context);
   return {
     workspace, groups, openings, restore: () => context.restoreDetachedPanels(),
-    reads: () => reads, setProvider: (fn) => {provider=fn;}, onOpen: fn => {onOpen=fn;}
+    reads: () => reads, setProvider: (fn) => {provider=fn;}, onOpen: fn => {onOpen=fn;},
+    setGeneration: n => {context.workspaceGeneration = n;},
+    state: () => context.__getRestorationState()
   };
 }
 
@@ -88,6 +92,21 @@ test('temporary IPC restoration failure can be retried on next entry', async () 
   await app.restore();
   assert.deepEqual(app.openings.map(x=>x.id), ['coach']);
   assert.equal(app.reads(),2);
+});
+
+test('a delayed native restore cannot reopen windows after a workspace change', async () => {
+  const app = boot({hidden:false});
+  let resolveRequest;
+  app.setProvider(() => new Promise(resolve => {resolveRequest = resolve;}));
+  const pending = app.restore();
+  await Promise.resolve();
+  app.setGeneration(1); // Switching profiles invalidates pending async responses.
+  resolveRequest(['practice','play-with-me']);
+  await pending;
+  assert.equal(app.openings.length,0,
+    'stale windows must not reopen after workspace generation changes');
+  assert.equal(app.state().pending,null,
+    'the stale native response must not replace the selected preset queue');
 });
 
 test('workspace entry calls restore; showing home does not restore anything', () => {
