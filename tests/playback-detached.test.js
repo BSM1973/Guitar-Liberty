@@ -40,6 +40,7 @@ function practiceFunctionContext() {
     loopToggle: { textContent: '', classList: { remove: (v) => calls.push(['classRemove',v]) } },
     playWithMeTicks: () => ({ start: 1920, end: 5760 }),
     clearPracticeRange: (a) => calls.push(['clearPracticeRange',a]),
+    stop: () => calls.push(['stopPreviousTransport']),
     playWithMePaint: (state) => { context.playWithMePhase = state; calls.push(['paint', state]); },
     playWithMeSessionProgress: { textContent: '' },
     playWithMeProgress: { textContent: '' },
@@ -60,6 +61,8 @@ test('JOUE AVEC MOI starts on the original alphaTab engine and first selected ba
   ctx.startPlayWithMe();
   assert.equal(ctx.playWithMeActive, true);
   assert.equal(ctx.practiceLoop, false, 'loop must not compete with play-with-me');
+  assert.equal(ctx.calls.filter(c => c[0] === 'stopPreviousTransport').length, 1,
+    'previous transport and backing must be stopped before the session starts');
   assert.equal(ctx.api.tickPosition, 1920);
   assert.equal(ctx.calls.filter(c => c[0] === 'play').length, 1,
     'only one alphaTab playback call is allowed');
