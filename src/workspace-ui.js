@@ -384,6 +384,9 @@
         const view = readPresetView(id);
         preferredWidth = view.width;
         updateDrawerGeometry();
+        // Do not carry tab selection from another workspace into a preset
+        // that has never selected that section before.
+        groups.forEach(function (group) { group.selectedTabIndex = 0; });
         for (const [groupId, index] of Object.entries(view.tabs)) {
           const group = groups.get(groupId);
           if (group && Number.isInteger(index) && index >= 0 && index < group.panes.length) {
