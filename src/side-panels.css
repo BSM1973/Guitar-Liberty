@@ -464,3 +464,54 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
 @media(prefers-reduced-motion:reduce){
  #appWorkspace .gl-workspace-preset{transition:none}
 }
+
+
+/* Explicit save / reset of the selected workspace. These controls never
+   interrupt the permanent transport or cover the central tablature. */
+#appWorkspace .gl-workspace-preset-actions{
+ display:flex;flex-wrap:wrap;align-items:center;
+ gap:7px;margin-left:auto;
+}
+#appWorkspace .gl-workspace-layout-action{
+ display:inline-flex;align-items:center;justify-content:center;
+ min-height:35px;max-width:100%;margin:0;padding:8px 12px;
+ border:1px solid #66816f;border-radius:10px;
+ background:#263b42;color:#dcf0e3;
+ font:800 11px/1.2 Arial,sans-serif;letter-spacing:.045em;
+ cursor:pointer;white-space:normal;
+ transition:background .15s,border-color .15s,color .15s;
+}
+#appWorkspace .gl-workspace-layout-action:hover{
+ border-color:#8cc4a3;background:#33524a;color:#f4fff8;
+}
+#appWorkspace .gl-workspace-layout-reset{
+ background:#273448;border-color:#52647d;color:#d7e0ee;
+}
+#appWorkspace .gl-workspace-layout-reset:hover{
+ border-color:#e0b06d;background:#3a3c46;color:#ffe0ad;
+}
+#appWorkspace .gl-workspace-layout-action:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+#appWorkspace .gl-workspace-layout-action:disabled{
+ cursor:wait;opacity:.5;
+}
+#appWorkspace .gl-workspace-layout-status{
+ display:inline-flex;align-items:center;
+ min-height:30px;max-width:100%;margin-left:2px;
+ color:#e8c488;font:700 11px/1.3 Arial,sans-serif;
+}
+#appWorkspace .gl-workspace-layout-status:empty{display:none}
+@media(max-width:1280px){
+ #appWorkspace .gl-workspace-preset-actions{
+  margin-left:0;
+ }
+}
+@media(max-width:740px){
+ #appWorkspace .gl-workspace-preset-actions{width:100%}
+ #appWorkspace .gl-workspace-layout-action{flex:1 1 auto}
+ #appWorkspace .gl-workspace-layout-status{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+ #appWorkspace .gl-workspace-layout-action{transition:none}
+}
