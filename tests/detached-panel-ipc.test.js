@@ -361,3 +361,115 @@ test('older saved layouts without openPanels are valid and restore no windows', 
   assert.deepEqual([...restore({sender: startup.windows[1].webContents})], []);
   assert.equal(startup.windows.length, 2);
 });
+
+
+test('Apprentissage, Entraînement and Improvisation keep independent floating layouts', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-workspaces-'));
+  t.after(() => fs.rmSync(directory, {recursive:true, force:true}));
+  const h = bootMain({layoutDirectory: directory});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const get = h.handlers.get('gl-workspace-get');
+  const switchTo = h.handlers.get('gl-workspace-switch');
+  const open = h.handlers.get('gl-panel-open');
+  assert.deepEqual(JSON.parse(JSON.stringify(get({sender}))),
+    {id:'learning', openPanels:[]});
+
+  await open({sender}, 'coach', 'COACHS');
+  const original = h.windows[2];
+  original.setBounds({x:150,y:110,width:520,height:720});
+  const training = await switchTo({sender}, 'practice');
+  assert.equal(training.id, 'practice');
+  assert.deepEqual([...training.openPanels], []);
+  assert.equal(original.destroyed, true);
+  assert.equal(h.windows[1].destroyed, false, 'TAB/transport stay in their original window');
+  const lastClose = sender.sent.filter(e => e.channel === 'gl-panel-closed').at(-1);
+  assert.equal(lastClose.args[1], 'workspace-switch');
+
+  await open({sender}, 'practice', 'ENTRAÎNEMENT');
+  h.windows[3].setBounds({x:600,y:120,width:570,height:690});
+  const improvisation = await switchTo({sender}, 'improv');
+  assert.deepEqual([...improvisation.openPanels], []);
+  await open({sender}, 'liberty', 'MODE LIBERTÉ');
+  h.windows[4].setBounds({x:890,y:80,width:470,height:680});
+
+  const learning = await switchTo({sender}, 'learning');
+  assert.deepEqual([...learning.openPanels], ['coach']);
+  await open({sender}, 'coach', 'COACHS', true);
+  assert.deepEqual(h.windows[5].getBounds(),
+    {x:150,y:110,width:520,height:720});
+
+  const trainingAgain = await switchTo({sender}, 'practice');
+  assert.deepEqual([...trainingAgain.openPanels], ['practice']);
+  await open({sender}, 'practice', 'ENTRAÎNEMENT', true);
+  assert.deepEqual(h.windows[6].getBounds(),
+    {x:600,y:120,width:570,height:690});
+
+  const layouts = JSON.parse(fs.readFileSync(
+    path.join(directory, 'detached-panel-layouts.json'), 'utf8'));
+  assert.equal(layouts.version, 1);
+  assert.equal(layouts.activeWorkspace, 'practice');
+  assert.deepEqual(layouts.workspaces.learning.openPanels, ['coach']);
+  assert.deepEqual(layouts.workspaces.practice.openPanels, ['practice']);
+  assert.deepEqual(layouts.workspaces.improv.openPanels, ['liberty']);
+  assert.deepEqual(layouts.workspaces.improv.panels.liberty,
+    {x:890,y:80,width:470,height:680});
+
+  const anotherRun = bootMain({layoutDirectory: directory});
+  await Promise.resolve();
+  const nextSender = anotherRun.windows[1].webContents;
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    anotherRun.handlers.get('gl-workspace-get')({sender:nextSender})
+  )), {id:'practice',openPanels:['practice']});
+});
+
+test('reattaching a panel only affects the active workspace preset', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-preset-close-'));
+  t.after(() => fs.rmSync(directory, {recursive:true, force:true}));
+  const h = bootMain({layoutDirectory:directory});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const open = h.handlers.get('gl-panel-open');
+  const switchTo = h.handlers.get('gl-workspace-switch');
+  await open({sender}, 'play-with-me', 'JOUE AVEC MOI');
+  await switchTo({sender}, 'practice');
+  await open({sender}, 'play-with-me', 'JOUE AVEC MOI');
+  h.emit('gl-panel-reattach', h.windows[3].webContents, 'play-with-me');
+  assert.equal(h.windows[3].destroyed, true);
+  const training = await switchTo({sender}, 'learning');
+  assert.deepEqual([...training.openPanels], ['play-with-me']);
+  const other = await switchTo({sender}, 'practice');
+  assert.deepEqual([...other.openPanels], []);
+});
+
+test('legacy layouts migrate to Apprentissage without losing panel dimensions', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-preset-migrate-'));
+  t.after(() => fs.rmSync(directory, {recursive:true, force:true}));
+  fs.writeFileSync(path.join(directory, 'detached-panel-layouts.json'),
+    JSON.stringify({version:1,
+      panels:{practice:{x:140,y:80,width:520,height:650}},
+      openPanels:['practice']}));
+  const h = bootMain({layoutDirectory:directory});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    h.handlers.get('gl-workspace-get')({sender})
+  )),{id:'learning',openPanels:['practice']});
+  await h.handlers.get('gl-panel-open')({sender},'practice','ENTRAÎNEMENT',true);
+  assert.deepEqual(h.windows[2].getBounds(),
+    {x:140,y:80,width:520,height:650});
+  const next = await h.handlers.get('gl-workspace-switch')({sender},'improv');
+  assert.deepEqual([...next.openPanels],[]);
+});
+
+test('invalid or unauthorized workspace requests cannot alter the active preset', async () => {
+  const h = bootMain();await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const swap = h.handlers.get('gl-workspace-switch');
+  const get = h.handlers.get('gl-workspace-get');
+  await assert.rejects(swap({sender}, 'unknown'), /non autorisé/);
+  await assert.rejects(swap({sender:{}}, 'practice'), /non autorisé/);
+  assert.throws(() => get({sender:{}}), /non autorisé/);
+  assert.equal(get({sender}).id,'learning');
+  assert.equal(h.windows.length,2);
+});
