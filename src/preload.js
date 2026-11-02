@@ -5,7 +5,9 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   importScore: () => ipcRenderer.invoke('import-score'),
   readScore: (filePath) => ipcRenderer.invoke('read-score', filePath),
   // Detached panels keep the original controls and application state in this window.
-  panelOpen: (id, title) => ipcRenderer.invoke('gl-panel-open', id, title),
+  panelOpen: (id, title, restoring = false) =>
+    ipcRenderer.invoke('gl-panel-open', id, title, Boolean(restoring)),
+  panelRestorable: () => ipcRenderer.invoke('gl-panel-restore-session'),
   panelSnapshot: (id, markup) => ipcRenderer.send('gl-panel-snapshot', id, markup),
   onPanelAction: (callback) => {
     const listener = (_event, panelId, action) => callback(panelId, action);
