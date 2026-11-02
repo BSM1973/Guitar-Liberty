@@ -183,7 +183,7 @@ test('STOP/close/reattach lifetime keeps only one main playback context', async 
 
   harness.emit('gl-panel-reattach', practice.webContents, 'practice');
   assert.equal(practice.destroyed, true);
-  assert.deepEqual([...main.webContents.sent.at(-1).args], ['practice']);
+  assert.deepEqual([...main.webContents.sent.at(-1).args], ['practice', 'manual']);
   assert.equal(main.webContents.sent.at(-1).channel, 'gl-panel-closed');
 
   main.close();
