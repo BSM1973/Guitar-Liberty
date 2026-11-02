@@ -224,7 +224,7 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
     throw new Error('Réinitialisation non autorisée');
   }
   readPanelLayouts();
-  if (!isWorkspaceId(workspaceId)) throw new Error('Espace de travail non autorisé');
+  if (!isWorkspaceId(workspaceId)) throw new Error('Réinitialisation non autorisée');
   if (switchingWorkspace || activeWorkspace !== workspaceId) {
     throw new Error('Espace de travail non actif');
   }
