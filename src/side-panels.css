@@ -378,3 +378,36 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
 @media(prefers-reduced-motion:reduce){
  #appWorkspace>.gl-context-panel .gl-panel-resize-handle::before{transition:none}
 }
+
+
+/* Native window detach control; same metallic detail as the resize handle. */
+#appWorkspace .gl-context-detach{
+ display:flex;align-items:center;justify-content:center;
+ flex-shrink:0;min-width:94px;min-height:38px;
+ margin:0;padding:8px 11px;border:1px solid #837252;
+ border-radius:10px;background:linear-gradient(155deg,#34445b,#24374d);
+ color:#f2cf95;cursor:pointer;
+ font:800 12px/1.15 Arial,sans-serif;letter-spacing:.035em;
+ transition:background .15s,border-color .15s;
+}
+#appWorkspace .gl-context-detach[hidden]{display:none!important}
+#appWorkspace .gl-context-detach:hover{
+ background:#3b5067;border-color:#e8ba68;
+}
+#appWorkspace .gl-context-detach:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+#appWorkspace .gl-context-detach:disabled{
+ opacity:.45;cursor:wait;
+}
+#appWorkspace .gl-rail-button.gl-is-detached{
+ color:#e8ba68;border-color:#6b795f;
+ background:#1e3444;box-shadow:inset 3px 0 0 #86b4c2;
+}
+#appWorkspace .gl-rail-button.gl-is-detached::after{
+ content:"";width:5px;height:5px;border-radius:50%;
+ background:#9ac5c9;box-shadow:0 0 6px #9ac5c999;
+}
+@media(max-width:480px){
+ #appWorkspace .gl-context-detach{min-width:78px;padding:7px;font-size:11px}
+}
