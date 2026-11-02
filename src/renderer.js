@@ -2939,6 +2939,9 @@ function openWorkspace(target){
  if(!back){back=document.createElement('button');back.id='homeBack';back.className='home-back';back.textContent='⌂ ACCUEIL';document.body.appendChild(back);back.onclick=showHome;}
  back.hidden=false;
  requestAnimationFrame(()=>{
+  // Restore native windows only after the user enters the music workspace.
+  // The restoration is idempotent and does not run on the welcome screen.
+  window.guitarLibertyWorkspaceUI?.restoreDetachedPanels?.();
   // The modular workspace owns navigation when its icon rail is available.
   // Keep the historical scroll behavior only as a safe fallback.
   if(window.guitarLibertyWorkspaceUI?.openTarget){
