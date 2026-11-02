@@ -642,7 +642,7 @@ test('custom presets can be deleted only when inactive; other layouts stay safe'
     {id:first.id,deleted:true});
   assert.throws(()=>deleteCustom({sender},'learning'),/trois espaces/);
   assert.throws(()=>deleteCustom({sender},'ghost'),/trois espaces/);
-  assert.deepEqual(h.handlers.get('gl-workspace-list')({sender}).map(p=>p.id),
+  assert.deepEqual([...h.handlers.get('gl-workspace-list')({sender})].map(p=>p.id),
     ['learning','practice','improv',second.id]);
   await select({sender},'learning');
   assert.deepEqual(JSON.parse(JSON.stringify(deleteCustom({sender},second.id))),
@@ -691,7 +691,7 @@ test('malformed custom preset metadata is rejected without losing base profiles'
   }));
   const h=bootMain({layoutDirectory:folder});await Promise.resolve();
   const sender=h.windows[1].webContents;
-  const ids=h.handlers.get('gl-workspace-list')({sender}).map(p=>p.id);
+  const ids=[...h.handlers.get('gl-workspace-list')({sender})].map(p=>p.id);
   assert.deepEqual(ids,['learning','practice','improv','custom-1']);
   assert.equal(h.handlers.get('gl-workspace-get')({sender}).id,'learning');
   await h.handlers.get('gl-workspace-switch')({sender},'custom-1');
