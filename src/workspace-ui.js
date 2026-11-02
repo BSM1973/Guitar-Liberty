@@ -55,6 +55,20 @@
     ] }
   ];
 
+  const descriptions = {
+    courses: 'Cours, tablatures et supports',
+    dashboard: 'Ton parcours en un coup d’œil',
+    intention: 'Choisis ton objectif musical',
+    guided: 'Avance à ton propre rythme',
+    practice: 'Boucles, tempo et précision',
+    coach: 'Des conseils adaptés à ton jeu',
+    listen: 'Écoute et analyse de ta guitare',
+    liberty: 'Apprends, joue et libère-toi',
+    'play-with-me': 'Écoute, réponds, joue',
+    session: 'Ton activité et tes progrès',
+    history: 'Retrouve ton évolution'
+  };
+
   function svg(name) {
     return '<svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + glyphs[name] + '</svg>';
   }
@@ -113,17 +127,29 @@
     drawer.className = 'gl-context-panel';
     drawer.hidden = true;
     drawer.setAttribute('aria-label', 'Panneaux Guitare Liberty');
+    drawer.setAttribute('aria-labelledby', 'glContextTitle');
     const drawerHead = document.createElement('div');
     drawerHead.className = 'gl-context-head';
+    const drawerIdentity = document.createElement('div');
+    drawerIdentity.className = 'gl-context-identity';
+    const drawerIcon = document.createElement('span');
+    drawerIcon.className = 'gl-context-icon';
+    drawerIcon.setAttribute('aria-hidden', 'true');
+    const drawerCopy = document.createElement('div');
+    drawerCopy.className = 'gl-context-copy';
     const drawerTitle = document.createElement('strong');
     drawerTitle.id = 'glContextTitle';
+    const drawerSubtitle = document.createElement('small');
+    drawerSubtitle.className = 'gl-context-subtitle';
+    drawerCopy.append(drawerTitle, drawerSubtitle);
+    drawerIdentity.append(drawerIcon, drawerCopy);
     const closeButton = document.createElement('button');
     closeButton.className = 'gl-context-close';
     closeButton.type = 'button';
     closeButton.title = 'Fermer le panneau';
     closeButton.setAttribute('aria-label', 'Fermer le panneau');
     closeButton.textContent = '×';
-    drawerHead.append(drawerTitle, closeButton);
+    drawerHead.append(drawerIdentity, closeButton);
     const drawerBody = document.createElement('div');
     drawerBody.className = 'gl-context-body';
     drawer.append(drawerHead, drawerBody);
@@ -146,6 +172,7 @@
         const isSelected = index === n;
         button.classList.toggle('is-active', isSelected);
         button.setAttribute('aria-selected', String(isSelected));
+        button.tabIndex = isSelected ? 0 : -1;
         group.panes[n].hidden = !isSelected;
         if (isSelected) {
           const inner = group.panes[n].firstElementChild;
@@ -191,6 +218,8 @@
       drawer.hidden = false;
       workspace.classList.add('gl-context-open');
       drawerTitle.textContent = group.label;
+      drawerSubtitle.textContent = descriptions[id] || 'Espace musical';
+      drawerIcon.innerHTML = svg(group.icon);
       group.button.classList.add('is-active');
       group.button.setAttribute('aria-expanded', 'true');
       selectTab(group, typeof index === 'number' ? index : 0);
@@ -226,19 +255,44 @@
         tab.textContent = entry.title;
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-selected', 'false');
+        tab.id = 'gl-tab-' + spec.id + '-' + index;
+        tab.setAttribute('aria-controls', 'gl-pane-' + spec.id + '-' + index);
+        tab.tabIndex = -1;
         const pane = document.createElement('div');
         pane.className = 'gl-feature-pane';
+        pane.id = 'gl-pane-' + spec.id + '-' + index;
+        pane.setAttribute('role', 'tabpanel');
+        pane.setAttribute('aria-labelledby', tab.id);
         pane.hidden = true;
         pane.append(entry.node);
+        if ((entry.node.classList.contains('video-stage') ||
+             entry.node.classList.contains('tutorial-notice'))) {
+          const placeholder = document.createElement('p');
+          placeholder.className = 'gl-feature-empty';
+          placeholder.textContent = entry.node.classList.contains('video-stage')
+            ? 'Aucune vidéo disponible pour ce cours pour le moment.'
+            : 'Aucun tutoriel disponible pour ce cours pour le moment.';
+          pane.append(placeholder);
+        }
         tabs.append(tab);
         element.append(pane);
         tab.addEventListener('click', function () { selectTab(groups.get(spec.id), index); });
+        tab.addEventListener('keydown', function (event) {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const last = tabButtons.length - 1;
+          const next = event.key === 'Home' ? 0 :
+            event.key === 'End' ? last :
+            (index + (event.key === 'ArrowRight' ? 1 : -1) + tabButtons.length) % tabButtons.length;
+          selectTab(groups.get(spec.id), next);
+          tabButtons[next].focus();
+        });
         tabButtons.push(tab);
         panes.push(pane);
       });
       if (nodes.length > 1) element.prepend(tabs);
       drawerBody.append(element);
-      groups.set(spec.id, { label: spec.label, button: button, element: element, panes: panes, tabs: tabButtons });
+      groups.set(spec.id, { label: spec.label, icon: spec.icon, button: button, element: element, panes: panes, tabs: tabButtons });
       button.addEventListener('click', function () { openPanel(spec.id); });
     });
 
