@@ -44,6 +44,7 @@ function bootMain(options = {}) {
     }
     isDestroyed() { return this.destroyed; }
     show() { this.shown = true; }
+    showInactive() { this.shown = true; this.shownInactive = true; }
     focus() { this.focused = true; }
     maximize() { this.maximized = true; }
     getBounds() { return {...this.bounds}; }
@@ -266,4 +267,97 @@ test('a corrupted or invalid layout file falls back to safe native window bounds
   assert.equal(bounds.width, 510);
   assert.equal(bounds.height, 760);
   assert.ok(bounds.x >= 0 && bounds.y >= 0);
+});
+
+
+test('saved floating windows return after entering the workspace, with no premature popup', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-restore-session-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const first = bootMain({layoutDirectory: folder});
+  await Promise.resolve();
+  const opening = first.handlers.get('gl-panel-open');
+  await opening({sender: first.windows[1].webContents}, 'practice', 'ENTRAÎNEMENT');
+  await opening({sender: first.windows[1].webContents}, 'play-with-me', 'JOUE AVEC MOI');
+  first.windows[2].setBounds({x: 120, y: 95, width: 550, height: 700});
+  first.windows[3].setBounds({x: 780, y: 85, width: 600, height: 760});
+
+  // Closing the main workspace is not an intentional reattach.
+  first.windows[1].close();
+  const state = JSON.parse(fs.readFileSync(
+    path.join(folder, 'detached-panel-layouts.json'), 'utf8'));
+  assert.deepEqual([...state.openPanels].sort(), ['play-with-me', 'practice']);
+  assert.deepEqual(state.panels.practice, {x:120,y:95,width:550,height:700});
+  assert.deepEqual(state.panels['play-with-me'], {x:780,y:85,width:600,height:760});
+
+  const next = bootMain({layoutDirectory: folder});
+  await Promise.resolve();
+  assert.equal(next.windows.length, 2,
+    'no floating window should appear on the welcome screen');
+  const restore = next.handlers.get('gl-panel-restore-session');
+  assert.equal(typeof restore, 'function');
+  await assert.rejects(
+    async () => restore({sender: {id:'other'}}),
+    /non autorisée/,
+    'untrusted renderers may not read or trigger a previous layout'
+  );
+  const ids = restore({sender: next.windows[1].webContents});
+  assert.deepEqual([...ids].sort(), ['play-with-me', 'practice']);
+  for (const id of ids) {
+    const result = await next.handlers.get('gl-panel-open')({
+      sender: next.windows[1].webContents
+    }, id, id, true);
+    assert.equal(result.opened, true);
+  }
+  assert.equal(next.windows.length, 4);
+  assert.deepEqual(next.windows[2].getBounds(), state.panels.practice);
+  assert.deepEqual(next.windows[3].getBounds(), state.panels['play-with-me']);
+  next.windows[2].emit('ready-to-show');
+  next.windows[3].emit('ready-to-show');
+  assert.equal(next.windows[2].shownInactive, true);
+  assert.equal(next.windows[3].shownInactive, true);
+  assert.equal(next.windows[2].focused, false);
+  assert.equal(next.windows[3].focused, false);
+});
+
+test('closing or reattaching a floating panel removes it from next-session restoration', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-close-session-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const first = bootMain({layoutDirectory: folder});
+  await Promise.resolve();
+  const open = first.handlers.get('gl-panel-open');
+  const main = first.windows[1];
+  await open({sender: main.webContents}, 'practice', 'ENTRAÎNEMENT');
+  await open({sender: main.webContents}, 'play-with-me', 'JOUE AVEC MOI');
+  first.emit('gl-panel-reattach', first.windows[2].webContents, 'practice');
+  assert.equal(first.windows[2].destroyed, true);
+  main.close();
+
+  const next = bootMain({layoutDirectory: folder});
+  await Promise.resolve();
+  const restore = next.handlers.get('gl-panel-restore-session');
+  assert.deepEqual([...restore({sender: next.windows[1].webContents})],
+    ['play-with-me'], 'reattached panel should not reopen');
+
+  await next.handlers.get('gl-panel-open')({
+    sender: next.windows[1].webContents
+  }, 'play-with-me', 'JOUE AVEC MOI', true);
+  next.windows[2].close();
+  const afterManualClose = bootMain({layoutDirectory: folder});
+  await Promise.resolve();
+  assert.deepEqual([...afterManualClose.handlers.get('gl-panel-restore-session')({
+    sender: afterManualClose.windows[1].webContents
+  })], [], 'manually closed panel should not reopen');
+});
+
+test('older saved layouts without openPanels are valid and restore no windows', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-old-session-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(folder, 'detached-panel-layouts.json'), JSON.stringify({
+    version: 1, panels: {practice: {x:50,y:50,width:500,height:700}}
+  }));
+  const startup = bootMain({layoutDirectory: folder});
+  await Promise.resolve();
+  const restore = startup.handlers.get('gl-panel-restore-session');
+  assert.deepEqual([...restore({sender: startup.windows[1].webContents})], []);
+  assert.equal(startup.windows.length, 2);
 });
