@@ -3,5 +3,23 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('guitarAudio', {
   loadSample: (fileName) => ipcRenderer.invoke('load-guitar-sample', fileName),
   importScore: () => ipcRenderer.invoke('import-score'),
-  readScore: (filePath) => ipcRenderer.invoke('read-score', filePath)
+  readScore: (filePath) => ipcRenderer.invoke('read-score', filePath),
+  // Detached panels keep the original controls and application state in this window.
+  panelOpen: (id, title) => ipcRenderer.invoke('gl-panel-open', id, title),
+  panelSnapshot: (id, markup) => ipcRenderer.send('gl-panel-snapshot', id, markup),
+  onPanelAction: (callback) => {
+    const listener = (_event, panelId, action) => callback(panelId, action);
+    ipcRenderer.on('gl-panel-action', listener);
+    return () => ipcRenderer.removeListener('gl-panel-action', listener);
+  },
+  onPanelRequest: (callback) => {
+    const listener = (_event, panelId) => callback(panelId);
+    ipcRenderer.on('gl-panel-request', listener);
+    return () => ipcRenderer.removeListener('gl-panel-request', listener);
+  },
+  onPanelClosed: (callback) => {
+    const listener = (_event, panelId) => callback(panelId);
+    ipcRenderer.on('gl-panel-closed', listener);
+    return () => ipcRenderer.removeListener('gl-panel-closed', listener);
+  }
 });
