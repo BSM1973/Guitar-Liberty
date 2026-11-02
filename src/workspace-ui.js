@@ -106,18 +106,54 @@
       { id: 'improv', label: 'IMPROVISATION', dock: 'liberty' }
     ];
     const presetButtons = new Map();
-    for (const preset of workspacePresets) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'gl-workspace-preset';
-      button.textContent = preset.label;
-      button.setAttribute('data-gl-workspace', preset.id);
-      button.setAttribute('aria-pressed', String(preset.id === 'learning'));
-      button.title = preset.label + ' — disposition personnalisable';
-      if (preset.id === 'learning') button.classList.add('is-active');
-      presetButtons.set(preset.id, button);
-      workspacePresetBar.append(button);
+    const presetButtonList = document.createElement('div');
+    presetButtonList.className = 'gl-workspace-preset-list';
+    presetButtonList.setAttribute('aria-label', 'Choisir un espace de travail');
+    const createWorkspaceButton = document.createElement('button');
+    createWorkspaceButton.type = 'button';
+    createWorkspaceButton.className = 'gl-workspace-preset gl-workspace-preset-create';
+    createWorkspaceButton.textContent = 'NOUVEL ESPACE';
+    createWorkspaceButton.title = 'Créer un espace de travail avec un nom personnalisé';
+    createWorkspaceButton.setAttribute('aria-label', 'Créer un espace de travail');
+
+    // Only pre-defined presets are protected. Extra presets are loaded from
+    // the native app-data file, not from names interpolated into HTML.
+    function renderWorkspacePresets(definitions) {
+      const fixed = [
+        {id:'learning',label:'APPRENTISSAGE',dock:'courses',builtIn:true},
+        {id:'practice',label:'ENTRAÎNEMENT',dock:'practice',builtIn:true},
+        {id:'improv',label:'IMPROVISATION',dock:'liberty',builtIn:true}
+      ];
+      const extra = Array.isArray(definitions) ? definitions.filter(function (item) {
+        return item && typeof item.id === 'string' &&
+          /^custom-[1-9]\\d*$/.test(item.id) &&
+          typeof item.label === 'string' && item.label.length >= 1 &&
+          item.label.length <= 32 && !fixed.some(base => base.id === item.id);
+      }).slice(0,8).map(item => ({
+        id:item.id,label:item.label,dock:null,builtIn:false
+      })) : [];
+      workspacePresets.splice(0, workspacePresets.length, ...fixed, ...extra);
+      presetButtons.clear();
+      presetButtonList.replaceChildren();
+      for (const preset of workspacePresets) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gl-workspace-preset';
+        button.textContent = preset.label;
+        button.setAttribute('data-gl-workspace', preset.id);
+        button.setAttribute('aria-pressed', String(preset.id === 'learning'));
+        button.title = preset.label + ' — disposition personnalisable';
+        if (preset.id === 'learning') button.classList.add('is-active');
+        button.addEventListener('click', function () {
+          switchWorkspaceProfile(preset.id);
+        });
+        presetButtons.set(preset.id, button);
+        presetButtonList.append(button);
+      }
+      presetButtonList.append(createWorkspaceButton);
     }
+    renderWorkspacePresets(workspacePresets);
+    workspacePresetBar.append(presetButtonList);
     const presetActions = document.createElement('div');
     presetActions.className = 'gl-workspace-preset-actions';
     const saveLayoutButton = document.createElement('button');
@@ -757,10 +793,6 @@
         updatePresetButtons();
       }
     }
-
-    presetButtons.forEach(function (button, id) {
-      button.addEventListener('click', function () { switchWorkspaceProfile(id); });
-    });
 
     saveLayoutButton.addEventListener('click', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
