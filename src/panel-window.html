@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'">
+ <title>Guitare Liberty — Panneau détaché</title>
+ <link rel="stylesheet" href="style.css">
+ <link rel="stylesheet" href="side-panels.css">
+ <link rel="stylesheet" href="panel-window.css">
+</head>
+<body>
+ <div id="appWorkspace" class="gl-popout-root gl-context-open">
+  <aside class="gl-context-panel">
+   <div class="gl-context-head">
+    <div class="gl-context-identity">
+     <span class="gl-context-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8">
+       <rect x="4" y="4" width="14" height="14" rx="2"></rect>
+       <path d="M10 2h12v12"></path>
+      </svg>
+     </span>
+     <div class="gl-context-copy">
+      <strong id="panelWindowTitle">Panneau détaché</strong>
+      <small class="gl-context-subtitle">Guitare Liberty — réglages synchronisés</small>
+     </div>
+    </div>
+    <button id="reattachPanel" class="gl-reattach-button" type="button" title="Rattacher ce panneau dans Guitare Liberty">RATTACHER</button>
+   </div>
+   <div class="gl-context-body" id="popoutBody">
+    <div id="panelLoading" role="status">Ouverture du panneau…</div>
+    <div id="detachedContent"></div>
+   </div>
+  </aside>
+ </div>
+ <script src="panel-window.js"></script>
+</body>
+</html>
