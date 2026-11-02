@@ -705,7 +705,8 @@
       drawerIcon.innerHTML = svg(group.icon);
       group.button.classList.add('is-active');
       group.button.setAttribute('aria-expanded', 'true');
-      selectTab(group, typeof index === 'number' ? index : 0);
+      // Reopening a drawer keeps the tab last used in this workspace.
+      selectTab(group, typeof index === 'number' ? index : group.selectedTabIndex || 0);
     }
 
     sections.forEach(function (spec) {
@@ -910,6 +911,8 @@
     workspaceNameOverlay.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
         event.preventDefault();
+        // Do not also close the dock beneath the modal.
+        event.stopPropagation();
         closeWorkspaceNameDialog();
       }
     });
@@ -1144,7 +1147,9 @@
     });
     closeButton.addEventListener('click', closePanel);
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && active) closePanel();
+      if (event.key === 'Escape' && active && workspaceNameOverlay.hidden) {
+        closePanel();
+      }
     });
 
     window.guitarLibertyWorkspaceUI = {
