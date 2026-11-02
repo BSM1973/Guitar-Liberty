@@ -64,10 +64,74 @@
     }
   }
 
+  // Reconcile changing labels, state and values without replacing controls.
+  // A complete innerHTML rewrite during playback can swallow a mouse click
+  // between pointerup and click, reset keyboard focus or break a slider drag.
+  function sameStructure(left, right) {
+    if (!left || !right || left.nodeType !== right.nodeType ||
+        left.nodeName !== right.nodeName ||
+        left.childNodes.length !== right.childNodes.length) return false;
+    for (let i = 0; i < left.childNodes.length; i++) {
+      if (!sameStructure(left.childNodes[i], right.childNodes[i])) return false;
+    }
+    return true;
+  }
+
+  function patchNode(target, source) {
+    if (target.nodeType === 3) {
+      if (target.nodeValue !== source.nodeValue) target.nodeValue = source.nodeValue;
+      return;
+    }
+    if (target.nodeType !== 1) return;
+    const editing = document.activeElement === target ||
+      (pointerDown && target.matches('input,select,textarea,button,summary'));
+    const preserveValue = editing && target.matches('input,select,textarea');
+    for (const attribute of Array.from(target.attributes)) {
+      if (!source.hasAttribute(attribute.name) &&
+          !(preserveValue && (attribute.name === 'value' ||
+                             attribute.name === 'checked' ||
+                             attribute.name === 'selected'))) {
+        target.removeAttribute(attribute.name);
+      }
+    }
+    for (const attribute of Array.from(source.attributes)) {
+      if (preserveValue && (attribute.name === 'value' ||
+                            attribute.name === 'checked' ||
+                            attribute.name === 'selected')) continue;
+      if (target.getAttribute(attribute.name) !== attribute.value) {
+        target.setAttribute(attribute.name, attribute.value);
+      }
+    }
+    if (!preserveValue && target.matches('input,textarea')) {
+      if (target.type === 'checkbox' || target.type === 'radio') {
+        target.checked = source.checked;
+      } else if (target.value !== source.value) {
+        target.value = source.value;
+      }
+    } else if (!preserveValue && target.matches('select')) {
+      if (target.value !== source.value) target.value = source.value;
+    }
+    for (let i = 0; i < target.childNodes.length; i++) {
+      if (preserveValue && target.nodeName === 'TEXTAREA') break;
+      patchNode(target.childNodes[i], source.childNodes[i]);
+    }
+  }
+
   function redraw() {
     if (!latestMarkup || latestMarkup === paintedMarkup) return;
-    // Never replace an editable field or a pointer target during playback.
-    if (pointerDown || userIsEditing() || Date.now() - lastInteraction < 160) {
+    const template = document.createElement('template');
+    template.innerHTML = latestMarkup;
+    const incoming = template.content.firstElementChild;
+    const existing = content.firstElementChild;
+    if (incoming && existing && sameStructure(existing, incoming)) {
+      patchNode(existing, incoming);
+      paintedMarkup = latestMarkup;
+      loading.hidden = true;
+      return;
+    }
+    // Structural changes (new history entries or tabs) may need a full render.
+    // Do not change the DOM while the user is pressing or editing controls.
+    if (pointerDown || userIsEditing() || Date.now() - lastInteraction < 220) {
       updateLiveStatuses();
       return;
     }
@@ -114,9 +178,20 @@
     api.action(panelId, action);
   };
 
-  content.addEventListener('pointerdown', function () { pointerDown = true; });
-  window.addEventListener('pointerup', function () { pointerDown = false; redraw(); });
-  window.addEventListener('pointercancel', function () { pointerDown = false; redraw(); });
+  content.addEventListener('pointerdown', function () {
+    pointerDown = true;
+    lastInteraction = Date.now();
+  });
+  // The browser fires click AFTER pointerup. Replacing a button here would
+  // discard that click before it can reach the authoritative main window.
+  window.addEventListener('pointerup', function () {
+    pointerDown = false;
+    updateLiveStatuses();
+  });
+  window.addEventListener('pointercancel', function () {
+    pointerDown = false;
+    lastInteraction = Date.now();
+  });
   content.addEventListener('click', function (event) {
     const target = event.target.closest('button,summary');
     if (target && content.contains(target)) sendAction({target: target}, 'click');
