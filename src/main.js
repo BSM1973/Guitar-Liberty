@@ -143,7 +143,13 @@ function createWindow() {
     backgroundColor: '#101216',
     title: 'Guitare Liberty',
     show: false,
-    webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
+    webPreferences: {
+      contextIsolation: true,
+      // Keep alphaTab, musical timers and backing clocks active while a detached
+      // panel owns keyboard focus or the main window is behind it.
+      backgroundThrottling: false,
+      preload: path.join(__dirname, 'preload.js')
+    }
   });
 
   splash.loadFile(path.join(__dirname, 'splash.html'));
