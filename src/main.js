@@ -144,7 +144,7 @@ ipcMain.handle('gl-workspace-get', (event) => {
   return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
 });
 
-ipcMain.handle('gl-workspace-switch', (event, workspaceId) => {
+ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
       typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
     throw new Error('Espace de travail non autorisé');
@@ -157,12 +157,19 @@ ipcMain.handle('gl-workspace-switch', (event, workspaceId) => {
   // must not be mistaken for a deliberate RATTACHER.
   switchingWorkspace = true;
   try {
+    const closing = [];
     for (const popup of Array.from(guitarPanelWindows.values())) {
       if (popup.isDestroyed()) continue;
       popup._glCloseReason = 'workspace-switch';
       rememberPanelBounds(popup._glPanelId, popup);
-      popup.close();
+      closing.push(new Promise(resolve => {
+        popup.once('closed', resolve);
+        popup.close();
+      }));
     }
+    // Await native close completion so an old window cannot be mistakenly
+    // reused when the same tool is detached in the new workspace.
+    await Promise.all(closing);
     activeWorkspace = workspaceId;
     savedPanelLayouts = savedWorkspaces[workspaceId].panels;
     savedDetachedPanelIds = savedWorkspaces[workspaceId].openPanels;
