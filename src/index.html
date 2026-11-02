@@ -394,7 +394,13 @@ document.addEventListener('DOMContentLoaded',()=>{
    toggle.setAttribute('aria-expanded',String(open));
    panel.classList.toggle('gl-section-collapsed',!open);
   };
-  toggle.addEventListener('click',()=>{open=!open;render();});
+  toggle.addEventListener('click',()=>{
+   open=!open;
+   // These panels also use the native hidden attribute in their feature logic.
+   // Reveal them when explicitly opened, while preserving their normal controls.
+   if(open&&panel.hidden)panel.hidden=false;
+   render();
+  });
   render();
  });
 });
