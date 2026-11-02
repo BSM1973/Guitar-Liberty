@@ -9,16 +9,32 @@ const source=fs.readFileSync(path.join(__dirname,'..','src','workspace-ui.js'),'
 const from=source.indexOf("    const WIDTH_KEY = 'guitar-liberty-panel-width';");
 const to=source.indexOf('    function panelBounds() {',from);
 assert.ok(from>=0&&to>from,'per-workspace saved layout implementation exists');
-const piece=source.slice(from,to);
+// Include the actual DOM tab-state applicator, not an independent mock.
+const tabStart=source.indexOf('    function applyGroupTabState(');
+const tabEnd=source.indexOf('    function selectTab(',tabStart);
+assert.ok(tabStart>=0 && tabEnd>tabStart,'actual tab-state applicator exists');
+const piece=source.slice(from,to)+'\n'+source.slice(tabStart,tabEnd);
+
+function mockGroup(id, count) {
+  const panes=Array.from({length:count},()=>({hidden:false,firstElementChild:null}));
+  const tabs=Array.from({length:count},()=>({
+    attrs:{},tabIndex:0,
+    classList:{classes:new Set(),toggle(name,on){
+      if(on)this.classes.add(name); else this.classes.delete(name);
+    }},
+    setAttribute(name,value){this.attrs[name]=value;}
+  }));
+  return {id,selectedTabIndex:0,panes,tabs};
+}
 
 function harness(existing={}) {
   const data=new Map(Object.entries(existing));
   const opened=[];
   const groups=new Map([
-    ['courses',{id:'courses',selectedTabIndex:0,panes:[{},{}]}],
-    ['practice',{id:'practice',selectedTabIndex:0,panes:[{},{}]}],
-    ['liberty',{id:'liberty',selectedTabIndex:0,panes:[{}]}],
-    ['coach',{id:'coach',selectedTabIndex:0,panes:[{},{}]}]
+    ['courses',mockGroup('courses',2)],
+    ['practice',mockGroup('practice',2)],
+    ['liberty',mockGroup('liberty',1)],
+    ['coach',mockGroup('coach',2)]
   ]);
   const context={
     workspacePresets:[
@@ -83,6 +99,32 @@ test('each preset remembers its panel, width and selected tabs independently',()
   assert.equal(h.groups.get('practice').selectedTabIndex,1);
   h.api.apply('improv');
   assert.equal(h.api.getWidth(),515);
+});
+
+test('restoring an independent preset updates hidden panes and aria-selected on real tabs',()=>{
+  const h=harness();
+  h.groups.get('coach').selectedTabIndex=1;
+  h.api.save();
+  h.api.apply('practice');
+  assert.equal(h.groups.get('coach').selectedTabIndex,0);
+  assert.equal(h.groups.get('coach').panes[0].hidden,false);
+  assert.equal(h.groups.get('coach').panes[1].hidden,true);
+  assert.equal(h.groups.get('coach').tabs[0].attrs['aria-selected'],'true');
+  assert.equal(h.groups.get('coach').tabs[1].attrs['aria-selected'],'false');
+  h.api.apply('learning');
+  assert.equal(h.groups.get('coach').selectedTabIndex,1);
+  assert.equal(h.groups.get('coach').panes[0].hidden,true);
+  assert.equal(h.groups.get('coach').panes[1].hidden,false);
+  assert.equal(h.groups.get('coach').tabs[1].attrs['aria-selected'],'true');
+  assert.equal(h.groups.get('coach').tabs[0].tabIndex,-1);
+});
+
+test('restoring a preset that detaches its saved dock never briefly opens that drawer',()=>{
+  const h=harness();
+  h.api.apply('practice',['practice']);
+  assert.equal(h.context.active,null);
+  assert.equal(h.opened.length,0,
+    'a native detached window must not cause a dock flash on restoration');
 });
 
 test('older drawer width is migrated only to Apprentissage',()=>{
