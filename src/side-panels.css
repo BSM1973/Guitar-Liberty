@@ -313,3 +313,68 @@
  #appWorkspace .gl-feature-tab,
  #appWorkspace .gl-context-close{transition:none}
 }
+
+
+/* ===== RESIZABLE CONTEXT PANELS =====
+   Desktop: allocate a real grid column only when the score can remain wide.
+   Compact windows: overlay the panel, keeping the tablature's width intact.
+   All feature panels share the same adjustable width. */
+#appWorkspace.gl-context-open.gl-panel-docked:not([hidden]){
+ grid-template-columns:78px minmax(0,1fr) minmax(0,var(--gl-drawer-width,400px));
+}
+#appWorkspace.gl-context-open.gl-panel-overlay:not([hidden]){
+ grid-template-columns:78px minmax(0,1fr);
+}
+#appWorkspace.gl-panel-docked>.gl-context-panel{
+ position:sticky;top:0;right:auto;
+ width:100%;min-width:0;max-width:none;
+ height:100vh;max-height:100vh;
+ box-shadow:-12px 0 30px #0003;
+}
+#appWorkspace.gl-panel-overlay>.gl-context-panel{
+ position:fixed;top:0;right:0;
+ width:min(var(--gl-drawer-width,400px),calc(100vw - 58px));
+ max-width:none;min-width:0;
+ height:100vh;max-height:100vh;
+ z-index:60;box-shadow:-18px 0 38px #0009;
+}
+/* Visible precision grip, 18px hit area, gold focus ring. */
+#appWorkspace>.gl-context-panel .gl-panel-resize-handle{
+ position:absolute;z-index:65;
+ top:0;bottom:0;left:-9px;width:18px;max-width:none;
+ display:flex;justify-content:center;align-items:center;
+ cursor:col-resize;touch-action:none;user-select:none;
+ background:transparent;border:0;outline:none;
+}
+#appWorkspace>.gl-context-panel .gl-panel-resize-handle::before{
+ content:"";display:block;width:5px;height:84px;
+ border:1px solid #6a7790;border-radius:20px;
+ background:linear-gradient(180deg,#556e8c,#e8ba68 45%,#b98f52 55%,#556e8c);
+ box-shadow:0 0 0 3px #111c2be0,0 3px 10px #0007;
+ transition:height .15s,box-shadow .15s;
+}
+#appWorkspace>.gl-context-panel .gl-panel-resize-handle:hover::before,
+#appWorkspace>.gl-context-panel .gl-panel-resize-handle:focus-visible::before{
+ height:112px;
+ box-shadow:0 0 0 4px #25364b,0 0 0 6px #e8ba68,0 3px 10px #0007;
+}
+html.gl-panel-is-resizing,
+html.gl-panel-is-resizing *{
+ cursor:col-resize!important;
+ user-select:none!important;
+}
+html.gl-panel-is-resizing iframe{pointer-events:none!important}
+@media(max-width:740px){
+ #appWorkspace.gl-context-open.gl-panel-docked:not([hidden]){
+  grid-template-columns:58px minmax(0,1fr) minmax(0,var(--gl-drawer-width,400px));
+ }
+ #appWorkspace.gl-context-open.gl-panel-overlay:not([hidden]){
+  grid-template-columns:58px minmax(0,1fr);
+ }
+ #appWorkspace.gl-panel-overlay>.gl-context-panel{
+  width:min(var(--gl-drawer-width,400px),calc(100vw - 58px));
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ #appWorkspace>.gl-context-panel .gl-panel-resize-handle::before{transition:none}
+}
