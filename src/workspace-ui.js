@@ -143,13 +143,20 @@
     drawerSubtitle.className = 'gl-context-subtitle';
     drawerCopy.append(drawerTitle, drawerSubtitle);
     drawerIdentity.append(drawerIcon, drawerCopy);
+    const detachButton = document.createElement('button');
+    detachButton.className = 'gl-context-detach';
+    detachButton.type = 'button';
+    detachButton.title = 'Ouvrir ce panneau dans une fenêtre indépendante';
+    detachButton.setAttribute('aria-label', 'Détacher le panneau');
+    detachButton.textContent = 'DÉTACHER';
+    detachButton.hidden = true;
     const closeButton = document.createElement('button');
     closeButton.className = 'gl-context-close';
     closeButton.type = 'button';
     closeButton.title = 'Fermer le panneau';
     closeButton.setAttribute('aria-label', 'Fermer le panneau');
     closeButton.textContent = '×';
-    drawerHead.append(drawerIdentity, closeButton);
+    drawerHead.append(drawerIdentity, detachButton, closeButton);
     const drawerBody = document.createElement('div');
     drawerBody.className = 'gl-context-body';
     drawer.append(drawerHead, drawerBody);
@@ -168,6 +175,111 @@
 
     const groups = new Map();
     let active = null;
+    const detachedAllowed = new Set([
+      'dashboard', 'intention', 'guided', 'practice', 'coach', 'liberty',
+      'play-with-me', 'session', 'history'
+    ]);
+    const remoteKeys = new Map();
+    let remoteSerial = 0;
+
+    function markRemoteControls(group) {
+      const nodes = group.element.querySelectorAll('button,input,select,textarea,summary');
+      nodes.forEach(function (node) {
+        if (node.hasAttribute('data-gl-remote-key')) return;
+        const key = 'remote-' + (++remoteSerial);
+        node.setAttribute('data-gl-remote-key', key);
+        remoteKeys.set(key, { id: group.id, node: node });
+      });
+    }
+
+    function snapshotMarkup(group) {
+      markRemoteControls(group);
+      const cloned = group.element.cloneNode(true);
+      cloned.hidden = false;
+      const originals = group.element.querySelectorAll('input,select,textarea,canvas');
+      const copies = cloned.querySelectorAll('input,select,textarea,canvas');
+      originals.forEach(function (node, index) {
+        const copy = copies[index];
+        if (!copy) return;
+        if (node.tagName === 'INPUT') {
+          if (node.type === 'checkbox' || node.type === 'radio') {
+            copy.toggleAttribute('checked', node.checked);
+          } else {
+            copy.setAttribute('value', node.value);
+          }
+        } else if (node.tagName === 'SELECT') {
+          Array.from(copy.options).forEach(function (option, optionIndex) {
+            option.toggleAttribute('selected',
+              !!node.options[optionIndex] && node.options[optionIndex].selected);
+          });
+        } else if (node.tagName === 'TEXTAREA') {
+          copy.textContent = node.value;
+        } else if (node.tagName === 'CANVAS') {
+          // A chart painted on canvas is not preserved by cloneNode.
+          // Mirror its pixels as a non-interactive preview.
+          try {
+            const image = document.createElement('img');
+            image.src = node.toDataURL('image/png');
+            image.className = 'gl-detached-chart';
+            image.alt = node.getAttribute('aria-label') || 'Graphique de progression';
+            copy.replaceWith(image);
+          } catch (_) {}
+        }
+      });
+      return cloned.outerHTML;
+    }
+
+    function publishSnapshot(group, force) {
+      if (!group || !group.detached || !window.guitarAudio?.panelSnapshot) return;
+      const markup = snapshotMarkup(group);
+      if (force || markup !== group.lastRemoteMarkup) {
+        group.lastRemoteMarkup = markup;
+        window.guitarAudio.panelSnapshot(group.id, markup);
+      }
+    }
+
+    function actOnOriginal(groupId, action) {
+      if (!action || typeof action.key !== 'string') return;
+      const entry = remoteKeys.get(action.key);
+      const group = groups.get(groupId);
+      if (!entry || !group || entry.id !== groupId || !group.element.contains(entry.node)) return;
+      const element = entry.node;
+      if (action.kind === 'click' &&
+          (element.matches('button') || element.matches('summary'))) {
+        element.click();
+      } else if (action.kind === 'input' || action.kind === 'change') {
+        if (!element.matches('input,select,textarea')) return;
+        if (element.type === 'checkbox' || element.type === 'radio') {
+          element.checked = action.checked === true;
+        } else if (typeof action.value === 'string') {
+          element.value = action.value;
+        }
+        element.dispatchEvent(new Event(action.kind, { bubbles: true }));
+      } else if (typeof action.kind === 'string' && action.kind.startsWith('key:') &&
+                 element.matches('.gl-feature-tab')) {
+        const key = action.kind.slice(4);
+        if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
+          element.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true }));
+        }
+      }
+      publishSnapshot(group, true);
+    }
+
+    if (window.guitarAudio?.onPanelAction) {
+      window.guitarAudio.onPanelAction(actOnOriginal);
+      window.guitarAudio.onPanelRequest(function (id) {
+        publishSnapshot(groups.get(id), true);
+      });
+      window.guitarAudio.onPanelClosed(function (id) {
+        const group = groups.get(id);
+        if (!group || !group.detached) return;
+        group.detached = false;
+        group.lastRemoteMarkup = '';
+        group.button.classList.remove('gl-is-detached');
+        group.button.title = group.label;
+        if (!workspace.hidden) openPanel(id, group.selectedTabIndex || 0);
+      });
+    }
 
     // Keep the tablature comfortably wide on large screens. When there is
     // insufficient room, overlay the drawer rather than squeezing the score.
@@ -288,6 +400,7 @@
     }
 
     function selectTab(group, index) {
+      group.selectedTabIndex = index;
       group.tabs.forEach(function (button, n) {
         const isSelected = index === n;
         button.classList.toggle('is-active', isSelected);
@@ -303,6 +416,7 @@
       });
       drawerBody.scrollTop = 0;
       requestScoreLayout();
+      publishSnapshot(group);
     }
 
     function closePanel() {
@@ -323,6 +437,12 @@
     function openPanel(id, index) {
       const group = groups.get(id);
       if (!group) return;
+      if (group.detached && window.guitarAudio?.panelOpen) {
+        if (typeof index === 'number') selectTab(group, index);
+        window.guitarAudio.panelOpen(id, group.label).catch(console.error);
+        publishSnapshot(group, true);
+        return;
+      }
       if (active === group && typeof index !== 'number') {
         closePanel();
         return;
@@ -340,6 +460,8 @@
       workspace.classList.add('gl-context-open');
       updateDrawerGeometry();
       drawerTitle.textContent = group.label;
+      detachButton.hidden = !detachedAllowed.has(id) ||
+        !window.guitarAudio?.panelOpen;
       drawerSubtitle.textContent = descriptions[id] || 'Espace musical';
       drawerIcon.innerHTML = svg(group.icon);
       group.button.classList.add('is-active');
@@ -414,7 +536,11 @@
       });
       if (nodes.length > 1) element.prepend(tabs);
       drawerBody.append(element);
-      groups.set(spec.id, { label: spec.label, icon: spec.icon, button: button, element: element, panes: panes, tabs: tabButtons });
+      groups.set(spec.id, {
+        id: spec.id, label: spec.label, icon: spec.icon, button: button,
+        element: element, panes: panes, tabs: tabButtons,
+        detached: false, selectedTabIndex: 0, lastRemoteMarkup: ''
+      });
       button.addEventListener('click', function () { openPanel(spec.id); });
     });
 
@@ -427,6 +553,35 @@
     // This old scroll-only control has no purpose in the docked workspace.
     const backTop = content.querySelector('.back-to-top-wrap');
     if (backTop) backTop.hidden = true;
+
+    detachButton.addEventListener('click', async function () {
+      const group = active;
+      if (!group || !detachedAllowed.has(group.id) ||
+          !window.guitarAudio?.panelOpen) return;
+      detachButton.disabled = true;
+      try {
+        const result = await window.guitarAudio.panelOpen(group.id, group.label);
+        if (!result || !result.opened) return;
+        group.detached = true;
+        group.button.classList.add('gl-is-detached');
+        group.button.title = group.label + ' — fenêtre détachée';
+        if (active === group) closePanel();
+        publishSnapshot(group, true);
+      } catch (error) {
+        console.error('Impossible de détacher le panneau :', error);
+        window.alert('Impossible d’ouvrir la fenêtre détachée.');
+      } finally {
+        detachButton.disabled = false;
+      }
+    });
+
+    // Keep detached panels updated without cloning or moving live controls.
+    window.setInterval(function () {
+      if (workspace.hidden) return;
+      groups.forEach(function (group) {
+        if (group.detached) publishSnapshot(group);
+      });
+    }, 500);
 
     scoreButton.addEventListener('click', function () {
       closePanel();
