@@ -426,6 +426,7 @@
         } else closePanel();
       } finally {
         suppressPresetSaving = false;
+        updatePresetButtons();
       }
     }
 
