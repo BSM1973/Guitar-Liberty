@@ -35,6 +35,9 @@ function harness(existing={}) {
       setAttribute:()=>{},
       disabled:false
     }])),
+    saveLayoutButton:{disabled:false},
+    resetLayoutButton:{disabled:false},
+    layoutStatus:{textContent:''},
     suppressPresetSaving:false,active:{id:'courses'},
     updateDrawerGeometry:()=>{},
     updatePresetButtons:()=>{},
