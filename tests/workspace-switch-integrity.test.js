@@ -44,8 +44,11 @@ function bootstrap(resolver) {
     updatePresetButtons: () => events.push(['buttons']),
     showWorkspaceStatus: message => events.push(['status', message]),
     closePanel: () => events.push(['close']),
-    applyPresetView: (id, detachedIds) =>
-      events.push(['apply', id, ...detachedIds]),
+    applyPresetView: (id, detachedIds) => {
+      events.push(['apply', id, ...detachedIds]);
+      // The real applyPresetView sets the active preset after tab restoration.
+      context.activeWorkspaceId = id;
+    },
     openDetachedGroup: async (group, restoring) => {
       events.push(['open', group.id, restoring]);
       return true;
