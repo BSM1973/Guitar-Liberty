@@ -12,9 +12,43 @@ const detachablePanelIds = new Set([
   'play-with-me', 'session', 'history', 'dashboard'
 ]);
 const workspaceIds = Object.freeze(['learning', 'practice', 'improv']);
+const builtinWorkspaceNames = Object.freeze({
+  learning: 'APPRENTISSAGE',
+  practice: 'ENTRAÎNEMENT',
+  improv: 'IMPROVISATION'
+});
+const MAX_CUSTOM_WORKSPACES = 8;
 const defaultWorkspace = 'learning';
 let activeWorkspace = defaultWorkspace;
+let customWorkspaces = [];
 let savedWorkspaces = null;
+
+function cleanWorkspaceName(name) {
+  if (typeof name !== 'string') return null;
+  const cleaned = name.trim().replace(/\s+/g, ' ');
+  return cleaned.length >= 1 && cleaned.length <= 32 &&
+    !/[\x00-\x1f\x7f]/.test(cleaned) ? cleaned : null;
+}
+function allWorkspaceIds() {
+  return [...workspaceIds, ...customWorkspaces.map(profile => profile.id)];
+}
+function isWorkspaceId(id) {
+  return typeof id === 'string' &&
+    (workspaceIds.includes(id) || customWorkspaces.some(profile => profile.id === id));
+}
+function listWorkspaceDefinitions() {
+  return [
+    ...workspaceIds.map(id => ({id, label: builtinWorkspaceNames[id], builtIn: true})),
+    ...customWorkspaces.map(profile => ({
+      id: profile.id, label: profile.label, builtIn: false
+    }))
+  ];
+}
+function workspaceNameAvailable(label, exceptId = null) {
+  return !listWorkspaceDefinitions().some(item =>
+    item.id !== exceptId &&
+    item.label.toLocaleLowerCase('fr') === label.toLocaleLowerCase('fr'));
+}
 let switchingWorkspace = false;
 
 // Store only window geometry in Electron's per-user app data folder,
@@ -39,11 +73,27 @@ function readPanelLayouts() {
     if (error.code !== 'ENOENT') console.warn('Positions des panneaux : valeurs par défaut utilisées');
   }
 
+  // Built-in presets remain permanent. User-created presets are validated
+  // before loading saved geometry so malformed files cannot inject controls.
+  customWorkspaces = [];
+  if (parsed && parsed.version === 1 && Array.isArray(parsed.customWorkspaces)) {
+    for (const entry of parsed.customWorkspaces) {
+      if (customWorkspaces.length >= MAX_CUSTOM_WORKSPACES) break;
+      if (!entry || typeof entry.id !== 'string' ||
+          !/^custom-[1-9]\d*$/.test(entry.id) ||
+          customWorkspaces.some(profile => profile.id === entry.id)) continue;
+      const label = cleanWorkspaceName(entry.label);
+      if (!label || !workspaceNameAvailable(label)) continue;
+      customWorkspaces.push({id: entry.id, label});
+      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set()};
+    }
+  }
+
   // Previously saved single-workspace layouts become Apprentissage. This
   // preserves the user's existing detached arrangement on upgrade.
   const profiles = parsed && parsed.version === 1 && parsed.workspaces &&
     typeof parsed.workspaces === 'object' ? parsed.workspaces : null;
-  for (const id of workspaceIds) {
+  for (const id of allWorkspaceIds()) {
     const source = profiles ? profiles[id] :
       id === defaultWorkspace && parsed && parsed.version === 1 ? parsed : null;
     if (!source || typeof source !== 'object') continue;
@@ -62,7 +112,7 @@ function readPanelLayouts() {
     }
   }
 
-  activeWorkspace = parsed && workspaceIds.includes(parsed.activeWorkspace)
+  activeWorkspace = parsed && isWorkspaceId(parsed.activeWorkspace)
     ? parsed.activeWorkspace : defaultWorkspace;
   savedPanelLayouts = savedWorkspaces[activeWorkspace].panels;
   savedDetachedPanelIds = savedWorkspaces[activeWorkspace].openPanels;
@@ -78,7 +128,7 @@ function flushPanelLayouts() {
   const temporary = filename + '.tmp';
   try {
     const workspaces = {};
-    for (const id of workspaceIds) {
+    for (const id of allWorkspaceIds()) {
       const profile = savedWorkspaces[id];
       workspaces[id] = {
         panels: profile.panels,
@@ -92,6 +142,7 @@ function flushPanelLayouts() {
       panels: savedPanelLayouts,
       openPanels: Array.from(savedDetachedPanelIds),
       activeWorkspace,
+      customWorkspaces,
       workspaces
     }, null, 2), { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(temporary, filename);
@@ -198,12 +249,84 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
   }
 });
 
+// Only the authoritative renderer can manage named workspace presets.
+// No custom preset can replace or rename the three built-in modes.
+function assertMainWorkspaceSender(event) {
+  if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents) {
+    throw new Error('Espace de travail non autorisé');
+  }
+}
+ipcMain.handle('gl-workspace-list', event => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  return listWorkspaceDefinitions();
+});
+ipcMain.handle('gl-workspace-create', (event, requestedName) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (switchingWorkspace) throw new Error('Changement d’espace en cours');
+  const label = cleanWorkspaceName(requestedName);
+  if (!label) throw new Error('Le nom doit comporter de 1 à 32 caractères');
+  if (!workspaceNameAvailable(label)) throw new Error('Un espace porte déjà ce nom');
+  if (customWorkspaces.length >= MAX_CUSTOM_WORKSPACES) {
+    throw new Error('Huit espaces personnalisés au maximum');
+  }
+  let index = 1;
+  while (isWorkspaceId('custom-' + index)) index++;
+  const id = 'custom-' + index;
+  const profile = {id, label};
+  customWorkspaces.push(profile);
+  savedWorkspaces[id] = {panels: {}, openPanels: new Set()};
+  if (!flushPanelLayouts()) {
+    customWorkspaces.pop();
+    delete savedWorkspaces[id];
+    throw new Error('Impossible d’enregistrer cet espace de travail');
+  }
+  return {id, label, builtIn: false};
+});
+ipcMain.handle('gl-workspace-rename', (event, id, requestedName) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (switchingWorkspace) throw new Error('Changement d’espace en cours');
+  const profile = customWorkspaces.find(item => item.id === id);
+  if (!profile) throw new Error('Seuls les espaces personnalisés peuvent être renommés');
+  const label = cleanWorkspaceName(requestedName);
+  if (!label) throw new Error('Le nom doit comporter de 1 à 32 caractères');
+  if (!workspaceNameAvailable(label, id)) throw new Error('Un espace porte déjà ce nom');
+  const previous = profile.label;
+  profile.label = label;
+  if (!flushPanelLayouts()) {
+    profile.label = previous;
+    throw new Error('Impossible d’enregistrer le nouveau nom');
+  }
+  return {id, label, builtIn: false};
+});
+ipcMain.handle('gl-workspace-delete', (event, id) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (switchingWorkspace) throw new Error('Changement d’espace en cours');
+  const index = customWorkspaces.findIndex(item => item.id === id);
+  if (index < 0) throw new Error('Les trois espaces principaux ne peuvent pas être supprimés');
+  if (id === activeWorkspace) throw new Error('Sélectionner un autre espace avant suppression');
+  const removed = customWorkspaces.splice(index, 1)[0];
+  const saved = savedWorkspaces[id];
+  delete savedWorkspaces[id];
+  if (!flushPanelLayouts()) {
+    customWorkspaces.splice(index, 0, removed);
+    savedWorkspaces[id] = saved;
+    throw new Error('Impossible de supprimer cet espace');
+  }
+  return {id, deleted: true};
+});
+
 ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
-      typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
+      typeof workspaceId !== 'string') {
     throw new Error('Espace de travail non autorisé');
   }
   readPanelLayouts();
+  if (!isWorkspaceId(workspaceId)) throw new Error('Espace de travail non autorisé');
+  if (switchingWorkspace) throw new Error('Changement d’espace déjà en cours');
   if (activeWorkspace === workspaceId) {
     return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
   }
