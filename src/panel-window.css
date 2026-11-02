@@ -1,0 +1,91 @@
+/* Standalone native window: use the same panel identity and controls as Liberty. */
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111c2b}
+#appWorkspace.gl-popout-root,
+#appWorkspace.gl-popout-root.gl-context-open{
+ display:flex!important;
+ width:100%;height:100vh;min-height:0;max-height:100vh;
+ padding:0;margin:0;overflow:hidden;background:#111c2b;
+}
+#appWorkspace.gl-popout-root>.gl-context-panel{
+ display:flex!important;flex-direction:column;
+ position:relative!important;inset:auto!important;
+ width:100%!important;height:100vh!important;
+ max-height:100vh!important;max-width:none!important;
+ min-height:0;min-width:0;
+ margin:0;padding:0;border:none;
+ box-shadow:none!important;z-index:1;
+}
+#appWorkspace.gl-popout-root .gl-context-head{
+ min-height:80px;flex-shrink:0;
+}
+#appWorkspace.gl-popout-root .gl-context-body{
+ display:block;flex:1;min-height:0;
+ overflow-y:auto;overflow-x:hidden;padding:16px;
+}
+#appWorkspace.gl-popout-root .gl-feature-group{display:block}
+#appWorkspace.gl-popout-root .gl-feature-pane{width:100%;min-width:0}
+#appWorkspace.gl-popout-root .gl-reattach-button{
+ flex-shrink:0;min-height:37px;padding:8px 11px;margin:0;
+ background:#283950;border:1px solid #7d684b;
+ border-radius:9px;color:#f3cf91;font-size:12px;
+ letter-spacing:.035em;font-weight:800;cursor:pointer;
+}
+#appWorkspace.gl-popout-root .gl-reattach-button:hover{
+ background:#394c63;border-color:#e8ba68;
+}
+#appWorkspace.gl-popout-root .gl-reattach-button:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+#appWorkspace.gl-popout-root .gl-feature-pane>section,
+#appWorkspace.gl-popout-root .gl-feature-pane>div,
+#appWorkspace.gl-popout-root .gl-feature-pane>details{
+ width:100%;max-width:100%;min-width:0;
+}
+#appWorkspace.gl-popout-root .gl-feature-pane .music-goal-choices,
+#appWorkspace.gl-popout-root .gl-feature-pane .time-session-choices{
+ grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#appWorkspace.gl-popout-root .gl-feature-pane .practice-panel{
+ display:flex;flex-direction:column;align-items:stretch;
+}
+#appWorkspace.gl-popout-root .gl-feature-pane .practice-panel label{
+ display:flex;flex-wrap:wrap;justify-content:space-between;
+}
+#appWorkspace.gl-popout-root .gl-feature-pane :is(
+ .dashboard-grid,.lesson-meta,.session-insight-grid,.guided-steps,
+ .guided-summary
+){
+ grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#appWorkspace.gl-popout-root .gl-feature-pane .history-row{
+ grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#appWorkspace.gl-popout-root .gl-feature-pane :is(
+ .audio-input-row,.guided-actions,.journal-entry
+){flex-wrap:wrap;gap:9px}
+#appWorkspace.gl-popout-root .gl-feature-pane :is(input,select,textarea){
+ max-width:100%;box-sizing:border-box;
+}
+#appWorkspace.gl-popout-root .gl-feature-tabs{
+ position:sticky;top:-16px;z-index:2;
+ background:#101b2b;
+ padding:6px;
+}
+#appWorkspace.gl-popout-root #panelLoading{
+ padding:16px;border:1px solid #47556b;border-radius:10px;
+ color:#b6c3d4;text-align:center;background:#172539;
+}
+#appWorkspace.gl-popout-root #panelLoading[hidden]{display:none!important}
+#appWorkspace.gl-popout-root .gl-feature-pane button:focus-visible,
+#appWorkspace.gl-popout-root .gl-feature-tab:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+@media(max-width:460px){
+ #appWorkspace.gl-popout-root .gl-context-head{padding:12px 10px;gap:9px}
+ #appWorkspace.gl-popout-root .gl-context-body{padding:10px}
+ #appWorkspace.gl-popout-root .gl-context-copy>strong{font-size:13px}
+ #appWorkspace.gl-popout-root .gl-context-subtitle{font-size:11px}
+ #appWorkspace.gl-popout-root .gl-reattach-button{font-size:11px;padding:7px 8px}
+ #appWorkspace.gl-popout-root .gl-feature-pane .music-goal-choices,
+ #appWorkspace.gl-popout-root .gl-feature-pane .time-session-choices{grid-template-columns:1fr}
+}
