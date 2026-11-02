@@ -14,7 +14,7 @@ const renderCode=source.slice(from,to);
 function harness() {
   const calls=[];
   class Element {
-    constructor(tag) {this.tag=tag;this.textContent='';this.attributes={};this.children=[];this.listeners=new Map();this.className='';this.title='';}
+    constructor(tag) {this.tag=tag;this.textContent='';this.attributes={};this.children=[];this.listeners=new Map();this.className='';this.title='';this.classList={add:()=>{},remove:()=>{},toggle:()=>{}};}
     setAttribute(k,v){this.attributes[k]=v;}
     addEventListener(name,handler){this.listeners.set(name,handler);}
     append(child){this.children.push(child);}
