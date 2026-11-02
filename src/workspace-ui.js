@@ -599,20 +599,33 @@
     // Opening the home page again in the same session must never re-open
     // windows that the guitarist has deliberately closed.
     let restorationRequested = false;
+    let restorationInProgress = false;
+    let pendingRestoredIds = null;
     async function restoreDetachedPanels() {
-      if (restorationRequested || workspace.hidden ||
+      if (workspace.hidden || restorationInProgress ||
           !window.guitarAudio?.panelRestorable) return;
-      restorationRequested = true;
+      restorationInProgress = true;
       try {
-        const saved = await window.guitarAudio.panelRestorable();
-        if (!Array.isArray(saved) || workspace.hidden) return;
-        for (const id of saved) {
+        if (!restorationRequested) {
+          restorationRequested = true;
+          const saved = await window.guitarAudio.panelRestorable();
+          pendingRestoredIds = Array.isArray(saved) ? saved : [];
+        }
+        // If the guitarist briefly returns to the welcome page, resume any
+        // remaining windows on the next workspace entry rather than losing them.
+        while (!workspace.hidden && pendingRestoredIds?.length) {
+          const id = pendingRestoredIds.shift();
           const group = groups.get(id);
           if (!group || !detachedAllowed.has(id) || group.detached) continue;
           await openDetachedGroup(group, true);
         }
       } catch (error) {
+        // Recover on the next entry if the main process temporarily failed.
+        restorationRequested = false;
+        pendingRestoredIds = null;
         console.warn('Restauration de l’espace musical indisponible :', error);
+      } finally {
+        restorationInProgress = false;
       }
     }
 
