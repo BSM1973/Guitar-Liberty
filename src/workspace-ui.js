@@ -180,6 +180,7 @@
       const saved = Number.parseInt(localStorage.getItem(WIDTH_KEY), 10);
       if (Number.isFinite(saved)) storedWidth = saved;
     } catch (_) {}
+    let preferredWidth = storedWidth;
     let panelWidth = storedWidth;
     let draggingPointerId = null;
 
@@ -197,7 +198,8 @@
 
     function updateDrawerGeometry() {
       const bounds = panelBounds();
-      panelWidth = clampWidth(panelWidth);
+      // Preserve the preferred width when the app window is temporarily narrow.
+      panelWidth = clampWidth(preferredWidth);
       workspace.style.setProperty('--gl-drawer-width', panelWidth + 'px');
       resizeHandle.setAttribute('aria-valuemin', String(bounds.minimum));
       resizeHandle.setAttribute('aria-valuemax', String(bounds.maximum));
@@ -212,7 +214,7 @@
     }
 
     function setDrawerWidth(width, persist) {
-      panelWidth = clampWidth(width);
+      preferredWidth = clampWidth(width);
       const modeChanged = updateDrawerGeometry();
       if (persist) {
         try { localStorage.setItem(WIDTH_KEY, String(panelWidth)); } catch (_) {}
