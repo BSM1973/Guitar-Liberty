@@ -73,7 +73,7 @@ function flushPanelLayouts() {
     clearTimeout(layoutSaveTimer);
     layoutSaveTimer = null;
   }
-  if (!savedWorkspaces) return;
+  if (!savedWorkspaces) return false;
   const filename = panelLayoutsPath();
   const temporary = filename + '.tmp';
   try {
@@ -95,9 +95,11 @@ function flushPanelLayouts() {
       workspaces
     }, null, 2), { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(temporary, filename);
+    return true;
   } catch (error) {
     console.warn('Impossible d’enregistrer les espaces de travail :', error);
     try { fs.unlinkSync(temporary); } catch (_) {}
+    return false;
   }
 }
 function schedulePanelLayoutSave() {
@@ -142,6 +144,58 @@ ipcMain.handle('gl-workspace-get', (event) => {
   }
   readPanelLayouts();
   return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
+});
+
+// ENREGISTRER explicitly persists the currently active set of floating
+// windows, including geometry, instead of relying solely on debounce.
+ipcMain.handle('gl-workspace-save', (event, workspaceId) => {
+  if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
+      typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
+    throw new Error('Enregistrement non autorisé');
+  }
+  readPanelLayouts();
+  if (switchingWorkspace || activeWorkspace !== workspaceId) {
+    throw new Error('Espace de travail non actif');
+  }
+  for (const popup of guitarPanelWindows.values()) {
+    if (!popup.isDestroyed()) rememberPanelBounds(popup._glPanelId, popup);
+  }
+  if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la disposition');
+  return { id: activeWorkspace, saved: true };
+});
+
+// RÉINITIALISER changes only the selected active layout: no lesson, TAB,
+// audio setting or other user-defined workspace is modified.
+ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
+  if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
+      typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
+    throw new Error('Réinitialisation non autorisée');
+  }
+  readPanelLayouts();
+  if (switchingWorkspace || activeWorkspace !== workspaceId) {
+    throw new Error('Espace de travail non actif');
+  }
+  switchingWorkspace = true;
+  try {
+    const closing = [];
+    for (const popup of Array.from(guitarPanelWindows.values())) {
+      if (popup.isDestroyed()) continue;
+      popup._glCloseReason = 'workspace-reset';
+      closing.push(new Promise(resolve => {
+        popup.once('closed', resolve);
+        popup.close();
+      }));
+    }
+    await Promise.all(closing);
+    const resetProfile = { panels: {}, openPanels: new Set() };
+    savedWorkspaces[workspaceId] = resetProfile;
+    savedPanelLayouts = resetProfile.panels;
+    savedDetachedPanelIds = resetProfile.openPanels;
+    if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la réinitialisation');
+    return {id: workspaceId, reset: true, openPanels: []};
+  } finally {
+    switchingWorkspace = false;
+  }
 });
 
 ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
@@ -226,7 +280,8 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
     // Closing a floating window manually (or RATTACHER) turns off automatic
     // reopening. Quitting/closing the main workspace must preserve the layout.
     if (!shuttingDownWorkspace && !switchingWorkspace &&
-        popup._glCloseReason !== 'workspace-switch') setDetachedPreference(panelId, false);
+        popup._glCloseReason !== 'workspace-switch' &&
+        popup._glCloseReason !== 'workspace-reset') setDetachedPreference(panelId, false);
     flushPanelLayouts();
   });
   popup.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
