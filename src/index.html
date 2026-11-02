@@ -350,4 +350,37 @@
 </section>
 </main>
 <script src="../assets/vendor/alphaTab.min.js"></script>
-<script src="https://fast.wistia.com/assets/external/E-v1.js" async></script><script src="renderer.js"></script></body></html>
+<script src="https://fast.wistia.com/assets/external/E-v1.js" async></script><script src="renderer.js"></script><script>
+/* Compact, independent workspace sections; controls remain mounted and functional. */
+document.addEventListener('DOMContentLoaded',()=>{
+ const workspace=document.getElementById('appWorkspace');
+ if(!workspace)return;
+ const groups=[
+  ['.student-dashboard','PARCOURS ET TABLEAU DE BORD',false],
+  ['.lesson-card','INFORMATIONS DU COURS',false],
+  ['.practice-panel','ENTRAÎNEMENT ET BOUCLES',true],
+  ['.metronome-panel','MÉTRONOME',true],
+  ['.session-stats','STATISTIQUES DE SESSION',false],
+  ['.learning-path','PROGRESSION',false]
+ ];
+ groups.forEach(([selector,label,initiallyOpen])=>{
+  const panel=workspace.querySelector(selector);
+  if(!panel)return;
+  const key='gl-section-'+selector.replace(/[^a-z]/gi,'');
+  let open=initiallyOpen;
+  try{const saved=localStorage.getItem(key);if(saved!==null)open=saved==='true';}catch(_){}
+  const toggle=document.createElement('button');
+  toggle.type='button';toggle.className='gl-section-toggle';
+  toggle.setAttribute('aria-controls',panel.id||'');
+  panel.before(toggle);
+  const render=()=>{
+   toggle.textContent=(open?'▾ ':'▸ ')+label;
+   toggle.setAttribute('aria-expanded',String(open));
+   panel.classList.toggle('gl-section-collapsed',!open);
+  };
+  toggle.addEventListener('click',()=>{open=!open;render();try{localStorage.setItem(key,String(open));}catch(_){}});
+  render();
+ });
+});
+</script>
+</body></html>
