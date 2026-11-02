@@ -9,9 +9,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
+const os = require('node:os');
 
-function bootMain() {
+
+function bootMain(options = {}) {
   const handlers = new Map();
+  const layoutDirectory = options.layoutDirectory || fs.mkdtempSync(path.join(os.tmpdir(), 'gl-panel-ipc-'));
+  const displays = options.displays || [
+    { workArea: {x: 0, y: 0, width: 1920, height: 1040} }
+  ];
   const listeners = new Map();
   const windows = [];
   class FakeWebContents {
@@ -28,6 +34,8 @@ function bootMain() {
       this.destroyed = false;
       this.shown = false;
       this.focused = false;
+      this.bounds = { x: options.x || 0, y: options.y || 0,
+        width: options.width || 1440, height: options.height || 900 };
       windows.push(this);
     }
     loadFile(filePath, options) {
@@ -38,8 +46,13 @@ function bootMain() {
     show() { this.shown = true; }
     focus() { this.focused = true; }
     maximize() { this.maximized = true; }
+    getBounds() { return {...this.bounds}; }
+    getNormalBounds() { return {...this.bounds}; }
+    setBounds(value) { this.bounds = {...value}; this.emit('move'); this.emit('resize'); }
+    isMinimized() { return false; }
     close() {
       if (this.destroyed) return;
+      this.emit('close');
       this.destroyed = true;
       this.webContents.destroyed = true;
       this.emit('closed');
@@ -47,6 +60,7 @@ function bootMain() {
   }
   const app = {
     whenReady: () => Promise.resolve(),
+    getPath: name => name === 'userData' ? layoutDirectory : layoutDirectory,
     on: () => {},
     quit: () => {}
   };
@@ -57,16 +71,26 @@ function bootMain() {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   vm.runInNewContext(source, {
     require: (id) => id === 'electron'
-      ? { app, ipcMain, dialog: {}, BrowserWindow: FakeBrowserWindow }
-      : require(id),
+      ? {
+          app, ipcMain, dialog: {}, BrowserWindow: FakeBrowserWindow,
+          screen: {
+            getAllDisplays: () => displays,
+            getDisplayMatching: () => displays[0],
+            getPrimaryDisplay: () => displays[0]
+          }
+        }
+      : id === './panel-layout'
+        ? require(path.join(__dirname, '..', 'src', 'panel-layout.js'))
+        : require(id),
     __dirname: path.join(__dirname, '..', 'src'),
     console,
     process: { platform: 'darwin' },
-    setTimeout: () => {}
+    setTimeout: () => 1,
+    clearTimeout: () => {}
   }, { filename: 'main.js' });
 
   return {
-    windows, handlers, listeners,
+    windows, handlers, listeners, layoutDirectory,
     emit: (channel, sender, ...args) => {
       assert.ok(listeners.has(channel), 'Listener missing for ' + channel);
       listeners.get(channel)({ sender }, ...args);
