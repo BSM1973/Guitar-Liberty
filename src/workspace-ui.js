@@ -92,6 +92,33 @@
     transportDock.setAttribute('aria-label', 'Transport permanent');
     toolbar.classList.add('gl-permanent-toolbar');
     transportDock.append(toolbar, progress);
+    const workspacePresetBar = document.createElement('div');
+    workspacePresetBar.className = 'gl-workspace-presets';
+    workspacePresetBar.setAttribute('role', 'group');
+    workspacePresetBar.setAttribute('aria-label', 'Espaces de travail');
+    const presetCaption = document.createElement('span');
+    presetCaption.className = 'gl-workspace-preset-caption';
+    presetCaption.textContent = 'ESPACE DE TRAVAIL';
+    workspacePresetBar.append(presetCaption);
+    const workspacePresets = [
+      { id: 'learning', label: 'APPRENTISSAGE', dock: 'courses' },
+      { id: 'practice', label: 'ENTRAÎNEMENT', dock: 'practice' },
+      { id: 'improv', label: 'IMPROVISATION', dock: 'liberty' }
+    ];
+    const presetButtons = new Map();
+    for (const preset of workspacePresets) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'gl-workspace-preset';
+      button.textContent = preset.label;
+      button.setAttribute('data-gl-workspace', preset.id);
+      button.setAttribute('aria-pressed', String(preset.id === 'learning'));
+      button.title = preset.label + ' — disposition personnalisable';
+      if (preset.id === 'learning') button.classList.add('is-active');
+      presetButtons.set(preset.id, button);
+      workspacePresetBar.append(button);
+    }
+    transportDock.prepend(workspacePresetBar);
     content.prepend(transportDock);
 
     const scoreArea = document.createElement('div');
@@ -175,6 +202,9 @@
 
     const groups = new Map();
     let active = null;
+    let activeWorkspaceId = 'learning';
+    let workspaceSwitchBusy = false;
+    let suppressPresetSaving = false;
     const detachedAllowed = new Set([
       'dashboard', 'intention', 'guided', 'practice', 'coach', 'liberty',
       'play-with-me', 'session', 'history'
@@ -270,31 +300,99 @@
       window.guitarAudio.onPanelRequest(function (id) {
         publishSnapshot(groups.get(id), true);
       });
-      window.guitarAudio.onPanelClosed(function (id) {
+      window.guitarAudio.onPanelClosed(function (id, reason) {
         const group = groups.get(id);
         if (!group || !group.detached) return;
         group.detached = false;
         group.lastRemoteMarkup = '';
         group.button.classList.remove('gl-is-detached');
         group.button.title = group.label;
-        if (!workspace.hidden) openPanel(id, group.selectedTabIndex || 0);
+        // Changing a workspace is NOT a manual RATTACHER.
+        if (reason !== 'workspace-switch' && !workspaceSwitchBusy && !workspace.hidden) {
+          openPanel(id, group.selectedTabIndex || 0);
+        }
       });
     }
 
     // Keep the tablature comfortably wide on large screens. When there is
     // insufficient room, overlay the drawer rather than squeezing the score.
     const WIDTH_KEY = 'guitar-liberty-panel-width';
+    const PRESET_KEY = 'guitar-liberty-workspace-ui-';
     const DEFAULT_WIDTH = 400;
     const MIN_SCORE_WIDTH = 950;
     const WIDTH_STEP = 20;
-    let storedWidth = DEFAULT_WIDTH;
-    try {
-      const saved = Number.parseInt(localStorage.getItem(WIDTH_KEY), 10);
-      if (Number.isFinite(saved)) storedWidth = saved;
-    } catch (_) {}
-    let preferredWidth = storedWidth;
-    let panelWidth = storedWidth;
+
+    function readPresetView(id) {
+      const preset = workspacePresets.find(item => item.id === id);
+      if (!preset) return {width: DEFAULT_WIDTH, dock: null, tabs: {}};
+      const fallback = {width: DEFAULT_WIDTH, dock: preset.dock, tabs: {}};
+      try {
+        const saved = JSON.parse(localStorage.getItem(PRESET_KEY + id) || 'null');
+        if (saved && typeof saved === 'object') {
+          const width = Number.isFinite(saved.width) ? saved.width : DEFAULT_WIDTH;
+          const dock = typeof saved.dock === 'string' && groups.has(saved.dock)
+            ? saved.dock : null;
+          const tabs = saved.tabs && typeof saved.tabs === 'object' ? saved.tabs : {};
+          return {width: width, dock: dock, tabs: tabs};
+        }
+        // Migrate the old single drawer width for existing installations.
+        if (id === 'learning') {
+          const oldWidth = Number.parseInt(localStorage.getItem(WIDTH_KEY), 10);
+          if (Number.isFinite(oldWidth)) fallback.width = oldWidth;
+        }
+      } catch (_) {}
+      return fallback;
+    }
+
+    let preferredWidth = readPresetView(activeWorkspaceId).width;
+    let panelWidth = preferredWidth;
     let draggingPointerId = null;
+    function savePresetView() {
+      if (suppressPresetSaving || workspaceSwitchBusy) return;
+      const tabs = {};
+      groups.forEach(function (group) {
+        if (Number.isInteger(group.selectedTabIndex)) tabs[group.id] = group.selectedTabIndex;
+      });
+      const view = {
+        width: preferredWidth,
+        dock: active ? active.id : null,
+        tabs: tabs
+      };
+      try { localStorage.setItem(PRESET_KEY + activeWorkspaceId, JSON.stringify(view)); }
+      catch (_) {}
+    }
+
+    function updatePresetButtons() {
+      presetButtons.forEach(function (button, id) {
+        const selected = id === activeWorkspaceId;
+        button.classList.toggle('is-active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+        button.disabled = workspaceSwitchBusy;
+      });
+    }
+
+    function applyPresetView(id) {
+      activeWorkspaceId = id;
+      suppressPresetSaving = true;
+      try {
+        const view = readPresetView(id);
+        preferredWidth = view.width;
+        updateDrawerGeometry();
+        for (const [groupId, index] of Object.entries(view.tabs)) {
+          const group = groups.get(groupId);
+          if (group && Number.isInteger(index) && index >= 0 && index < group.panes.length) {
+            group.selectedTabIndex = index;
+          }
+        }
+        updatePresetButtons();
+        const dockGroup = groups.get(view.dock);
+        if (dockGroup && !dockGroup.detached) {
+          openPanel(dockGroup.id, dockGroup.selectedTabIndex || 0);
+        } else closePanel();
+      } finally {
+        suppressPresetSaving = false;
+      }
+    }
 
     function panelBounds() {
       const railWidth = window.innerWidth <= 740 ? 58 : 78;
@@ -329,7 +427,7 @@
       preferredWidth = clampWidth(width);
       const modeChanged = updateDrawerGeometry();
       if (persist) {
-        try { localStorage.setItem(WIDTH_KEY, String(panelWidth)); } catch (_) {}
+        savePresetView();
       }
       return modeChanged;
     }
