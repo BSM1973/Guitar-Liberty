@@ -903,7 +903,7 @@
     workspaceNameForm.addEventListener('submit', async function (event) {
       event.preventDefault();
       if (workspaceNameBusy || workspaceSwitchBusy) return;
-      const name = workspaceNameInput.value.trim().replace(/\\s+/g, ' ');
+      const name = workspaceNameInput.value.trim().replace(/\s+/g, ' ');
       if (!name || name.length > 32) {
         workspaceNameError.textContent = 'Saisis un nom de 1 à 32 caractères.';
         workspaceNameInput.focus();
