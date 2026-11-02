@@ -497,25 +497,24 @@
       updatePresetButtons();
     }
 
-    function applyPresetView(id) {
+    function applyPresetView(id, restoringDetachedIds = []) {
       activeWorkspaceId = id;
       suppressPresetSaving = true;
       try {
         const view = readPresetView(id);
         preferredWidth = view.width;
         updateDrawerGeometry();
-        // Do not carry tab selection from another workspace into a preset
-        // that has never selected that section before.
-        groups.forEach(function (group) { group.selectedTabIndex = 0; });
-        for (const [groupId, index] of Object.entries(view.tabs)) {
-          const group = groups.get(groupId);
-          if (group && Number.isInteger(index) && index >= 0 && index < group.panes.length) {
-            group.selectedTabIndex = index;
-          }
-        }
+        // Fully restore the real DOM (aria-selected, hidden panes and tabs),
+        // not just the saved index. Detached windows snapshot this DOM.
+        groups.forEach(function (group) {
+          const index = view.tabs[group.id];
+          applyGroupTabState(group, index);
+          if (group.detached) publishSnapshot(group);
+        });
         updatePresetButtons();
         const dockGroup = groups.get(view.dock);
-        if (dockGroup && !dockGroup.detached) {
+        const willDetach = restoringDetachedIds.includes(view.dock);
+        if (dockGroup && !dockGroup.detached && !willDetach) {
           openPanel(dockGroup.id, dockGroup.selectedTabIndex || 0);
         } else closePanel();
       } finally {
@@ -627,21 +626,31 @@
       });
     }
 
-    function selectTab(group, index) {
+    function applyGroupTabState(group, selectedIndex) {
+      if (!group || !group.panes.length) return;
+      const index = Number.isInteger(selectedIndex) &&
+        selectedIndex >= 0 && selectedIndex < group.panes.length
+        ? selectedIndex : 0;
       group.selectedTabIndex = index;
-      group.tabs.forEach(function (button, n) {
-        const isSelected = index === n;
-        button.classList.toggle('is-active', isSelected);
-        button.setAttribute('aria-selected', String(isSelected));
-        button.tabIndex = isSelected ? 0 : -1;
-        group.panes[n].hidden = !isSelected;
-        if (isSelected) {
-          const inner = group.panes[n].firstElementChild;
+      group.panes.forEach(function (pane, n) {
+        pane.hidden = n !== index;
+        if (n === index) {
+          const inner = pane.firstElementChild;
           if (inner && (inner.id === 'guidedSession' || inner.id === 'aiListening')) {
             inner.hidden = false;
           }
         }
       });
+      group.tabs.forEach(function (button, n) {
+        const selected = n === index;
+        button.classList.toggle('is-active', selected);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+      });
+    }
+
+    function selectTab(group, index) {
+      applyGroupTabState(group, index);
       drawerBody.scrollTop = 0;
       requestScoreLayout();
       publishSnapshot(group);
@@ -819,6 +828,10 @@
           !window.guitarAudio?.workspaceSwitch) return false;
       savePresetView();
       workspaceGeneration++;
+      // Cancel pending restoration from the former workspace. In particular,
+      // a delayed IPC answer must never reopen its floating panels here.
+      restorationRequested = true;
+      pendingRestoredIds = [];
       workspaceSwitchBusy = true;
       showWorkspaceStatus('');
       updatePresetButtons();
@@ -833,14 +846,14 @@
           group.button.title = group.label;
         });
         closePanel();
-        activeWorkspaceId = id;
-        // The selected layout may contain any number of independent windows.
+        // Restore tab contents BEFORE creating floating windows. Otherwise
+        // the initial snapshots can show tabs from the preceding workspace.
+        applyPresetView(id, layout.openPanels);
         for (const panelId of layout.openPanels) {
           const group = groups.get(panelId);
           if (!group || !detachedAllowed.has(panelId)) continue;
           await openDetachedGroup(group, true);
         }
-        applyPresetView(id);
         return true;
       } catch (error) {
         console.error('Impossible de changer d’espace de travail :', error);
@@ -1079,12 +1092,14 @@
             if (generation !== workspaceGeneration) return;
             if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
               activeWorkspaceId = layout.id;
-              applyPresetView(layout.id);
+              applyPresetView(layout.id, Array.isArray(layout.openPanels)
+                ? layout.openPanels : []);
             } else suppressPresetSaving = false;
             saved = layout?.openPanels;
           } else {
             saved = await window.guitarAudio.panelRestorable();
           }
+          if (generation !== workspaceGeneration) return;
           pendingRestoredIds = Array.isArray(saved) ? saved : [];
         }
         // If the guitarist briefly returns to the welcome page, resume any
