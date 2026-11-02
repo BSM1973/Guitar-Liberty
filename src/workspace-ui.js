@@ -554,26 +554,67 @@
     const backTop = content.querySelector('.back-to-top-wrap');
     if (backTop) backTop.hidden = true;
 
+    function setPanelDetachedAppearance(group, detached) {
+      group.detached = detached;
+      group.button.classList.toggle('gl-is-detached', detached);
+      group.button.title = detached ? group.label + ' — fenêtre détachée' : group.label;
+      if (detached && active === group) closePanel();
+    }
+
+    async function openDetachedGroup(group, restoring) {
+      if (!group || !detachedAllowed.has(group.id) ||
+          !window.guitarAudio?.panelOpen) return false;
+      // Mark the group before the native window loads: it can request its first
+      // snapshot before the async IPC opening call resolves.
+      setPanelDetachedAppearance(group, true);
+      group.lastRemoteMarkup = '';
+      try {
+        const result = await window.guitarAudio.panelOpen(group.id, group.label, restoring);
+        if (!result?.opened || !group.detached) {
+          if (group.detached) setPanelDetachedAppearance(group, false);
+          return false;
+        }
+        publishSnapshot(group, true);
+        return true;
+      } catch (error) {
+        setPanelDetachedAppearance(group, false);
+        console.error('Impossible d’ouvrir le panneau détaché :', error);
+        return false;
+      }
+    }
+
     detachButton.addEventListener('click', async function () {
       const group = active;
-      if (!group || !detachedAllowed.has(group.id) ||
-          !window.guitarAudio?.panelOpen) return;
+      if (!group || !detachedAllowed.has(group.id)) return;
       detachButton.disabled = true;
       try {
-        const result = await window.guitarAudio.panelOpen(group.id, group.label);
-        if (!result || !result.opened) return;
-        group.detached = true;
-        group.button.classList.add('gl-is-detached');
-        group.button.title = group.label + ' — fenêtre détachée';
-        if (active === group) closePanel();
-        publishSnapshot(group, true);
-      } catch (error) {
-        console.error('Impossible de détacher le panneau :', error);
-        window.alert('Impossible d’ouvrir la fenêtre détachée.');
+        const opened = await openDetachedGroup(group, false);
+        if (!opened) window.alert('Impossible d’ouvrir la fenêtre détachée.');
       } finally {
         detachButton.disabled = false;
       }
     });
+
+    // Restore only once, on the first entry into the music workspace.
+    // Opening the home page again in the same session must never re-open
+    // windows that the guitarist has deliberately closed.
+    let restorationRequested = false;
+    async function restoreDetachedPanels() {
+      if (restorationRequested || workspace.hidden ||
+          !window.guitarAudio?.panelRestorable) return;
+      restorationRequested = true;
+      try {
+        const saved = await window.guitarAudio.panelRestorable();
+        if (!Array.isArray(saved) || workspace.hidden) return;
+        for (const id of saved) {
+          const group = groups.get(id);
+          if (!group || !detachedAllowed.has(id) || group.detached) continue;
+          await openDetachedGroup(group, true);
+        }
+      } catch (error) {
+        console.warn('Restauration de l’espace musical indisponible :', error);
+      }
+    }
 
     // Audio/playback timing stays in the original renderer. Replicate only
     // the visual state, more frequently during JOUE AVEC MOI and loop work,
@@ -604,6 +645,7 @@
     window.guitarLibertyWorkspaceUI = {
       openPanel: openPanel,
       closePanel: closePanel,
+      restoreDetachedPanels: restoreDetachedPanels,
       openTarget: function (target) {
         if (target === 'courses') openPanel('courses');
         else if (target === 'coach') openPanel('coach', 1);
