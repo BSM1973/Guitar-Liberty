@@ -764,11 +764,11 @@
     saveLayoutButton.addEventListener('click', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceSave) return;
+      savePresetView(); // Persist the current sidebar before locking the selector.
       workspaceSwitchBusy = true;
       updatePresetButtons();
       showWorkspaceStatus('');
       try {
-        savePresetView(); // Native geometry is flushed by workspaceSave.
         const result = await window.guitarAudio.workspaceSave(activeWorkspaceId);
         if (!result?.saved || result.id !== activeWorkspaceId) {
           throw new Error('Sauvegarde non confirmée');
