@@ -489,6 +489,14 @@
       layoutStatus.textContent = message;
     }
 
+    async function refreshWorkspacePresets() {
+      if (!window.guitarAudio?.workspaceList) return;
+      const definitions = await window.guitarAudio.workspaceList();
+      if (!Array.isArray(definitions)) throw new Error('Liste des espaces indisponible');
+      renderWorkspacePresets(definitions);
+      updatePresetButtons();
+    }
+
     function applyPresetView(id) {
       activeWorkspaceId = id;
       suppressPresetSaving = true;
@@ -844,6 +852,135 @@
       }
     }
 
+    // Create and rename never manipulate a lesson or audio player. Only the
+    // named preset list and its saved window arrangement are modified.
+    let workspaceNameMode = 'create';
+    let workspaceNameBusy = false;
+    let workspaceNamePreviousFocus = null;
+    let workspaceNameEditedId = null;
+    function closeWorkspaceNameDialog() {
+      if (workspaceNameBusy) return;
+      workspaceNameOverlay.hidden = true;
+      workspaceNameError.textContent = '';
+      workspaceNamePreviousFocus?.focus?.();
+      workspaceNamePreviousFocus = null;
+    }
+    function openWorkspaceNameDialog(mode) {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceCreate) return;
+      const preset = workspacePresets.find(item => item.id === activeWorkspaceId);
+      if (mode === 'rename' && (!preset || preset.builtIn)) return;
+      workspaceNameMode = mode;
+      workspaceNameEditedId = mode === 'rename' ? activeWorkspaceId : null;
+      workspaceNamePreviousFocus = document.activeElement;
+      workspaceNameTitle.textContent = mode === 'create'
+        ? 'CRÉER UN ESPACE DE TRAVAIL' : 'RENOMMER L’ESPACE DE TRAVAIL';
+      workspaceNameSubmit.textContent = mode === 'create' ? 'CRÉER' : 'ENREGISTRER';
+      workspaceNameInput.value = mode === 'rename' ? preset.label : '';
+      workspaceNameInput.disabled = false;
+      workspaceNameSubmit.disabled = false;
+      workspaceNameError.textContent = '';
+      workspaceNameOverlay.hidden = false;
+      workspaceNameInput.focus();
+      if (mode === 'rename') workspaceNameInput.select();
+    }
+    createWorkspaceButton.addEventListener('click', function () {
+      openWorkspaceNameDialog('create');
+    });
+    renameWorkspaceButton.addEventListener('click', function () {
+      openWorkspaceNameDialog('rename');
+    });
+    workspaceNameCancel.addEventListener('click', closeWorkspaceNameDialog);
+    workspaceNameOverlay.addEventListener('click', function (event) {
+      if (event.target === workspaceNameOverlay) closeWorkspaceNameDialog();
+    });
+    workspaceNameOverlay.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeWorkspaceNameDialog();
+      }
+    });
+    workspaceNameForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (workspaceNameBusy || workspaceSwitchBusy) return;
+      const name = workspaceNameInput.value.trim().replace(/\\s+/g, ' ');
+      if (!name || name.length > 32) {
+        workspaceNameError.textContent = 'Saisis un nom de 1 à 32 caractères.';
+        workspaceNameInput.focus();
+        return;
+      }
+      const alreadyNamed = workspacePresets.some(preset =>
+        preset.id !== workspaceNameEditedId &&
+        preset.label.toLocaleLowerCase('fr') === name.toLocaleLowerCase('fr'));
+      if (alreadyNamed) {
+        workspaceNameError.textContent = 'Un espace porte déjà ce nom.';
+        return;
+      }
+      workspaceNameBusy = true;
+      workspaceSwitchBusy = true;
+      workspaceNameInput.disabled = true;
+      workspaceNameSubmit.disabled = true;
+      updatePresetButtons();
+      try {
+        let nextWorkspaceId = null;
+        if (workspaceNameMode === 'create') {
+          const created = await window.guitarAudio.workspaceCreate(name);
+          if (!created?.id) throw new Error('Création non confirmée');
+          nextWorkspaceId = created.id;
+        } else {
+          const renamed = await window.guitarAudio.workspaceRename(workspaceNameEditedId, name);
+          if (!renamed?.id) throw new Error('Renommage non confirmé');
+        }
+        await refreshWorkspacePresets();
+        workspaceNameBusy = false;
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+        closeWorkspaceNameDialog();
+        if (nextWorkspaceId) {
+          const switched = await switchWorkspaceProfile(nextWorkspaceId);
+          showWorkspaceStatus(switched
+            ? 'Nouvel espace créé' : 'Espace créé — sélectionne-le pour l’ouvrir');
+        } else {
+          showWorkspaceStatus('Espace renommé');
+        }
+      } catch (error) {
+        console.error('Nom de l’espace de travail :', error);
+        workspaceNameError.textContent = error?.message || 'Opération impossible';
+      } finally {
+        workspaceNameBusy = false;
+        workspaceSwitchBusy = false;
+        workspaceNameInput.disabled = false;
+        workspaceNameSubmit.disabled = false;
+        updatePresetButtons();
+      }
+    });
+
+    deleteWorkspaceButton.addEventListener('click', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceDelete) return;
+      const previous = workspacePresets.find(item => item.id === activeWorkspaceId);
+      if (!previous || previous.builtIn) return;
+      if (!window.confirm('Supprimer définitivement l’espace « ' + previous.label +
+          ' » et sa disposition ? Les trois espaces principaux seront conservés.')) return;
+      // The native bridge refuses deleting an active preset, so switch first.
+      if (!(await switchWorkspaceProfile('learning'))) return;
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      try {
+        const result = await window.guitarAudio.workspaceDelete(previous.id);
+        if (!result?.deleted) throw new Error('Suppression non confirmée');
+        try { localStorage.removeItem(PRESET_KEY + previous.id); } catch (_) {}
+        await refreshWorkspacePresets();
+        showWorkspaceStatus('Espace supprimé');
+      } catch (error) {
+        console.error('Suppression de l’espace :', error);
+        showWorkspaceStatus('Suppression impossible');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    });
+
     saveLayoutButton.addEventListener('click', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceSave) return;
@@ -933,6 +1070,11 @@
           restorationRequested = true;
           let saved;
           if (window.guitarAudio.workspaceGet) {
+            // Populate dynamic names before selecting the last active preset.
+            if (window.guitarAudio.workspaceList) {
+              await refreshWorkspacePresets();
+              if (generation !== workspaceGeneration) return;
+            }
             const layout = await window.guitarAudio.workspaceGet();
             if (generation !== workspaceGeneration) return;
             if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
