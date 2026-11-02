@@ -1746,6 +1746,9 @@ function playNote(string,fret,holdBeats=null){
  }).catch(err=>console.error('Guitar note playback unavailable:',GUITAR_SAMPLES[string],err));
 }
 function stop(){
+ // STOP is the single transport authority, even when JOUE AVEC MOI is
+ // controlled from a detached native window.
+ if(playWithMeActive)stopPlayWithMe();
  if(quickMeasureLoop){quickMeasureLoop=false;practiceLoop=false;practiceIteration=0;lastLoopTick=-1;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(window.guitarLibertyAlphaTab);practiceStatus.textContent='Prêt';}
  alphaTabResumePending=false;
  stopMetronome();
@@ -2686,6 +2689,8 @@ function startInternalPracticePlayback(startScore){
  releaseScore();
 }
 document.querySelector('#play').onclick=async()=>{
+ // Never run two competing playback modes from the main transport.
+ if(playWithMeActive){stop();return;}
  if(quickMeasureLoop&&alphaTabMode){stop();return;}
  if(sessionHistorySaved&&sessionStarted){
   // A completed result is already immutable in history. PLAY now starts a new
