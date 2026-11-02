@@ -1047,6 +1047,10 @@ function stopPlayWithMe(){
 function startPlayWithMe(){
  const api=window.guitarLibertyAlphaTab;if(!api||!practiceScore){playWithMeText.textContent='Charge d’abord une tablature Guitar Pro.';return}
  const range=playWithMeTicks();if(!range)return;
+ // Starting a call-and-response exercise must first cancel the previous
+ // transport, backing, count-in and LOOP (including the quick L shortcut).
+ // Otherwise two musical timelines can continue behind a detached panel.
+ stop();
  practiceLoop=false;loopToggle.textContent='↻ LOOP OFF';loopToggle.classList.remove('active');clearPracticeRange(api);
  playWithMeRange=range;playWithMeActive=true;playWithMeLastTick=-1;playWithMeRoundCount=0;playWithMePhraseRepeat=0;playWithMeStartedAt=Date.now();clearInterval(playWithMeElapsedTimer);const paintElapsed=()=>{const s=Math.max(0,Math.floor((Date.now()-playWithMeStartedAt)/1000));if(playWithMeElapsed)playWithMeElapsed.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};paintElapsed();playWithMeElapsedTimer=setInterval(paintElapsed,1000);playWithMeStart.disabled=true;if(playWithMeReplay)playWithMeReplay.disabled=true;if(playWithMeRestart)playWithMeRestart.disabled=false;if(playWithMeResume)playWithMeResume.disabled=true;if(playWithMeNext)playWithMeNext.disabled=true;playWithMeStop.disabled=false;playWithMePaint('listen');
  try{api.tickPosition=range.start;api.play()}catch(e){stopPlayWithMe()}
