@@ -54,6 +54,8 @@ test('each preset remembers its panel, width and selected tabs independently',()
   h.api.save();
 
   h.api.apply('practice');
+  assert.equal(h.groups.get('courses').selectedTabIndex,0,
+    'a fresh workspace must not inherit tabs from Apprentissage');
   assert.equal(h.api.getWidth(),400);
   assert.equal(h.opened.at(-1).id,'practice');
   h.api.setWidth(585);
