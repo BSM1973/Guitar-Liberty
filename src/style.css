@@ -455,3 +455,177 @@ body [class*="legend"]{
 #appWorkspace .gl-section-toggle:hover{border-color:#e9b44c;background:#1c2633}
 #appWorkspace .gl-section-toggle[aria-expanded="true"]{border-bottom-color:#455063}
 #appWorkspace .gl-section-collapsed{display:none!important}
+
+
+/* ===== GL SIGNATURE WORKSPACE: icon rail + permanent transport + score =====
+   Deliberately scoped to the workspace; the home screen is untouched. */
+#appWorkspace:not([hidden]){
+ display:grid;grid-template-columns:78px minmax(0,1fr);align-items:start;
+ min-height:calc(100vh - 92px);background:#0c1420;
+}
+#appWorkspace.gl-context-open:not([hidden]){
+ grid-template-columns:78px minmax(0,1fr) minmax(320px,370px);
+}
+#appWorkspace>.gl-icon-rail{
+ grid-column:1;grid-row:1;position:sticky;top:0;z-index:45;
+ display:flex;flex-direction:column;align-items:stretch;gap:4px;
+ width:78px;height:100vh;max-height:100vh;padding:12px 8px;
+ overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;
+ border-right:1px solid #2b394b;background:linear-gradient(180deg,#142236,#101925);
+}
+#appWorkspace .gl-rail-brand{
+ display:flex;align-items:center;justify-content:center;
+ height:37px;min-height:37px;margin-bottom:4px;border-radius:10px;
+ color:#e5b86b;font-size:17px;font-weight:900;letter-spacing:.05em;
+ background:#25374a;border:1px solid #3d4c60;
+}
+#appWorkspace .gl-rail-divider{height:1px;min-height:1px;margin:5px 5px;background:#3a4654}
+#appWorkspace .gl-rail-button{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+ width:100%;min-height:54px;padding:7px 3px;color:#9eacbf;
+ border:1px solid transparent;border-radius:11px;
+ background:transparent;cursor:pointer;transition:background .15s,border-color .15s,color .15s;
+}
+#appWorkspace .gl-rail-button svg{display:block;flex-shrink:0}
+#appWorkspace .gl-rail-button .gl-rail-text{
+ font:700 9px/1.12 Arial,sans-serif!important;
+ text-align:center;letter-spacing:.035em;overflow-wrap:anywhere;
+}
+#appWorkspace .gl-rail-button:hover,#appWorkspace .gl-rail-button:focus-visible{
+ color:#f3d39a;border-color:#4d5a68;background:#1c3046;
+}
+#appWorkspace .gl-rail-button.is-active{
+ color:#e8ba68;background:#27374b;border-color:#55667b;
+ box-shadow:inset 3px 0 0 #e8ba68;
+}
+#appWorkspace .gl-rail-button:focus-visible,
+#appWorkspace .gl-context-close:focus-visible,
+#appWorkspace .gl-feature-tab:focus-visible{outline:2px solid #e8ba68;outline-offset:2px}
+#appWorkspace>.gl-workspace-content{
+ grid-column:2;grid-row:1;min-width:0;width:100%;min-height:100vh;
+ padding:14px 18px 26px;overflow:visible;background:#0c1420;
+}
+#appWorkspace .gl-transport-dock{
+ position:sticky;top:0;z-index:38;min-width:0;margin:-14px -18px 12px;
+ padding:9px 16px 11px;border-bottom:1px solid #39495b;
+ background:rgba(16,27,41,.97);box-shadow:0 8px 22px #0005;
+ backdrop-filter:blur(16px);
+}
+#appWorkspace .gl-transport-dock .gl-permanent-toolbar{
+ display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;
+ gap:9px 16px;min-width:0;margin:0;padding:0;border:0;background:transparent;
+}
+#appWorkspace .gl-transport-dock #play{min-height:42px;white-space:nowrap}
+#appWorkspace .gl-transport-dock .backing-controls{
+ display:flex;flex-wrap:wrap;gap:6px;background:#19283a;
+}
+#appWorkspace .gl-transport-dock .toolbar>label{margin:0;white-space:nowrap}
+#appWorkspace .gl-transport-dock #tempo{width:clamp(90px,10vw,175px);max-width:100%}
+#appWorkspace .gl-transport-dock .transport{
+ height:4px;margin:10px 0 0;border-radius:999px;background:#354355;
+}
+#appWorkspace .gl-score-area{min-width:0;width:100%;scroll-margin-top:140px}
+#appWorkspace .gl-score-area .score-head{
+ margin:6px 0 12px;padding:0 5px;gap:12px;align-items:center;
+}
+#appWorkspace .gl-score-area .score-head h2{font-size:clamp(20px,2vw,28px);line-height:1.15}
+#appWorkspace .gl-score-area .paper{
+ width:100%;min-height:min(70vh,690px);max-height:calc(100vh - 190px);
+ padding:20px 18px 28px;border-radius:12px;overflow:auto;
+ background:#f7f7f5;scrollbar-width:thin;
+}
+#appWorkspace>.gl-context-panel{
+ grid-column:3;grid-row:1;display:flex;flex-direction:column;
+ position:sticky;top:0;z-index:40;width:100%;height:100vh;max-height:100vh;
+ min-width:0;padding:0;margin:0;background:#121d2c;
+ border-left:1px solid #405067;box-shadow:-12px 0 30px #0003;
+}
+#appWorkspace>.gl-context-panel[hidden],
+#appWorkspace .gl-feature-group[hidden],
+#appWorkspace .gl-feature-pane[hidden]{display:none!important}
+#appWorkspace .gl-context-head{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+ min-height:62px;padding:12px 16px;border-bottom:1px solid #34475b;
+ background:linear-gradient(100deg,#1c2b3e,#141f2e);
+}
+#appWorkspace .gl-context-head strong{
+ color:#e8ba68;font-size:13px;letter-spacing:.09em;line-height:1.2;
+}
+#appWorkspace .gl-context-close{
+ flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;
+ justify-content:center;background:#23364b;color:#e5eaf1;border:1px solid #44566b;
+ border-radius:9px;cursor:pointer;font-size:23px!important;
+}
+#appWorkspace .gl-context-close:hover{border-color:#e8ba68;color:#e8ba68}
+#appWorkspace .gl-context-body{
+ flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px;
+ scrollbar-width:thin;
+}
+#appWorkspace .gl-feature-tabs{
+ display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;
+}
+#appWorkspace .gl-feature-tab{
+ flex:1 1 auto;padding:9px 11px;border:1px solid #39495a;border-radius:8px;
+ background:#19283a;color:#c1ccdb;cursor:pointer;line-height:1.2;
+}
+#appWorkspace .gl-feature-tab.is-active{
+ background:#2a384c;border-color:#c49b5a;color:#e8ba68;
+}
+#appWorkspace .gl-feature-pane{min-width:0}
+#appWorkspace .gl-feature-pane>section,
+#appWorkspace .gl-feature-pane>div,
+#appWorkspace .gl-feature-pane>details{
+ width:100%;max-width:100%;margin:0 0 12px;min-width:0;
+}
+#appWorkspace .gl-feature-pane>section{padding:14px;overflow-x:auto}
+#appWorkspace .gl-feature-pane>.course-nav{
+ position:static;display:block;width:100%;min-height:0;max-height:none;
+ padding:6px 2px;border:0;background:transparent;overflow:visible;
+}
+#appWorkspace .gl-feature-pane>.course-nav .level-menu{width:100%}
+#appWorkspace .gl-feature-pane .dashboard-grid,
+#appWorkspace .gl-feature-pane .lesson-meta,
+#appWorkspace .gl-feature-pane .session-insight-grid,
+#appWorkspace .gl-feature-pane .guided-steps{
+ grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#appWorkspace .gl-feature-pane .practice-panel{
+ display:flex;flex-direction:column;align-items:stretch;gap:11px;
+}
+#appWorkspace .gl-feature-pane .practice-panel label{justify-content:space-between;flex-wrap:wrap}
+#appWorkspace .gl-feature-pane .practice-feedback{margin-left:0}
+#appWorkspace .gl-feature-pane .metronome-panel{flex-wrap:wrap;gap:10px}
+#appWorkspace .gl-feature-pane .play-with-me-controls,
+#appWorkspace .gl-feature-pane .liberty-mode-controls{flex-wrap:wrap}
+#appWorkspace .gl-feature-pane .history-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+#appWorkspace .gl-feature-pane .history-row strong{text-align:left}
+#appWorkspace .gl-feature-pane #importScore:not([hidden]){
+ display:block;width:100%;margin:0 0 12px;
+}
+#appWorkspace .back-to-top-wrap[hidden]{display:none!important}
+@media(max-width:1450px){
+ #appWorkspace.gl-context-open:not([hidden]){grid-template-columns:78px minmax(0,1fr)}
+ #appWorkspace>.gl-context-panel{
+  position:fixed;top:0;right:0;width:min(390px,calc(100vw - 78px));
+  height:100vh;max-height:100vh;z-index:60;
+  box-shadow:-18px 0 38px #0009;
+ }
+}
+@media(max-width:740px){
+ #appWorkspace:not([hidden]),#appWorkspace.gl-context-open:not([hidden]){
+  grid-template-columns:58px minmax(0,1fr);
+ }
+ #appWorkspace>.gl-icon-rail{width:58px;padding:8px 4px}
+ #appWorkspace .gl-rail-brand{font-size:14px}
+ #appWorkspace .gl-rail-button{min-height:48px}
+ #appWorkspace .gl-rail-button .gl-rail-text{font-size:8px!important}
+ #appWorkspace>.gl-workspace-content{padding:10px 8px}
+ #appWorkspace .gl-transport-dock{margin:-10px -8px 8px;padding:8px}
+ #appWorkspace .gl-transport-dock .gl-permanent-toolbar{gap:8px}
+ #appWorkspace .gl-score-area .paper{padding:12px 9px;min-height:55vh;max-height:calc(100vh - 205px)}
+ #appWorkspace>.gl-context-panel{width:min(390px,calc(100vw - 58px))}
+ #appWorkspace .gl-score-area .score-head{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){
+ #appWorkspace .gl-rail-button{transition:none}
+}
