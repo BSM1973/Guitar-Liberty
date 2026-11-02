@@ -199,3 +199,71 @@ test('main STOP ends JOUE AVEC MOI timers even during detached control', () => {
     assert.doesNotThrow(() => new Function(script), file + ' should parse');
   }
 });
+
+
+test('each detached panel restores its own position and dimensions on the next launch', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-persist-layout-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const displays = [
+    { workArea: {x: 0, y: 0, width: 1920, height: 1040} },
+    { workArea: {x: 1920, y: 0, width: 1440, height: 900} }
+  ];
+  const one = bootMain({ layoutDirectory: folder, displays });
+  await Promise.resolve();
+  const opener = one.handlers.get('gl-panel-open');
+  await opener({sender: one.windows[1].webContents}, 'practice', 'ENTRAÎNEMENT');
+  await opener({sender: one.windows[1].webContents}, 'play-with-me', 'JOUE AVEC MOI');
+  one.windows[2].setBounds({ x: 2210, y: 95, width: 620, height: 680 });
+  one.windows[3].setBounds({ x: 110, y: 130, width: 470, height: 600 });
+  one.windows[2].close();
+  one.windows[3].close();
+
+  const json = JSON.parse(fs.readFileSync(
+    path.join(folder, 'detached-panel-layouts.json'), 'utf8'));
+  assert.equal(json.version, 1);
+  assert.deepEqual(json.panels.practice, {x: 2210, y: 95, width: 620, height: 680});
+  assert.deepEqual(json.panels['play-with-me'], {x: 110, y: 130, width: 470, height: 600});
+
+  const two = bootMain({ layoutDirectory: folder, displays });
+  await Promise.resolve();
+  const reopen = two.handlers.get('gl-panel-open');
+  await reopen({sender: two.windows[1].webContents}, 'practice', 'ENTRAÎNEMENT');
+  await reopen({sender: two.windows[1].webContents}, 'play-with-me', 'JOUE AVEC MOI');
+  assert.deepEqual(two.windows[2].getBounds(), {x: 2210, y: 95, width: 620, height: 680});
+  assert.deepEqual(two.windows[3].getBounds(), {x: 110, y: 130, width: 470, height: 600});
+});
+
+test('a disconnected monitor does not leave the detached panel off screen', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-unplug-layout-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const pathName = path.join(folder, 'detached-panel-layouts.json');
+  fs.writeFileSync(pathName, JSON.stringify({
+    version: 1,
+    panels: {practice: { x: 2400, y: 140, width: 600, height: 650 }}
+  }));
+  const one = bootMain({ layoutDirectory: folder, displays: [
+    { workArea: {x: 0, y: 0, width: 1600, height: 900} }
+  ]});
+  await Promise.resolve();
+  await one.handlers.get('gl-panel-open')({
+    sender: one.windows[1].webContents
+  }, 'practice', 'ENTRAÎNEMENT');
+  assert.deepEqual(one.windows[2].getBounds(),
+    { x: 500, y: 125, width: 600, height: 650 });
+});
+
+test('a corrupted or invalid layout file falls back to safe native window bounds', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-corrupt-layout-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const filename = path.join(folder, 'detached-panel-layouts.json');
+  fs.writeFileSync(filename, '{broken');
+  const one = bootMain({ layoutDirectory: folder });
+  await Promise.resolve();
+  await one.handlers.get('gl-panel-open')({
+    sender: one.windows[1].webContents
+  }, 'guided', 'SÉANCE GUIDÉE');
+  const bounds = one.windows[2].getBounds();
+  assert.equal(bounds.width, 510);
+  assert.equal(bounds.height, 760);
+  assert.ok(bounds.x >= 0 && bounds.y >= 0);
+});
