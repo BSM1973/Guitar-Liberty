@@ -27,7 +27,7 @@ function boot({ids = ['practice', 'play-with-me'], hidden = true} = {}) {
   let provider = async () => ids;
   let onOpen = () => {};
   const context = {
-    workspace, groups, detachedAllowed: allowed,
+    workspace, groups, detachedAllowed: allowed, workspaceGeneration: 0,
     console: { warn: () => {} },
     window: {guitarAudio: { panelRestorable: () => { reads++; return provider(); } }},
     openDetachedGroup: async (group, restoring) => {
