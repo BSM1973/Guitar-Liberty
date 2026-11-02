@@ -11,6 +11,11 @@ const detachablePanelIds = new Set([
   'intention', 'guided', 'practice', 'coach', 'liberty',
   'play-with-me', 'session', 'history', 'dashboard'
 ]);
+const workspaceIds = Object.freeze(['learning', 'practice', 'improv']);
+const defaultWorkspace = 'learning';
+let activeWorkspace = defaultWorkspace;
+let savedWorkspaces = null;
+let switchingWorkspace = false;
 
 // Store only window geometry in Electron's per-user app data folder,
 // never the contents of a lesson or personal journal.
@@ -22,29 +27,45 @@ function panelLayoutsPath() {
   return path.join(app.getPath('userData'), 'detached-panel-layouts.json');
 }
 function readPanelLayouts() {
-  if (savedPanelLayouts) return savedPanelLayouts;
-  savedPanelLayouts = {};
-  savedDetachedPanelIds = new Set();
+  if (savedWorkspaces) return savedPanelLayouts;
+  savedWorkspaces = Object.create(null);
+  for (const id of workspaceIds) {
+    savedWorkspaces[id] = { panels: {}, openPanels: new Set() };
+  }
+  let parsed = null;
   try {
-    const parsed = JSON.parse(fs.readFileSync(panelLayoutsPath(), 'utf8'));
-    const records = parsed && parsed.version === 1 && parsed.panels;
-    if (records && typeof records === 'object') {
-      for (const id of detachablePanelIds) {
-        const bounds = finiteRect(records[id]);
-        if (bounds) savedPanelLayouts[id] = bounds;
-      }
-    }
-    // Backwards compatible: older saved layouts have no openPanels field.
-    if (parsed && parsed.version === 1 && Array.isArray(parsed.openPanels)) {
-      for (const id of parsed.openPanels) {
-        if (typeof id === 'string' && detachablePanelIds.has(id)) {
-          savedDetachedPanelIds.add(id);
-        }
-      }
-    }
+    parsed = JSON.parse(fs.readFileSync(panelLayoutsPath(), 'utf8'));
   } catch (error) {
     if (error.code !== 'ENOENT') console.warn('Positions des panneaux : valeurs par défaut utilisées');
   }
+
+  // Previously saved single-workspace layouts become Apprentissage. This
+  // preserves the user's existing detached arrangement on upgrade.
+  const profiles = parsed && parsed.version === 1 && parsed.workspaces &&
+    typeof parsed.workspaces === 'object' ? parsed.workspaces : null;
+  for (const id of workspaceIds) {
+    const source = profiles ? profiles[id] :
+      id === defaultWorkspace && parsed && parsed.version === 1 ? parsed : null;
+    if (!source || typeof source !== 'object') continue;
+    if (source.panels && typeof source.panels === 'object') {
+      for (const panelId of detachablePanelIds) {
+        const rect = finiteRect(source.panels[panelId]);
+        if (rect) savedWorkspaces[id].panels[panelId] = rect;
+      }
+    }
+    if (Array.isArray(source.openPanels)) {
+      for (const panelId of source.openPanels) {
+        if (typeof panelId === 'string' && detachablePanelIds.has(panelId)) {
+          savedWorkspaces[id].openPanels.add(panelId);
+        }
+      }
+    }
+  }
+
+  activeWorkspace = parsed && workspaceIds.includes(parsed.activeWorkspace)
+    ? parsed.activeWorkspace : defaultWorkspace;
+  savedPanelLayouts = savedWorkspaces[activeWorkspace].panels;
+  savedDetachedPanelIds = savedWorkspaces[activeWorkspace].openPanels;
   return savedPanelLayouts;
 }
 function flushPanelLayouts() {
@@ -52,19 +73,30 @@ function flushPanelLayouts() {
     clearTimeout(layoutSaveTimer);
     layoutSaveTimer = null;
   }
-  if (!savedPanelLayouts) return;
+  if (!savedWorkspaces) return;
   const filename = panelLayoutsPath();
   const temporary = filename + '.tmp';
   try {
+    const workspaces = {};
+    for (const id of workspaceIds) {
+      const profile = savedWorkspaces[id];
+      workspaces[id] = {
+        panels: profile.panels,
+        openPanels: Array.from(profile.openPanels)
+      };
+    }
     fs.mkdirSync(path.dirname(filename), { recursive: true });
     fs.writeFileSync(temporary, JSON.stringify({
       version: 1,
+      // Compatibility fields for older builds and existing saved layouts.
       panels: savedPanelLayouts,
-      openPanels: Array.from(savedDetachedPanelIds || [])
+      openPanels: Array.from(savedDetachedPanelIds),
+      activeWorkspace,
+      workspaces
     }, null, 2), { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(temporary, filename);
   } catch (error) {
-    console.warn('Impossible d’enregistrer la disposition des panneaux :', error);
+    console.warn('Impossible d’enregistrer les espaces de travail :', error);
     try { fs.unlinkSync(temporary); } catch (_) {}
   }
 }
@@ -102,6 +134,46 @@ ipcMain.handle('gl-panel-restore-session', (event) => {
   return Array.from(savedDetachedPanelIds);
 });
 
+// Workspace presets share one playback engine and one score. Switching
+// changes only the detached window arrangement and saved geometry.
+ipcMain.handle('gl-workspace-get', (event) => {
+  if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents) {
+    throw new Error('Espace de travail non autorisé');
+  }
+  readPanelLayouts();
+  return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
+});
+
+ipcMain.handle('gl-workspace-switch', (event, workspaceId) => {
+  if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
+      typeof workspaceId !== 'string' || !workspaceIds.includes(workspaceId)) {
+    throw new Error('Espace de travail non autorisé');
+  }
+  readPanelLayouts();
+  if (activeWorkspace === workspaceId) {
+    return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
+  }
+  // Save the old workspace before closing its native windows. These closes
+  // must not be mistaken for a deliberate RATTACHER.
+  switchingWorkspace = true;
+  try {
+    for (const popup of Array.from(guitarPanelWindows.values())) {
+      if (popup.isDestroyed()) continue;
+      popup._glCloseReason = 'workspace-switch';
+      rememberPanelBounds(popup._glPanelId, popup);
+      popup.close();
+    }
+    activeWorkspace = workspaceId;
+    savedPanelLayouts = savedWorkspaces[workspaceId].panels;
+    savedDetachedPanelIds = savedWorkspaces[workspaceId].openPanels;
+    schedulePanelLayoutSave();
+    flushPanelLayouts();
+    return { id: workspaceId, openPanels: Array.from(savedDetachedPanelIds) };
+  } finally {
+    switchingWorkspace = false;
+  }
+});
+
 ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = false) => {
   if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
       typeof panelId !== 'string' || !detachablePanelIds.has(panelId)) {
@@ -136,6 +208,7 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
       preload: path.join(__dirname, 'panel-preload.js')
     }
   });
+  popup._glPanelId = panelId;
   guitarPanelWindows.set(panelId, popup);
   setDetachedPreference(panelId, true);
   // Persist independently for every tool, including user move/resize changes.
@@ -145,7 +218,8 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
     rememberPanelBounds(panelId, popup);
     // Closing a floating window manually (or RATTACHER) turns off automatic
     // reopening. Quitting/closing the main workspace must preserve the layout.
-    if (!shuttingDownWorkspace) setDetachedPreference(panelId, false);
+    if (!shuttingDownWorkspace && !switchingWorkspace &&
+        popup._glCloseReason !== 'workspace-switch') setDetachedPreference(panelId, false);
     flushPanelLayouts();
   });
   popup.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -164,7 +238,9 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   popup.on('closed', () => {
     if (guitarPanelWindows.get(panelId) === popup) guitarPanelWindows.delete(panelId);
     if (guitarMainWindow && !guitarMainWindow.isDestroyed()) {
-      guitarMainWindow.webContents.send('gl-panel-closed', panelId);
+      guitarMainWindow.webContents.send(
+        'gl-panel-closed', panelId, popup._glCloseReason || 'manual'
+      );
     }
   });
   return { opened: true, reused: false };
