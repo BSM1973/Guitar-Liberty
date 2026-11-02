@@ -204,7 +204,10 @@
     let active = null;
     let activeWorkspaceId = 'learning';
     let workspaceSwitchBusy = false;
-    let suppressPresetSaving = false;
+    let workspaceGeneration = 0;
+    // Do not overwrite an existing saved preset with the initial home-button
+    // navigation before the persisted active mode has been read from Electron.
+    let suppressPresetSaving = true;
     const detachedAllowed = new Set([
       'dashboard', 'intention', 'guided', 'practice', 'coach', 'liberty',
       'play-with-me', 'session', 'history'
@@ -691,6 +694,7 @@
           !workspacePresets.some(preset => preset.id === id) ||
           !window.guitarAudio?.workspaceSwitch) return false;
       savePresetView();
+      workspaceGeneration++;
       workspaceSwitchBusy = true;
       updatePresetButtons();
       try {
@@ -749,16 +753,18 @@
       if (workspace.hidden || restorationInProgress ||
           !window.guitarAudio?.panelRestorable) return;
       restorationInProgress = true;
+      const generation = workspaceGeneration;
       try {
         if (!restorationRequested) {
           restorationRequested = true;
           let saved;
           if (window.guitarAudio.workspaceGet) {
             const layout = await window.guitarAudio.workspaceGet();
+            if (generation !== workspaceGeneration) return;
             if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
               activeWorkspaceId = layout.id;
               applyPresetView(layout.id);
-            }
+            } else suppressPresetSaving = false;
             saved = layout?.openPanels;
           } else {
             saved = await window.guitarAudio.panelRestorable();
@@ -767,7 +773,8 @@
         }
         // If the guitarist briefly returns to the welcome page, resume any
         // remaining windows on the next workspace entry rather than losing them.
-        while (!workspace.hidden && pendingRestoredIds?.length) {
+        while (!workspace.hidden && generation === workspaceGeneration &&
+               pendingRestoredIds?.length) {
           const id = pendingRestoredIds.shift();
           const group = groups.get(id);
           if (!group || !detachedAllowed.has(id) || group.detached) continue;
