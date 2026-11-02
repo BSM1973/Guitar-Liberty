@@ -126,7 +126,7 @@
       ];
       const extra = Array.isArray(definitions) ? definitions.filter(function (item) {
         return item && typeof item.id === 'string' &&
-          /^custom-[1-9]\\d*$/.test(item.id) &&
+          /^custom-[1-9]\d*$/.test(item.id) &&
           typeof item.label === 'string' && item.label.length >= 1 &&
           item.label.length <= 32 && !fixed.some(base => base.id === item.id);
       }).slice(0,8).map(item => ({
@@ -172,7 +172,20 @@
     layoutStatus.className = 'gl-workspace-layout-status';
     layoutStatus.setAttribute('role', 'status');
     layoutStatus.setAttribute('aria-live', 'polite');
-    presetActions.append(saveLayoutButton, resetLayoutButton);
+    const renameWorkspaceButton = document.createElement('button');
+    renameWorkspaceButton.type = 'button';
+    renameWorkspaceButton.className = 'gl-workspace-layout-action';
+    renameWorkspaceButton.textContent = 'RENOMMER';
+    renameWorkspaceButton.title = 'Renommer cet espace personnalisé';
+    renameWorkspaceButton.hidden = true;
+    const deleteWorkspaceButton = document.createElement('button');
+    deleteWorkspaceButton.type = 'button';
+    deleteWorkspaceButton.className = 'gl-workspace-layout-action gl-workspace-layout-delete';
+    deleteWorkspaceButton.textContent = 'SUPPRIMER';
+    deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
+    deleteWorkspaceButton.hidden = true;
+    presetActions.append(saveLayoutButton, resetLayoutButton,
+      renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
     content.prepend(transportDock);
@@ -255,6 +268,34 @@
     drawer.prepend(resizeHandle);
     workspace.prepend(rail);
     workspace.append(drawer);
+
+    // Native-looking navy name dialog, scoped to the musical workspace.
+    // Names are always rendered as text; no user-entered HTML is evaluated.
+    const workspaceNameOverlay = document.createElement('div');
+    workspaceNameOverlay.className = 'gl-workspace-name-overlay';
+    workspaceNameOverlay.hidden = true;
+    workspaceNameOverlay.innerHTML = `
+      <form class="gl-workspace-name-form" role="dialog"
+            aria-modal="true" aria-labelledby="glWorkspaceNameTitle">
+        <h2 id="glWorkspaceNameTitle" class="gl-workspace-name-title"></h2>
+        <label class="gl-workspace-name-label" for="glWorkspaceNameInput">
+          NOM DE L’ESPACE DE TRAVAIL
+        </label>
+        <input id="glWorkspaceNameInput" type="text" maxlength="32"
+               autocomplete="off" spellcheck="false" required>
+        <p class="gl-workspace-name-error" role="alert" aria-live="assertive"></p>
+        <div class="gl-workspace-name-actions">
+          <button type="button" class="gl-workspace-name-cancel">ANNULER</button>
+          <button type="submit" class="gl-workspace-name-submit">VALIDER</button>
+        </div>
+      </form>`;
+    workspace.append(workspaceNameOverlay);
+    const workspaceNameForm = workspaceNameOverlay.querySelector('form');
+    const workspaceNameInput = workspaceNameOverlay.querySelector('#glWorkspaceNameInput');
+    const workspaceNameTitle = workspaceNameOverlay.querySelector('#glWorkspaceNameTitle');
+    const workspaceNameError = workspaceNameOverlay.querySelector('.gl-workspace-name-error');
+    const workspaceNameCancel = workspaceNameOverlay.querySelector('.gl-workspace-name-cancel');
+    const workspaceNameSubmit = workspaceNameOverlay.querySelector('.gl-workspace-name-submit');
 
     const groups = new Map();
     let active = null;
@@ -431,8 +472,17 @@
         button.setAttribute('aria-pressed', String(selected));
         button.disabled = workspaceSwitchBusy;
       });
-      saveLayoutButton.disabled = workspaceSwitchBusy || suppressPresetSaving;
-      resetLayoutButton.disabled = workspaceSwitchBusy || suppressPresetSaving;
+      const unavailable = workspaceSwitchBusy || suppressPresetSaving;
+      saveLayoutButton.disabled = unavailable;
+      resetLayoutButton.disabled = unavailable;
+      const isCustom = workspacePresets.some(preset =>
+        preset.id === activeWorkspaceId && !preset.builtIn);
+      renameWorkspaceButton.hidden = !isCustom;
+      deleteWorkspaceButton.hidden = !isCustom;
+      renameWorkspaceButton.disabled = unavailable;
+      deleteWorkspaceButton.disabled = unavailable;
+      createWorkspaceButton.disabled = unavailable ||
+        workspacePresets.filter(preset => !preset.builtIn).length >= 8;
     }
 
     function showWorkspaceStatus(message) {
