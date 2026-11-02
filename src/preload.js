@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   panelRestorable: () => ipcRenderer.invoke('gl-panel-restore-session'),
   workspaceGet: () => ipcRenderer.invoke('gl-workspace-get'),
   workspaceSwitch: (id) => ipcRenderer.invoke('gl-workspace-switch', id),
+  workspaceSave: (id) => ipcRenderer.invoke('gl-workspace-save', id),
+  workspaceReset: (id) => ipcRenderer.invoke('gl-workspace-reset', id),
   panelSnapshot: (id, markup) => ipcRenderer.send('gl-panel-snapshot', id, markup),
   onPanelAction: (callback) => {
     const listener = (_event, panelId, action) => callback(panelId, action);
