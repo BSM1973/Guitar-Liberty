@@ -575,13 +575,22 @@
       }
     });
 
-    // Keep detached panels updated without cloning or moving live controls.
+    // Audio/playback timing stays in the original renderer. Replicate only
+    // the visual state, more frequently during JOUE AVEC MOI and loop work,
+    // so the detached display does not visibly lag the main transport.
+    const lastPublished = new Map();
     window.setInterval(function () {
       if (workspace.hidden) return;
+      const now = performance.now();
       groups.forEach(function (group) {
-        if (group.detached) publishSnapshot(group);
+        if (!group.detached) return;
+        const minInterval = group.id === 'play-with-me' ? 100 :
+          group.id === 'practice' ? 200 : 500;
+        if (now - (lastPublished.get(group.id) || 0) < minInterval) return;
+        lastPublished.set(group.id, now);
+        publishSnapshot(group);
       });
-    }, 500);
+    }, 100);
 
     scoreButton.addEventListener('click', function () {
       closePanel();
