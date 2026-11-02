@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { finiteRect, restorePanelBounds } = require('./panel-layout');
 
 // The original workspace stays authoritative. Detached native windows receive
 // visual snapshots and forward user actions to the existing UI controls.
@@ -10,6 +11,64 @@ const detachablePanelIds = new Set([
   'intention', 'guided', 'practice', 'coach', 'liberty',
   'play-with-me', 'session', 'history', 'dashboard'
 ]);
+
+// Store only window geometry in Electron's per-user app data folder,
+// never the contents of a lesson or personal journal.
+let savedPanelLayouts = null;
+let layoutSaveTimer = null;
+function panelLayoutsPath() {
+  return path.join(app.getPath('userData'), 'detached-panel-layouts.json');
+}
+function readPanelLayouts() {
+  if (savedPanelLayouts) return savedPanelLayouts;
+  savedPanelLayouts = {};
+  try {
+    const parsed = JSON.parse(fs.readFileSync(panelLayoutsPath(), 'utf8'));
+    const records = parsed && parsed.version === 1 && parsed.panels;
+    if (records && typeof records === 'object') {
+      for (const id of detachablePanelIds) {
+        const bounds = finiteRect(records[id]);
+        if (bounds) savedPanelLayouts[id] = bounds;
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.warn('Positions des panneaux : valeurs par défaut utilisées');
+  }
+  return savedPanelLayouts;
+}
+function flushPanelLayouts() {
+  if (layoutSaveTimer !== null) {
+    clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = null;
+  }
+  if (!savedPanelLayouts) return;
+  const filename = panelLayoutsPath();
+  const temporary = filename + '.tmp';
+  try {
+    fs.mkdirSync(path.dirname(filename), { recursive: true });
+    fs.writeFileSync(temporary, JSON.stringify({
+      version: 1, panels: savedPanelLayouts
+    }, null, 2), { encoding: 'utf8', mode: 0o600 });
+    fs.renameSync(temporary, filename);
+  } catch (error) {
+    console.warn('Impossible d’enregistrer la disposition des panneaux :', error);
+    try { fs.unlinkSync(temporary); } catch (_) {}
+  }
+}
+function schedulePanelLayoutSave() {
+  if (layoutSaveTimer !== null) clearTimeout(layoutSaveTimer);
+  layoutSaveTimer = setTimeout(flushPanelLayouts, 400);
+}
+function rememberPanelBounds(id, popup) {
+  if (popup.isDestroyed() || popup.isMinimized?.()) return;
+  const rect = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+  if (!rect) return;
+  const layouts = readPanelLayouts();
+  if (layouts[id] && ['x','y','width','height'].every(k => layouts[id][k] === rect[k])) return;
+  layouts[id] = rect;
+  schedulePanelLayoutSave();
+}
+
 
 ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle) => {
   if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
@@ -23,9 +82,11 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle) => {
     return { opened: true, reused: true };
   }
   const title = typeof panelTitle === 'string' ? panelTitle.slice(0, 80) : 'Panneau';
+  const currentDisplays = screen.getAllDisplays();
+  const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
+  const bounds = restorePanelBounds(readPanelLayouts()[panelId], currentDisplays, preferred);
   const popup = new BrowserWindow({
-    width: 510,
-    height: 760,
+    ...bounds,
     minWidth: 350,
     minHeight: 440,
     backgroundColor: '#101a28',
@@ -40,6 +101,13 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle) => {
     }
   });
   guitarPanelWindows.set(panelId, popup);
+  // Persist independently for every tool, including user move/resize changes.
+  popup.on('move', () => rememberPanelBounds(panelId, popup));
+  popup.on('resize', () => rememberPanelBounds(panelId, popup));
+  popup.on('close', () => {
+    rememberPanelBounds(panelId, popup);
+    flushPanelLayouts();
+  });
   popup.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   popup.loadFile(path.join(__dirname, 'panel-window.html'), {
     query: { panel: panelId, title }
@@ -176,6 +244,8 @@ function createWindow() {
   };
   setTimeout(revealApp, 4200);
 }
+
+app.on('before-quit', flushPanelLayouts);
 
 app.whenReady().then(() => {
   createWindow();
