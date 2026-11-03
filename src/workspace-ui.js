@@ -1123,6 +1123,7 @@
     let screenMapPreviousFocus = null;
     let screenMapDisplays = [];
     let screenMapPanels = new Set();
+    const screenMapFavoriteSlots = new Map();
     let screenMapDraggedId = null;
     let screenMapMoving = false;
     function closeScreenMap(restoreFocus = true) {
@@ -1132,6 +1133,7 @@
       screenMapDraggedId = null;
       screenMapDisplays = [];
       screenMapPanels = new Set();
+      screenMapFavoriteSlots.clear();
       screenMapMoving = false;
       if (restoreFocus) screenMapPreviousFocus?.focus?.();
       screenMapPreviousFocus = null;
@@ -1282,6 +1284,89 @@
         if (!screenMapOverlay.hidden && generation===screenMapRequest) {
           screenMapMessage.textContent=
             'Annulation impossible : disposition modifiée. Actualise le plan.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
+    async function saveScreenMapFavorite(displayIndex,slot) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !window.guitarAudio?.workspaceSaveScreenFavorite ||
+          !Number.isInteger(slot) || slot<1 || slot>3) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      if (!display?.workArea) return;
+      const existing=display.favorites?.find(item=>item.slot===slot);
+      if (existing?.count>0 && !window.confirm(
+          'Remplacer le FAVORI '+slot+' de l’écran '+(displayIndex+1)+' ?')) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Enregistrement du FAVORI '+slot+'…';
+      try {
+        const result=await window.guitarAudio.workspaceSaveScreenFavorite(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex || result.slot!==slot ||
+            !Number.isInteger(result.saved) || result.saved<1) {
+          throw new Error('Favori non confirmé');
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : FAVORI '+slot+' enregistré ('+result.saved+
+            ' fenêtre'+(result.saved>1?'s':'')+').';
+        }
+      } catch(error) {
+        console.error('Enregistrement d’un favori d’écran :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Enregistrement du favori impossible.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
+    async function applyScreenMapFavorite(displayIndex,slot) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !window.guitarAudio?.workspaceApplyScreenFavorite ||
+          !Number.isInteger(slot) || slot<1 || slot>3) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const saved=display?.favorites?.find(item=>item.slot===slot);
+      if (!display?.workArea || !saved || saved.count<1) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Application du FAVORI '+slot+'…';
+      try {
+        const result=await window.guitarAudio.workspaceApplyScreenFavorite(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex || result.slot!==slot ||
+            !Number.isInteger(result.applied) || result.applied<1) {
+          throw new Error('Application non confirmée');
+        }
+        if (result.autoDisabled) {
+          activeAutoArrange=false;
+          updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : FAVORI '+slot+' appliqué à '+result.applied+
+            ' fenêtre'+(result.applied>1?'s':'')+
+            (result.skipped>0?' ('+result.skipped+' indisponible'+
+              (result.skipped>1?'s':'')+')':'')+
+            (result.autoDisabled?' — AUTO désactivé':'')+'.';
+        }
+      } catch(error) {
+        console.error('Application d’un favori d’écran :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Application impossible. Vérifie les fenêtres et actualise.';
         }
       } finally {
         screenMapMoving=false;
@@ -1474,7 +1559,54 @@
             });
             controls.append(undo);
           }
-          card.append(heading,resolution,preview,list,controls);
+          const favorites=document.createElement('div');
+          favorites.className='gl-workspace-map-favorites';
+          const favoritesLabel=document.createElement('span');
+          favoritesLabel.textContent='FAVORIS';
+          favoritesLabel.className='gl-workspace-map-favorites-label';
+          const slotSelect=document.createElement('select');
+          slotSelect.className='gl-workspace-map-favorites-select';
+          slotSelect.setAttribute('aria-label',
+            'Choisir un favori pour l’écran '+(display.index+1));
+          const slots=Array.isArray(display.favorites)?display.favorites:[];
+          for (let slot=1;slot<=3;slot++) {
+            const option=document.createElement('option');
+            option.value=String(slot);
+            const saved=slots.find(item=>item.slot===slot);
+            option.textContent='FAVORI '+slot+
+              (saved?.count>0?' ('+saved.count+')':' — VIDE');
+            slotSelect.append(option);
+          }
+          slotSelect.value=String(screenMapFavoriteSlots.get(display.index)||1);
+          const saveFavorite=document.createElement('button');
+          saveFavorite.type='button';
+          saveFavorite.className='gl-workspace-map-favorite-save';
+          saveFavorite.textContent='ENREGISTRER';
+          saveFavorite.title='Mémoriser les fenêtres actives de cet écran';
+          saveFavorite.disabled=activeCount===0;
+          const applyFavorite=document.createElement('button');
+          applyFavorite.type='button';
+          applyFavorite.className='gl-workspace-map-favorite-apply';
+          applyFavorite.textContent='APPLIQUER';
+          applyFavorite.title='Restaurer ce favori uniquement sur cet écran';
+          const selectedCount=()=>slots.find(item=>
+            item.slot===Number(slotSelect.value))?.count||0;
+          applyFavorite.disabled=selectedCount()===0;
+          slotSelect.addEventListener('change',function () {
+            const slot=Number(slotSelect.value);
+            if (Number.isInteger(slot) && slot>=1 && slot<=3) {
+              screenMapFavoriteSlots.set(display.index,slot);
+              applyFavorite.disabled=selectedCount()===0;
+            }
+          });
+          saveFavorite.addEventListener('click',function () {
+            saveScreenMapFavorite(display.index,Number(slotSelect.value));
+          });
+          applyFavorite.addEventListener('click',function () {
+            applyScreenMapFavorite(display.index,Number(slotSelect.value));
+          });
+          favorites.append(favoritesLabel,slotSelect,saveFavorite,applyFavorite);
+          card.append(heading,resolution,preview,list,controls,favorites);
           screenMapScreens.append(card);
         }
         const offscreen = panels.filter(panel => panel.displayIndex < 0);
