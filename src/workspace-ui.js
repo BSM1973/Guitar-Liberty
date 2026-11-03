@@ -927,6 +927,7 @@
       if (workspace.hidden || workspaceSwitchBusy || id === activeWorkspaceId ||
           !workspacePresets.some(preset => preset.id === id) ||
           !window.guitarAudio?.workspaceSwitch) return false;
+      if (typeof closeScreenMap === 'function') closeScreenMap(false);
       savePresetView();
       const previousRestorationRequested = restorationRequested;
       const previousRestoredIds = pendingRestoredIds?.slice() || null;
@@ -1118,6 +1119,160 @@
       }
     });
 
+    let screenMapRequest = 0;
+    let screenMapPreviousFocus = null;
+    function closeScreenMap(restoreFocus = true) {
+      screenMapRequest++;
+      screenMapOverlay.hidden = true;
+      screenMapMessage.textContent = '';
+      if (restoreFocus) screenMapPreviousFocus?.focus?.();
+      screenMapPreviousFocus = null;
+    }
+    async function focusScreenMapPanel(panelId) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          !window.guitarAudio?.workspaceFocusPanel) return;
+      const workspaceId = activeWorkspaceId;
+      screenMapMessage.textContent = 'Localisation de la fenêtre…';
+      try {
+        const result = await window.guitarAudio.workspaceFocusPanel(workspaceId,panelId);
+        if (screenMapOverlay.hidden || workspaceId !== activeWorkspaceId) return;
+        if (!result || result.id !== panelId || result.focused !== true) {
+          throw new Error('Fenêtre non confirmée');
+        }
+        // Do not return keyboard focus to the main window: the user explicitly
+        // chose a detached native panel.
+        closeScreenMap(false);
+      } catch (error) {
+        console.error('Localisation du panneau :',error);
+        if (!screenMapOverlay.hidden) {
+          screenMapMessage.textContent = 'Impossible de retrouver cette fenêtre';
+        }
+      }
+    }
+    function addScreenMapPanelButton(container,panel,preview,area) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = preview ? 'gl-workspace-map-window' : 'gl-workspace-map-item';
+      button.textContent = panel.title;
+      button.title = 'Afficher la fenêtre ' + panel.title;
+      button.setAttribute('aria-label','Afficher ' + panel.title);
+      if (panel.minimized) button.classList.add('is-minimized');
+      if (preview) {
+        const bounds = panel.bounds;
+        const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
+        const left = clamp((bounds.x-area.x)/area.width*100,0,100);
+        const top = clamp((bounds.y-area.y)/area.height*100,0,100);
+        const right = clamp((bounds.x+bounds.width-area.x)/area.width*100,0,100);
+        const bottom = clamp((bounds.y+bounds.height-area.y)/area.height*100,0,100);
+        button.style.left = left + '%';
+        button.style.top = top + '%';
+        button.style.width = Math.max(2,right-left) + '%';
+        button.style.height = Math.max(4,bottom-top) + '%';
+      }
+      button.addEventListener('click',function () {
+        focusScreenMapPanel(panel.id);
+      });
+      container.append(button);
+    }
+    async function refreshScreenMap() {
+      if (screenMapOverlay.hidden || workspace.hidden ||
+          !window.guitarAudio?.workspaceScreenMap) return;
+      const generation = ++screenMapRequest;
+      const workspaceId = activeWorkspaceId;
+      screenMapRefresh.disabled = true;
+      screenMapMessage.textContent = 'Lecture des écrans…';
+      try {
+        const result = await window.guitarAudio.workspaceScreenMap(workspaceId);
+        if (generation !== screenMapRequest || screenMapOverlay.hidden ||
+            workspaceId !== activeWorkspaceId) return;
+        if (!result || result.id !== workspaceId ||
+            !Array.isArray(result.screens) || !Array.isArray(result.panels)) {
+          throw new Error('Plan des écrans non confirmé');
+        }
+        screenMapScreens.replaceChildren();
+        const panels = result.panels.filter(item =>
+          item && typeof item.id === 'string' && typeof item.title === 'string' &&
+          item.bounds && Number.isInteger(item.displayIndex));
+        screenMapSummary.textContent = result.screens.length + ' écran' +
+          (result.screens.length > 1 ? 's' : '') + ' connecté' +
+          (result.screens.length > 1 ? 's' : '') + ' — ' + panels.length +
+          ' fenêtre' + (panels.length > 1 ? 's' : '') + ' détachée' +
+          (panels.length > 1 ? 's' : '');
+        for (const display of result.screens) {
+          const area = display?.workArea;
+          if (!area || !Number.isInteger(display.index) ||
+              ![area.x,area.y,area.width,area.height].every(Number.isFinite) ||
+              area.width <= 0 || area.height <= 0) continue;
+          const card = document.createElement('article');
+          card.className = 'gl-workspace-map-screen';
+          if (display.main) card.classList.add('is-main');
+          const heading = document.createElement('h3');
+          heading.textContent = 'ÉCRAN ' + (display.index+1) +
+            (display.main ? ' — TABLATURE' : ' — ANNEXE');
+          const resolution = document.createElement('p');
+          resolution.className = 'gl-workspace-map-resolution';
+          resolution.textContent = area.width + ' × ' + area.height;
+          const preview = document.createElement('div');
+          preview.className = 'gl-workspace-map-preview';
+          preview.style.aspectRatio = area.width + ' / ' + area.height;
+          preview.setAttribute('aria-label','Position des fenêtres sur cet écran');
+          const list = document.createElement('div');
+          list.className = 'gl-workspace-map-panel-list';
+          const visible = panels.filter(panel => panel.displayIndex === display.index);
+          for (const panel of visible) {
+            addScreenMapPanelButton(preview,panel,true,area);
+            addScreenMapPanelButton(list,panel,false,area);
+          }
+          if (!visible.length) {
+            const empty = document.createElement('span');
+            empty.className = 'gl-workspace-map-empty';
+            empty.textContent = 'Aucune fenêtre détachée';
+            list.append(empty);
+          }
+          card.append(heading,resolution,preview,list);
+          screenMapScreens.append(card);
+        }
+        const offscreen = panels.filter(panel => panel.displayIndex < 0);
+        if (offscreen.length) {
+          const section = document.createElement('div');
+          section.className = 'gl-workspace-map-offscreen';
+          const title = document.createElement('strong');
+          title.textContent = 'FENÊTRES HORS ÉCRAN';
+          section.append(title);
+          for (const panel of offscreen) addScreenMapPanelButton(section,panel,false,null);
+          screenMapScreens.append(section);
+        }
+        screenMapMessage.textContent = 'Clique sur une fenêtre pour la retrouver.';
+      } catch (error) {
+        console.error('Plan des écrans :',error);
+        if (generation === screenMapRequest && !screenMapOverlay.hidden) {
+          screenMapMessage.textContent = 'Impossible de lire les écrans';
+        }
+      } finally {
+        if (generation === screenMapRequest) screenMapRefresh.disabled = false;
+      }
+    }
+    screenMapButton.addEventListener('click',function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceScreenMap || !screenMapOverlay.hidden) return;
+      screenMapPreviousFocus = document.activeElement;
+      screenMapOverlay.hidden = false;
+      screenMapClose.focus();
+      refreshScreenMap();
+    });
+    screenMapRefresh.addEventListener('click',refreshScreenMap);
+    screenMapClose.addEventListener('click',function () { closeScreenMap(); });
+    screenMapOverlay.addEventListener('click',function (event) {
+      if (event.target === screenMapOverlay) closeScreenMap();
+    });
+    screenMapOverlay.addEventListener('keydown',function (event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeScreenMap();
+      }
+    });
+
     screenModeSelect.addEventListener('change', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceScreenMode) {
@@ -1263,6 +1418,7 @@
     resetLayoutButton.addEventListener('click', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceReset) return;
+      closeScreenMap(false);
       const preset = workspacePresets.find(item => item.id === activeWorkspaceId);
       if (!window.confirm('Réinitialiser uniquement l’espace « ' +
           (preset?.label || activeWorkspaceId) + ' » ? Les autres espaces seront conservés.')) return;
@@ -1403,7 +1559,8 @@
     });
     closeButton.addEventListener('click', closePanel);
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && active && workspaceNameOverlay.hidden) {
+      if (event.key === 'Escape' && active && workspaceNameOverlay.hidden &&
+          screenMapOverlay.hidden) {
         closePanel();
       }
     });
