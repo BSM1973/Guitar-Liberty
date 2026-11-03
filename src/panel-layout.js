@@ -66,9 +66,11 @@ function restorePanelBounds(saved, displays, preferredDisplay) {
 // Deterministic one-click layout for detached windows. Use other monitors
 // first to keep the central tablature visible on the main display. Bounds
 // remain per workspace in the native layout store.
-function distributePanelBounds(panelIds, displays, preferredDisplay) {
+function distributePanelBounds(panelIds, displays, preferredDisplay, style = 'mosaic') {
   const ids = Array.isArray(panelIds) ? panelIds : [];
   if (!ids.length) return [];
+  // Unknown or older saved preferences retain the original mosaic behavior.
+  if (!['mosaic', 'columns', 'cascade'].includes(style)) style = 'mosaic';
   const GAP = 12;
   const MARGIN = 12;
   const TARGET_WIDTH = 480;
@@ -126,6 +128,52 @@ function distributePanelBounds(panelIds, displays, preferredDisplay) {
       maxRows = Math.max(1,Math.floor(
         (area.height - 2*MARGIN + GAP) / (MIN_HEIGHT + GAP)));
     }
+    // Cascade deliberately overlaps windows, leaving each title bar reachable.
+    // It also provides a safe fallback when a grid cannot fit minimum sizes.
+    function cascade() {
+      const width = Math.max(1,Math.min(area.width-2*MARGIN,
+        Math.max(MIN_WIDTH,Math.min(MAX_WIDTH,Math.floor(area.width*.72)))));
+      const height = Math.max(1,Math.min(area.height-2*MARGIN,
+        Math.max(MIN_HEIGHT,Math.min(MAX_HEIGHT,Math.floor(area.height*.72)))));
+      const rangeX = Math.max(0,area.width-2*MARGIN-width);
+      const rangeY = Math.max(0,area.height-2*MARGIN-height);
+      const stepX = Math.max(1,Math.min(36,Math.floor(rangeX/Math.max(1,count-1))));
+      const stepY = Math.max(1,Math.min(32,Math.floor(rangeY/Math.max(1,count-1))));
+      assigned.forEach((item,i) => {
+        const x = area.x+MARGIN+(rangeX ? (i*stepX)%(rangeX+1) : 0);
+        const y = area.y+MARGIN+(rangeY ? (i*stepY)%(rangeY+1) : 0);
+        result[item.position] = {id:item.id,displayIndex:bucket.index,
+          bounds:{x,y,width,height}};
+      });
+    }
+    if (style === 'cascade') {
+      cascade();
+      continue;
+    }
+    if (style === 'columns') {
+      // Favor a single row of tall, side-by-side columns; wrap only if
+      // needed, and never shrink below Electron's minimum panel height.
+      const columns = Math.min(count,Math.max(1,Math.floor(
+        (area.width-2*MARGIN+GAP)/(MIN_WIDTH+GAP))));
+      const rows = Math.ceil(count/columns);
+      const cellWidth = (area.width-2*MARGIN-(columns-1)*GAP)/columns;
+      const cellHeight = (area.height-2*MARGIN-(rows-1)*GAP)/rows;
+      if (cellWidth < MIN_WIDTH || cellHeight < MIN_HEIGHT) {
+        cascade();
+        continue;
+      }
+      const width = Math.round(Math.min(MAX_WIDTH,cellWidth));
+      const height = Math.round(Math.min(MAX_HEIGHT,cellHeight));
+      assigned.forEach((item,i) => {
+        const col = i%columns;
+        const row = Math.floor(i/columns);
+        const x = Math.round(area.x+MARGIN+col*(cellWidth+GAP)+(cellWidth-width)/2);
+        const y = Math.round(area.y+MARGIN+row*(cellHeight+GAP)+(cellHeight-height)/2);
+        result[item.position] = {id:item.id,displayIndex:bucket.index,
+          bounds:{x,y,width,height}};
+      });
+      continue;
+    }
     if (count <= maxColumns*maxRows) {
       const rows = Math.ceil(count/maxColumns);
       const columns = Math.ceil(count/rows);
@@ -147,22 +195,8 @@ function distributePanelBounds(panelIds, displays, preferredDisplay) {
           bounds:{x,y,width,height}};
       });
     } else {
-      // More panels than can physically fit: cascade with visible title
-      // bars rather than hiding any window outside the desktop.
-      const width = Math.max(1,Math.min(area.width-2*MARGIN,
-        Math.max(MIN_WIDTH,Math.min(MAX_WIDTH,Math.floor(area.width*.72)))));
-      const height = Math.max(1,Math.min(area.height-2*MARGIN,
-        Math.max(MIN_HEIGHT,Math.min(MAX_HEIGHT,Math.floor(area.height*.72)))));
-      const rangeX = Math.max(0,area.width-2*MARGIN-width);
-      const rangeY = Math.max(0,area.height-2*MARGIN-height);
-      const stepX = Math.max(1,Math.min(36,Math.floor(rangeX/Math.max(1,count-1))));
-      const stepY = Math.max(1,Math.min(32,Math.floor(rangeY/Math.max(1,count-1))));
-      assigned.forEach((item,i) => {
-        const x = area.x+MARGIN+(rangeX ? (i*stepX)%(rangeX+1) : 0);
-        const y = area.y+MARGIN+(rangeY ? (i*stepY)%(rangeY+1) : 0);
-        result[item.position] = {id:item.id,displayIndex:bucket.index,
-          bounds:{x,y,width,height}};
-      });
+      // Preserve the legacy overflow fallback for the mosaic style.
+      cascade();
     }
   }
   return result;
