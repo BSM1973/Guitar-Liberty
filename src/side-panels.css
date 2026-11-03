@@ -738,6 +738,37 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
  opacity:.46;cursor:not-allowed;
 }
 
+#appWorkspace .gl-workspace-map-favorite-rename{
+ min-height:34px;flex:1 1 auto;padding:7px 9px;
+ border:1px solid #6c8ba9;border-radius:7px;
+ background:#25374f;color:#d9e7f8;
+ font:800 10px/1.3 Arial,sans-serif;cursor:pointer;
+}
+#appWorkspace .gl-workspace-map-favorite-quick{
+ width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:6px;margin-top:3px;
+}
+#appWorkspace .gl-workspace-map-favorite-quick-button{
+ min-width:0;min-height:35px;padding:6px;
+ border:1px solid #b08f61;border-radius:8px;
+ background:#34485f;color:#f6dbab;
+ font:800 10px/1.2 Arial,sans-serif;
+ text-overflow:ellipsis;overflow:hidden;white-space:nowrap;cursor:pointer;
+}
+#appWorkspace .gl-workspace-map-favorite-quick-button:hover:not(:disabled),
+#appWorkspace .gl-workspace-map-favorite-rename:hover:not(:disabled){
+ background:#47617a;border-color:#edc47b;
+}
+#appWorkspace .gl-workspace-map-favorite-quick-button:disabled,
+#appWorkspace .gl-workspace-map-favorite-rename:disabled{
+ opacity:.43;cursor:not-allowed;
+}
+#appWorkspace .gl-workspace-map-favorite-quick-button:focus-visible,
+#appWorkspace .gl-workspace-map-favorite-rename:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+
+
 #appWorkspace .gl-workspace-map-empty{
  color:#a8b8cc;font:600 11px/1.3 Arial,sans-serif;
 }

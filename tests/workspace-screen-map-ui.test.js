@@ -45,6 +45,7 @@ function harness(overrides={}) {
   const undos=[];
   const favoriteSaves=[];
   const favoriteApplies=[];
+  const favoriteRenames=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -83,6 +84,10 @@ function harness(overrides={}) {
     return Promise.resolve({id,displayIndex:index,slot,applied:1,
       skipped:0,autoDisabled:true});
   });
+  const renameFavorite=overrides.renameFavorite||((id,index,area,slot,name)=>{
+    favoriteRenames.push({id,index,area,slot,name});
+    return Promise.resolve({id,displayIndex:index,slot,name});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -95,14 +100,16 @@ function harness(overrides={}) {
       workspaceMovePanel:move,workspaceArrangeScreen:organize,
       workspaceUndoScreen:undo,
       workspaceSaveScreenFavorite:saveFavorite,
-      workspaceApplyScreenFavorite:applyFavorite},
-      confirm:overrides.confirm||(()=>true)},
+      workspaceApplyScreenFavorite:applyFavorite,
+      workspaceRenameScreenFavorite:renameFavorite},
+      confirm:overrides.confirm||(()=>true),
+      prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
     console:{error:(...args)=>errors.push(args)}
   };
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
   return {context,calls,moves,organizations,undos,
-    favoriteSaves,favoriteApplies,errors,
+    favoriteSaves,favoriteApplies,favoriteRenames,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -473,4 +480,111 @@ test('PLAN DES ÉCRANS ignores duplicate favorite application while busy',async(
     skipped:0,autoDisabled:false});
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.screenMapRefresh.disabled,false);
+});
+
+test('PLAN DES ÉCRANS recalls a named favorite directly with one click',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[
+      {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+        favorites:[{slot:1,count:0,name:''},{slot:2,count:0,name:''},{slot:3,count:0,name:''}]},
+      {index:1,main:false,workArea:{x:1600,y:0,width:1920,height:1080},
+        favorites:[{slot:1,count:1,name:'Accompagnement'},
+          {slot:2,count:1,name:'Solo'},
+          {slot:3,count:0,name:''}]}
+    ],
+    panels:[{id:'coach',title:'COACH',displayIndex:1,minimized:false,
+      bounds:{x:1880,y:110,width:520,height:650}}]
+  })});
+  await h.open();
+  const c=h.context;
+  const favored=c.screenMapScreens.children[1].children[5];
+  assert.match(favored.children[1].children[0].textContent,/Accompagnement/);
+  const quick=favored.children[5];
+  assert.equal(quick.children.length,3);
+  assert.equal(quick.children[0].textContent,'Accompagnement');
+  assert.equal(quick.children[1].textContent,'Solo');
+  assert.equal(quick.children[2].disabled,true);
+  assert.equal(c.screenMapScreens.children[0].children[5].children[5].children[0].disabled,true);
+  assert.match(quick.children[1].attrs['aria-label'],/écran 2/);
+  quick.children[1].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.favoriteApplies.length,1);
+  assert.equal(h.favoriteApplies[0].slot,2);
+  assert.equal(h.favoriteApplies[0].index,1);
+  assert.equal(c.screenMapScreens.children[1].children[5].children[1].value,'2');
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(c.activeAutoArrange,false);
+});
+
+test('PLAN DES ÉCRANS renames a selected saved favorite without moving windows',async()=>{
+  let name='Accompagnement';
+  let promptCalls=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name},{slot:2,count:0,name:''},{slot:3,count:0,name:''}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:60,y:90,width:520,height:650}}]
+  }),prompt:()=>{promptCalls++;return '  Entraînement   quotidien  ';},
+  renameFavorite:async(id,index,area,slot,newName)=>{
+    name=newName;
+    return {id,displayIndex:index,slot,name:newName};
+  }});
+  await h.open();
+  const c=h.context;
+  const rename=c.screenMapScreens.children[0].children[5].children[4];
+  assert.equal(rename.textContent,'RENOMMER');
+  assert.equal(rename.disabled,false);
+  rename.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(promptCalls,1);
+  assert.equal(name,'Entraînement quotidien');
+  assert.equal(c.screenMapScreens.children[0].children[5].children[5].children[0]
+    .textContent,'Entraînement quotidien');
+  assert.match(c.screenMapMessage.textContent,/renommé/);
+  assert.equal(h.favoriteApplies.length,0);
+  assert.equal(h.favoriteSaves.length,0);
+});
+
+test('PLAN DES ÉCRANS does not rename canceled or empty favorites',async()=>{
+  let asked=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Solo'},{slot:2,count:0,name:''},
+        {slot:3,count:0,name:''}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:60,y:90,width:520,height:650}}]
+  }),prompt:()=>{asked++;return null}});
+  await h.open();
+  const fav=h.context.screenMapScreens.children[0].children[5].children;
+  fav[4].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(asked,1);
+  assert.equal(h.favoriteRenames.length,0);
+  fav[1].value='2';fav[1].fire('change');
+  assert.equal(fav[4].disabled,true);
+  fav[4].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(asked,1,'unsaved favorite must not prompt');
+});
+
+test('PLAN DES ÉCRANS blocks duplicate quick recall while IPC is pending',async()=>{
+  let finish,count=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Solo'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:60,y:90,width:520,height:650}}]
+  }),applyFavorite:()=>{count++;return new Promise(resolve=>{finish=resolve})}});
+  await h.open();
+  const quick=h.context.screenMapScreens.children[0].children[5].children[5].children[0];
+  quick.fire('click');
+  quick.fire('click');
+  assert.equal(count,1);
+  finish({id:'learning',displayIndex:0,slot:1,applied:1,skipped:0,autoDisabled:false});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.context.screenMapRefresh.disabled,false);
 });

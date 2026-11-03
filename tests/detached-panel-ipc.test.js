@@ -2073,3 +2073,75 @@ test('SCREEN FAVORITES retain independent workspace and monitor slots',async()=>
   assert.deepEqual(Array.from(map().screens[0].favorites,v=>v.count),[1,0,0]);
   assert.deepEqual(Array.from(map().screens[1].favorites,v=>v.count),[0,1,0]);
 });
+
+test('SCREEN FAVORITE names persist after restart without changing saved positions',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-named-favorites-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const area={...displays[1].workArea};
+  const first=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=first.windows[1].webContents;
+  await first.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=first.windows.at(-1);
+  popup.setBounds({x:1800,y:100,width:520,height:650});
+  const before=popup.getBounds();
+  const save=first.handlers.get('gl-workspace-save-screen-favorite');
+  const rename=first.handlers.get('gl-workspace-rename-screen-favorite');
+  save({sender},'learning',1,area,2);
+  const named=rename({sender},'learning',1,area,2,'  Accompagnement    solo  ');
+  assert.equal(named.name,'Accompagnement solo');
+  assert.deepEqual(popup.getBounds(),before);
+  let map=first.handlers.get('gl-workspace-screen-map')({sender},'learning');
+  assert.equal(map.screens[1].favorites[1].name,'Accompagnement solo');
+  assert.equal(map.screens[0].favorites[1].name,'');
+  assert.equal(map.screens[1].favorites[0].name,'');
+  const rebooted=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender2=rebooted.windows[1].webContents;
+  map=rebooted.handlers.get('gl-workspace-screen-map')({sender:sender2},'learning');
+  assert.equal(map.screens[1].favorites[1].name,'Accompagnement solo');
+  assert.equal(map.screens[1].favorites[1].count,1);
+  await rebooted.handlers.get('gl-panel-open')({sender:sender2},'coach','COACH');
+  rebooted.windows.at(-1).setBounds({x:2600,y:100,width:510,height:650});
+  const recalled=rebooted.handlers.get('gl-workspace-apply-screen-favorite')(
+    {sender:sender2},'learning',1,area,2);
+  assert.equal(recalled.applied,1);
+  assert.deepEqual(rebooted.windows.at(-1).getBounds(),before);
+  await rebooted.handlers.get('gl-workspace-switch')({sender:sender2},'practice');
+  const practice=rebooted.handlers.get('gl-workspace-screen-map')(
+    {sender:sender2},'practice');
+  assert.equal(practice.screens[1].favorites[1].name,'');
+});
+
+test('SCREEN FAVORITE renaming validates names and prevents foreign changes',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents, area={...displays[1].workArea};
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  popup.setBounds({x:1850,y:70,width:520,height:650});
+  const rename=h.handlers.get('gl-workspace-rename-screen-favorite');
+  assert.throws(()=>rename({sender},'learning',1,area,1,'Demo'),/Enregistrer/);
+  h.handlers.get('gl-workspace-save-screen-favorite')({sender},'learning',1,area,1);
+  const unchanged=popup.getBounds();
+  assert.throws(()=>rename({sender},'learning',1,area,1,' '),/non valide/);
+  assert.throws(()=>rename({sender},'learning',1,area,1,'X'.repeat(29)),/non valide/);
+  assert.throws(()=>rename({sender},'learning',1,area,1,'Mauvais\u0001Nom'),/non valide/);
+  assert.throws(()=>rename({sender:popup.webContents},'learning',1,area,1,'Demo'),
+    /non autorisé/);
+  assert.throws(()=>rename({sender},'practice',1,area,1,'Demo'),/non autorisé/);
+  assert.throws(()=>rename({sender},'learning',1,{...area,width:1800},1,'Demo'),
+    /modifiés/);
+  assert.throws(()=>rename({sender},'learning',1,area,4,'Demo'),/non autorisé/);
+  assert.equal(rename({sender},'learning',1,area,1,'Solo').name,'Solo');
+  assert.deepEqual(popup.getBounds(),unchanged);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
+});
