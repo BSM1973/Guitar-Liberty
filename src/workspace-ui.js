@@ -172,6 +172,26 @@
     }
     layoutStyleSelect.value = 'mosaic';
     layoutStyleLabel.append(layoutStyleSelect);
+    const screenModeLabel = document.createElement('label');
+    screenModeLabel.className = 'gl-workspace-style-label';
+    screenModeLabel.textContent = 'ÉCRANS';
+    const screenModeSelect = document.createElement('select');
+    screenModeSelect.className = 'gl-workspace-style-select gl-workspace-screen-select';
+    screenModeSelect.setAttribute('aria-label', 'Écrans utilisés pour les fenêtres détachées');
+    for (const [value, text] of [
+      ['secondary-first', 'Priorité annexes'],
+      ['all', 'Tous les écrans'],
+      ['primary', 'Écran principal'],
+      ['secondary', 'Annexes uniquement']
+    ]) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      screenModeSelect.append(option);
+    }
+    screenModeSelect.value = 'secondary-first';
+    screenModeSelect.title = 'Choisir les écrans utilisés par les fenêtres détachées pour cet espace';
+    screenModeLabel.append(screenModeSelect);
     const distributeLayoutButton = document.createElement('button');
     distributeLayoutButton.type = 'button';
     distributeLayoutButton.className =
@@ -217,7 +237,7 @@
     deleteWorkspaceButton.textContent = 'SUPPRIMER';
     deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
     deleteWorkspaceButton.hidden = true;
-    presetActions.append(layoutStyleLabel, distributeLayoutButton, autoLayoutButton, saveLayoutButton,
+    presetActions.append(layoutStyleLabel, screenModeLabel, distributeLayoutButton, autoLayoutButton, saveLayoutButton,
       resetLayoutButton, renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
@@ -335,6 +355,7 @@
     let activeWorkspaceId = 'learning';
     let activeAutoArrange = false;
     let activeLayoutStyle = 'mosaic';
+    let activeScreenMode = 'secondary-first';
     let workspaceSwitchBusy = false;
     let workspaceGeneration = 0;
     // Do not overwrite an existing saved preset with the initial home-button
@@ -510,6 +531,8 @@
       const unavailable = workspaceSwitchBusy || suppressPresetSaving;
       layoutStyleSelect.disabled = unavailable;
       layoutStyleSelect.value = activeLayoutStyle;
+      screenModeSelect.disabled = unavailable;
+      screenModeSelect.value = activeScreenMode;
       distributeLayoutButton.disabled = unavailable;
       autoLayoutButton.disabled = unavailable;
       autoLayoutButton.textContent = activeAutoArrange ? 'AUTO : OUI' : 'AUTO : NON';
@@ -889,6 +912,8 @@
         activeAutoArrange = layout.autoArrange === true;
         activeLayoutStyle = ['mosaic','columns','cascade'].includes(layout.layoutStyle)
           ? layout.layoutStyle : 'mosaic';
+        activeScreenMode = ['secondary-first','all','primary','secondary'].includes(layout.screenMode)
+          ? layout.screenMode : 'secondary-first';
         // The main process has closed the old windows, preserving their layout.
         groups.forEach(function (group) {
           group.detached = false;
@@ -1057,6 +1082,43 @@
       }
     });
 
+    screenModeSelect.addEventListener('change', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceScreenMode) {
+        screenModeSelect.value = activeScreenMode;
+        return;
+      }
+      const requestedMode = screenModeSelect.value;
+      if (!['secondary-first','all','primary','secondary'].includes(requestedMode) ||
+          requestedMode === activeScreenMode) {
+        screenModeSelect.value = activeScreenMode;
+        return;
+      }
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      showWorkspaceStatus('');
+      try {
+        const result = await window.guitarAudio.workspaceScreenMode(
+          activeWorkspaceId, requestedMode);
+        if (!result || result.id !== activeWorkspaceId ||
+            result.mode !== requestedMode) {
+          throw new Error('Choix des écrans non confirmé');
+        }
+        activeScreenMode = requestedMode;
+        const labels = {
+          'secondary-first':'Priorité annexes', all:'Tous les écrans',
+          primary:'Écran principal', secondary:'Annexes uniquement'
+        };
+        showWorkspaceStatus('Écrans : ' + labels[requestedMode] + ' — choix enregistré');
+      } catch (error) {
+        console.error('Choix des écrans :', error);
+        showWorkspaceStatus('Impossible de modifier le choix des écrans');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    });
+
     layoutStyleSelect.addEventListener('change', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceLayoutStyle) {
@@ -1191,6 +1253,7 @@
         closePanel();
         activeAutoArrange = false;
         activeLayoutStyle = 'mosaic';
+        activeScreenMode = 'secondary-first';
         try { localStorage.removeItem(PRESET_KEY + activeWorkspaceId); } catch (_) {}
         applyPresetView(activeWorkspaceId);
         showWorkspaceStatus('Disposition initiale restaurée');
@@ -1243,6 +1306,8 @@
               activeAutoArrange = layout.autoArrange === true;
               activeLayoutStyle = ['mosaic','columns','cascade'].includes(layout.layoutStyle)
                 ? layout.layoutStyle : 'mosaic';
+              activeScreenMode = ['secondary-first','all','primary','secondary'].includes(layout.screenMode)
+                ? layout.screenMode : 'secondary-first';
               applyPresetView(layout.id, Array.isArray(layout.openPanels)
                 ? layout.openPanels : []);
             } else suppressPresetSaving = false;
