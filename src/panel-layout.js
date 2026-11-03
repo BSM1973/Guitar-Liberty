@@ -149,13 +149,17 @@ function distributePanelBounds(panelIds, displays, preferredDisplay) {
     } else {
       // More panels than can physically fit: cascade with visible title
       // bars rather than hiding any window outside the desktop.
-      const width = Math.max(1,Math.min(MAX_WIDTH,area.width-2*MARGIN));
-      const height = Math.max(1,Math.min(MAX_HEIGHT,area.height-2*MARGIN));
+      const width = Math.max(1,Math.min(area.width-2*MARGIN,
+        Math.max(MIN_WIDTH,Math.min(MAX_WIDTH,Math.floor(area.width*.72)))));
+      const height = Math.max(1,Math.min(area.height-2*MARGIN,
+        Math.max(MIN_HEIGHT,Math.min(MAX_HEIGHT,Math.floor(area.height*.72)))));
       const rangeX = Math.max(0,area.width-2*MARGIN-width);
       const rangeY = Math.max(0,area.height-2*MARGIN-height);
+      const stepX = Math.max(1,Math.min(36,Math.floor(rangeX/Math.max(1,count-1))));
+      const stepY = Math.max(1,Math.min(32,Math.floor(rangeY/Math.max(1,count-1))));
       assigned.forEach((item,i) => {
-        const x = area.x+MARGIN+(rangeX ? (i*36)%(rangeX+1) : 0);
-        const y = area.y+MARGIN+(rangeY ? (i*32)%(rangeY+1) : 0);
+        const x = area.x+MARGIN+(rangeX ? (i*stepX)%(rangeX+1) : 0);
+        const y = area.y+MARGIN+(rangeY ? (i*stepY)%(rangeY+1) : 0);
         result[item.position] = {id:item.id,displayIndex:bucket.index,
           bounds:{x,y,width,height}};
       });
