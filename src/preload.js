@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   workspaceCreate: (name) => ipcRenderer.invoke('gl-workspace-create', name),
   workspaceRename: (id, name) => ipcRenderer.invoke('gl-workspace-rename', id, name),
   workspaceDelete: (id) => ipcRenderer.invoke('gl-workspace-delete', id),
+  workspaceDistribute: (id) => ipcRenderer.invoke('gl-workspace-distribute', id),
   workspaceSave: (id) => ipcRenderer.invoke('gl-workspace-save', id),
   workspaceReset: (id) => ipcRenderer.invoke('gl-workspace-reset', id),
   panelSnapshot: (id, markup) => ipcRenderer.send('gl-panel-snapshot', id, markup),
