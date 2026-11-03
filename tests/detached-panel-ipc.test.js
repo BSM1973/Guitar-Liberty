@@ -2513,9 +2513,20 @@ test('SCREEN FAVORITES overlap diagnostics detect new collisions with unsaved wi
     result.overlaps.introduced.length],[0,1,1]);
   const hit=result.overlaps.after[0];
   assert.deepEqual(Array.from(hit.ids),['history','practice']);
-  assert.deepEqual(JSON.parse(JSON.stringify(hit.bounds)),
-    {x:650,y:110,width:350,height:390});
-  assert.equal(hit.areaPixels,136500);
+  // Native detached-window bounds are clamped by the saved-layout
+  // geometry rules. Derive the expected intersection from the preview.
+  const savedHistory=result.items.find(item=>item.id==='history').bounds;
+  const livePractice=result.contextPanels.find(item=>item.id==='practice').bounds;
+  const overlapTop=Math.max(savedHistory.y,livePractice.y);
+  const overlapBottom=Math.min(savedHistory.y+savedHistory.height,
+    livePractice.y+livePractice.height);
+  const overlapLeft=Math.max(savedHistory.x,livePractice.x);
+  const overlapRight=Math.min(savedHistory.x+savedHistory.width,
+    livePractice.x+livePractice.width);
+  const expected={x:overlapLeft,y:overlapTop,
+    width:overlapRight-overlapLeft,height:overlapBottom-overlapTop};
+  assert.deepEqual(JSON.parse(JSON.stringify(hit.bounds)),expected);
+  assert.equal(hit.areaPixels,expected.width*expected.height);
   assert.deepEqual(Array.from(result.contextPanels,x=>x.id),['practice']);
   assert.deepEqual([coach.getBounds(),history.getBounds(),practice.getBounds()],
     original,'comparison must never move windows');

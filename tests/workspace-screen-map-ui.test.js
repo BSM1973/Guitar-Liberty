@@ -497,7 +497,7 @@ test('PLAN DES ÉCRANS ignores duplicate favorite application while busy',async(
   const apply=c.screenMapScreens.children[0].children[5].children[3];
   apply.fire('click');
   apply.fire('click');
-  await Promise.resolve();
+  await new Promise(resolve=>setImmediate(resolve));
   assert.equal(count,1);
   finishApply({id:'learning',displayIndex:0,slot:1,applied:1,
     skipped:0,autoDisabled:false});
@@ -606,6 +606,7 @@ test('PLAN DES ÉCRANS blocks duplicate quick recall while IPC is pending',async
   const quick=h.context.screenMapScreens.children[0].children[5].children[5].children[0];
   quick.fire('click');
   quick.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
   assert.equal(count,1);
   finish({id:'learning',displayIndex:0,slot:1,applied:1,skipped:0,autoDisabled:false});
   await new Promise(resolve=>setImmediate(resolve));
