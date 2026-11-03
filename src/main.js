@@ -399,6 +399,71 @@ ipcMain.handle('gl-workspace-get', (event) => {
     screenMode: savedWorkspaces[activeWorkspace].screenMode };
 });
 
+// Read-only monitor map for the active musical workspace. Only the main
+// renderer may inspect the native screen geometry and floating panel list.
+ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || workspaceId !== activeWorkspace ||
+      switchingWorkspace || shuttingDownWorkspace) {
+    throw new Error('Plan des écrans non autorisé');
+  }
+  const displays = screen.getAllDisplays();
+  const mainDisplay = screen.getDisplayMatching(guitarMainWindow.getBounds());
+  const area = display => finiteRect(display && (display.workArea || display));
+  const mainArea = area(mainDisplay);
+  const screens = displays.map((display,index) => {
+    const workArea = area(display);
+    return workArea ? {index,workArea,
+      main: Boolean(mainArea &&
+        ['x','y','width','height'].every(k => mainArea[k] === workArea[k]))} : null;
+  }).filter(Boolean);
+  const intersection = (a,b) => Math.max(0,
+    Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
+    Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+  const panels = [];
+  for (const [id,popup] of guitarPanelWindows) {
+    if (popup.isDestroyed()) continue;
+    const bounds = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+    if (!bounds) continue;
+    let displayIndex = -1, largest = 0;
+    for (const item of screens) {
+      const overlap = intersection(bounds,item.workArea);
+      if (overlap > largest) {
+        largest = overlap;
+        displayIndex = item.index;
+      }
+    }
+    const rawTitle = popup.getTitle?.() || popup.options?.title || id;
+    panels.push({id,
+      title: String(rawTitle).replace(/ — Guitare Liberty$/, '').slice(0,80),
+      bounds,displayIndex,minimized:Boolean(popup.isMinimized?.())});
+  }
+  const profile = savedWorkspaces[workspaceId];
+  return {id:workspaceId,screens,panels,
+    style:profile.layoutStyle,mode:profile.screenMode,
+    auto:profile.autoArrange === true};
+});
+
+// Explicit click on a screen-map item brings back that existing window;
+// never create a renderer or restart the single playback engine.
+ipcMain.handle('gl-workspace-focus-panel', (event, workspaceId, panelId) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || workspaceId !== activeWorkspace ||
+      switchingWorkspace || shuttingDownWorkspace ||
+      typeof panelId !== 'string' || !detachablePanelIds.has(panelId)) {
+    throw new Error('Localisation du panneau non autorisée');
+  }
+  const popup = guitarPanelWindows.get(panelId);
+  if (!popup || popup.isDestroyed()) throw new Error('Fenêtre détachée indisponible');
+  if (popup.isMinimized?.()) popup.restore?.();
+  ensureDetachedPanelVisible(popup);
+  popup.show();
+  popup.focus();
+  return {id:panelId,focused:true};
+});
+
 // RÉPARTIR arranges the existing native windows without creating new
 // renderers or changing the permanent tablature / playback host. Each profile
 // already persists its own bounds; the new positions survive workspace switches.
