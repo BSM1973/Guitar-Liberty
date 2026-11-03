@@ -56,6 +56,7 @@ function harness(existing={}) {
     activeScreenMode:'secondary-first',
     activeLayoutStyle:'mosaic',
     distributeLayoutButton:{disabled:false},
+    screenMapButton:{disabled:false},
     autoLayoutButton:{disabled:false,textContent:'',attrs:{},
       setAttribute(name,value){this.attrs[name]=value;}},activeAutoArrange:false,
     saveLayoutButton:{disabled:false},
