@@ -28,6 +28,7 @@ function boot({ids = ['practice', 'play-with-me'], hidden = true} = {}) {
   let onOpen = () => {};
   const context = {
     workspace, groups, detachedAllowed: allowed, workspaceGeneration: 0,
+    activeAutoArrange:false,activeWorkspaceId:'learning',
     console: { warn: () => {} },
     window: {guitarAudio: { panelRestorable: () => { reads++; return provider(); } }},
     openDetachedGroup: async (group, restoring) => {
