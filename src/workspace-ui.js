@@ -1247,6 +1247,47 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled = false;
       }
     }
+    async function undoScreenMapDisplay(displayIndex) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !window.guitarAudio?.workspaceUndoScreen) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      if (!display?.workArea || display.canUndo!==true) return;
+      const workspaceId=activeWorkspaceId;
+      const generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Annulation sur l’écran '+(displayIndex+1)+'…';
+      try {
+        const result=await window.guitarAudio.workspaceUndoScreen(
+          workspaceId,displayIndex,display.workArea);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex ||
+            !Number.isInteger(result.restored) || result.restored<1) {
+          throw new Error('Annulation non confirmée');
+        }
+        if (result.autoRestored) {
+          activeAutoArrange=true;
+          updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : disposition précédente restaurée ('+result.restored+
+            ' fenêtre'+(result.restored>1?'s':'')+').';
+        }
+      } catch(error) {
+        console.error('Annulation de l’organisation :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent=
+            'Annulation impossible : disposition modifiée. Actualise le plan.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
     function addScreenMapDropTarget(preview,display) {
       preview.addEventListener('dragover',function (event) {
         if (!screenMapDraggedId || screenMapMoving ||
@@ -1420,6 +1461,19 @@
             organizeScreenMapDisplay(display.index);
           });
           controls.append(count,organize);
+          if (display.canUndo === true) {
+            const undo=document.createElement('button');
+            undo.type='button';
+            undo.className='gl-workspace-map-undo';
+            undo.textContent='ANNULER';
+            undo.title='Restaurer les positions avant la dernière organisation';
+            undo.setAttribute('aria-label',
+              'Annuler la dernière organisation de l’écran '+(display.index+1));
+            undo.addEventListener('click',function () {
+              undoScreenMapDisplay(display.index);
+            });
+            controls.append(undo);
+          }
           card.append(heading,resolution,preview,list,controls);
           screenMapScreens.append(card);
         }
