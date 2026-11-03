@@ -685,7 +685,7 @@ test('Apprentissage, Entraînement and Improvisation keep independent floating l
   const switchTo = h.handlers.get('gl-workspace-switch');
   const open = h.handlers.get('gl-panel-open');
   assert.deepEqual(JSON.parse(JSON.stringify(get({sender}))),
-    {id:'learning', openPanels:[], autoArrange:false,layoutStyle:'mosaic'});
+    {id:'learning', openPanels:[], autoArrange:false,layoutStyle:'mosaic',screenMode:'secondary-first'});
 
   await open({sender}, 'coach', 'COACHS');
   const original = h.windows[2];
@@ -732,7 +732,7 @@ test('Apprentissage, Entraînement and Improvisation keep independent floating l
   const nextSender = anotherRun.windows[1].webContents;
   assert.deepEqual(JSON.parse(JSON.stringify(
     anotherRun.handlers.get('gl-workspace-get')({sender:nextSender})
-  )), {id:'practice',openPanels:['practice'],autoArrange:false,layoutStyle:'mosaic'});
+  )), {id:'practice',openPanels:['practice'],autoArrange:false,layoutStyle:'mosaic',screenMode:'secondary-first'});
 });
 
 test('reattaching a panel only affects the active workspace preset', async t => {
@@ -766,7 +766,7 @@ test('legacy layouts migrate to Apprentissage without losing panel dimensions', 
   const sender = h.windows[1].webContents;
   assert.deepEqual(JSON.parse(JSON.stringify(
     h.handlers.get('gl-workspace-get')({sender})
-  )),{id:'learning',openPanels:['practice'],autoArrange:false,layoutStyle:'mosaic'});
+  )),{id:'learning',openPanels:['practice'],autoArrange:false,layoutStyle:'mosaic',screenMode:'secondary-first'});
   await h.handlers.get('gl-panel-open')({sender},'practice','ENTRAÎNEMENT',true);
   assert.deepEqual(h.windows[2].getBounds(),
     {x:140,y:80,width:520,height:650});
@@ -1092,4 +1092,104 @@ test('invalid, inactive and unauthorized DISPOSITION requests cannot alter saved
   assert.equal(restarted.handlers.get('gl-workspace-get')({
     sender:restarted.windows[1].webContents
   }).layoutStyle,'mosaic','corrupt saved style falls back to Mosaïque');
+});
+
+test('ÉCRANS policy is per workspace, applies immediately and survives restart',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-screen-policy-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const open=h.handlers.get('gl-panel-open');
+  const setScreen=h.handlers.get('gl-workspace-screen-mode');
+  const switchTo=h.handlers.get('gl-workspace-switch');
+  const setStyle=h.handlers.get('gl-workspace-layout-style');
+  const get=h.handlers.get('gl-workspace-get');
+  assert.equal(get({sender}).screenMode,'secondary-first');
+  for(const id of ['coach','practice','history'])await open({sender},id,id);
+  const windows=h.windows.slice(2);
+  const before=windows.map(w=>w.getBounds());
+  assert.equal(setScreen({sender},'learning','primary').mode,'primary');
+  assert.ok(windows.every(w=>w.getBounds().x<1600));
+  assert.notDeepEqual(windows.map(w=>w.getBounds()),before);
+  setStyle({sender},'learning','cascade');
+  assert.equal(setScreen({sender},'learning','secondary').mode,'secondary');
+  assert.ok(windows.every(w=>w.getBounds().x>=1600));
+  assert.equal(get({sender}).layoutStyle,'cascade',
+    'screen choice must not reset Mosaïque/Colonnes/Cascade');
+  assert.equal(get({sender}).screenMode,'secondary');
+
+  assert.equal((await switchTo({sender},'practice')).screenMode,'secondary-first');
+  setScreen({sender},'practice','all');
+  const custom=h.handlers.get('gl-workspace-create')({sender},'Studio multi-écrans');
+  await switchTo({sender},custom.id);
+  setScreen({sender},custom.id,'primary');
+  assert.equal((await switchTo({sender},'learning')).screenMode,'secondary');
+  h.windows[1].close();
+
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.equal(saved.workspaces.learning.screenMode,'secondary');
+  assert.equal(saved.workspaces.practice.screenMode,'all');
+  assert.equal(saved.workspaces.improv.screenMode,'secondary-first');
+  assert.equal(saved.workspaces[custom.id].screenMode,'primary');
+  const restarted=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  const nextSender=restarted.windows[1].webContents;
+  assert.equal(restarted.handlers.get('gl-workspace-get')({sender:nextSender}).screenMode,'secondary');
+  assert.equal((await restarted.handlers.get('gl-workspace-switch')({sender:nextSender},custom.id)).screenMode,'primary');
+  await restarted.handlers.get('gl-workspace-reset')({sender:nextSender},custom.id);
+  assert.equal(restarted.handlers.get('gl-workspace-get')({sender:nextSender}).screenMode,'secondary-first');
+  assert.equal((await restarted.handlers.get('gl-workspace-switch')({sender:nextSender},'learning')).screenMode,'secondary');
+});
+
+test('ÉCRANS rejects invalid and unauthorized policies and recovers malformed JSON',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-screen-policy-security-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const setScreen=h.handlers.get('gl-workspace-screen-mode');
+  assert.throws(()=>setScreen({sender:{}},'learning','primary'),/non autorisé/);
+  assert.throws(()=>setScreen({sender},'practice','primary'),/non autorisé/);
+  assert.throws(()=>setScreen({sender},'learning','invalid'),/non autorisé/);
+  assert.throws(()=>setScreen({sender},'learning',{}),/non autorisé/);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).screenMode,'secondary-first');
+  h.windows[1].close();
+  const file=path.join(folder,'detached-panel-layouts.json');
+  const saved=JSON.parse(fs.readFileSync(file,'utf8'));
+  saved.workspaces.learning.screenMode='garbage';
+  fs.writeFileSync(file,JSON.stringify(saved));
+  const restarted=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  assert.equal(restarted.handlers.get('gl-workspace-get')({
+    sender:restarted.windows[1].webContents
+  }).screenMode,'secondary-first');
+});
+
+test('secondary-only AUTO recovers on monitor disconnect without changing music host',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  h.handlers.get('gl-workspace-screen-mode')({sender},'learning','secondary');
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'learning',true);
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  await h.handlers.get('gl-panel-open')({sender},'practice','ENTRAÎNEMENT');
+  const windows=h.windows.slice(2);
+  assert.ok(windows.every(w=>w.getBounds().x>=1600));
+  const initialCount=h.windows.length;
+  displays.pop();
+  h.emitDisplay('display-removed');
+  assert.equal(h.windows.length,initialCount,'monitor changes must not duplicate renderers');
+  assert.ok(windows.every(w=>w.getBounds().x+w.getBounds().width<=1600));
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).screenMode,'secondary');
+  assert.equal(h.windows[1].destroyed,false,'main playback and tablature remain active');
 });
