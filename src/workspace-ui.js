@@ -1121,10 +1121,18 @@
 
     let screenMapRequest = 0;
     let screenMapPreviousFocus = null;
+    let screenMapDisplays = [];
+    let screenMapPanels = new Set();
+    let screenMapDraggedId = null;
+    let screenMapMoving = false;
     function closeScreenMap(restoreFocus = true) {
       screenMapRequest++;
       screenMapOverlay.hidden = true;
       screenMapMessage.textContent = '';
+      screenMapDraggedId = null;
+      screenMapDisplays = [];
+      screenMapPanels = new Set();
+      screenMapMoving = false;
       if (restoreFocus) screenMapPreviousFocus?.focus?.();
       screenMapPreviousFocus = null;
     }
@@ -1149,6 +1157,76 @@
         }
       }
     }
+    async function moveScreenMapPanel(panelId,displayIndex,x,y) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !screenMapPanels.has(panelId) ||
+          !window.guitarAudio?.workspaceMovePanel) return;
+      const display = screenMapDisplays.find(item => item.index === displayIndex);
+      if (!display?.workArea) return;
+      const generation = screenMapRequest;
+      const workspaceId = activeWorkspaceId;
+      screenMapMoving = true;
+      screenMapRefresh.disabled = true;
+      screenMapMessage.textContent = 'Déplacement du panneau…';
+      try {
+        const result = await window.guitarAudio.workspaceMovePanel(
+          workspaceId,panelId,displayIndex,display.workArea,x,y);
+        if (screenMapOverlay.hidden || generation !== screenMapRequest ||
+            workspaceId !== activeWorkspaceId) return;
+        if (!result || result.id !== workspaceId ||
+            result.panelId !== panelId || result.displayIndex !== displayIndex) {
+          throw new Error('Déplacement non confirmé');
+        }
+        if (result.autoDisabled) {
+          activeAutoArrange = false;
+          updatePresetButtons();
+        }
+        // Keep the overview open for several consecutive moves.
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId === activeWorkspaceId) {
+          const panelName = panelId.toLocaleUpperCase('fr');
+          screenMapMessage.textContent = panelName + ' déplacé vers l’écran ' +
+            (displayIndex+1) + (result.autoDisabled
+              ? ' — AUTO désactivé pour cet espace' : '') + '.';
+        }
+      } catch (error) {
+        console.error('Déplacement depuis le plan des écrans :',error);
+        if (!screenMapOverlay.hidden && generation === screenMapRequest) {
+          screenMapMessage.textContent =
+            'Déplacement impossible. Actualise le plan et réessaie.';
+        }
+      } finally {
+        screenMapMoving = false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled = false;
+      }
+    }
+    function addScreenMapDropTarget(preview,display) {
+      preview.addEventListener('dragover',function (event) {
+        if (!screenMapDraggedId || screenMapMoving ||
+            !screenMapPanels.has(screenMapDraggedId)) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        preview.classList.add('is-drop-target');
+      });
+      preview.addEventListener('dragleave',function (event) {
+        if (!preview.contains(event.relatedTarget)) {
+          preview.classList.remove('is-drop-target');
+        }
+      });
+      preview.addEventListener('drop',function (event) {
+        preview.classList.remove('is-drop-target');
+        if (!screenMapDraggedId || screenMapMoving) return;
+        event.preventDefault();
+        const panelId = screenMapDraggedId;
+        screenMapDraggedId = null;
+        const rect = preview.getBoundingClientRect();
+        const x = rect.width > 0 ? Math.max(0,Math.min(1,
+          (event.clientX-rect.left)/rect.width)) : .5;
+        const y = rect.height > 0 ? Math.max(0,Math.min(1,
+          (event.clientY-rect.top)/rect.height)) : .5;
+        moveScreenMapPanel(panelId,display.index,x,y);
+      });
+    }
     function addScreenMapPanelButton(container,panel,preview,area) {
       const button = document.createElement('button');
       button.type = 'button';
@@ -1157,6 +1235,20 @@
       button.title = 'Afficher la fenêtre ' + panel.title;
       button.setAttribute('aria-label','Afficher ' + panel.title);
       if (panel.minimized) button.classList.add('is-minimized');
+      button.draggable = true;
+      button.addEventListener('dragstart',function (event) {
+        if (screenMapMoving) { event.preventDefault(); return; }
+        screenMapDraggedId = panel.id;
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain',panel.id);
+        }
+      });
+      button.addEventListener('dragend',function () {
+        screenMapDraggedId = null;
+        screenMapScreens.querySelectorAll('.is-drop-target').forEach(
+          element => element.classList.remove('is-drop-target'));
+      });
       if (preview) {
         const bounds = panel.bounds;
         const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
@@ -1174,8 +1266,9 @@
       });
       container.append(button);
     }
-    async function refreshScreenMap() {
+    async function refreshScreenMap(allowDuringMove = false) {
       if (screenMapOverlay.hidden || workspace.hidden ||
+          (screenMapMoving && allowDuringMove !== true) ||
           !window.guitarAudio?.workspaceScreenMap) return;
       const generation = ++screenMapRequest;
       const workspaceId = activeWorkspaceId;
@@ -1190,9 +1283,12 @@
           throw new Error('Plan des écrans non confirmé');
         }
         screenMapScreens.replaceChildren();
+        screenMapDisplays = result.screens.filter(item =>
+          item && Number.isInteger(item.index) && item.workArea);
         const panels = result.panels.filter(item =>
           item && typeof item.id === 'string' && typeof item.title === 'string' &&
           item.bounds && Number.isInteger(item.displayIndex));
+        screenMapPanels = new Set(panels.map(item => item.id));
         screenMapSummary.textContent = result.screens.length + ' écran' +
           (result.screens.length > 1 ? 's' : '') + ' connecté' +
           (result.screens.length > 1 ? 's' : '') + ' — ' + panels.length +
@@ -1215,13 +1311,41 @@
           const preview = document.createElement('div');
           preview.className = 'gl-workspace-map-preview';
           preview.style.aspectRatio = area.width + ' / ' + area.height;
-          preview.setAttribute('aria-label','Position des fenêtres sur cet écran');
+          preview.setAttribute('aria-label','Déposer une fenêtre sur cet écran pour la déplacer');
+          addScreenMapDropTarget(preview,display);
           const list = document.createElement('div');
           list.className = 'gl-workspace-map-panel-list';
           const visible = panels.filter(panel => panel.displayIndex === display.index);
           for (const panel of visible) {
             addScreenMapPanelButton(preview,panel,true,area);
-            addScreenMapPanelButton(list,panel,false,area);
+            const entry = document.createElement('div');
+            entry.className = 'gl-workspace-map-panel-entry';
+            addScreenMapPanelButton(entry,panel,false,area);
+            const select = document.createElement('select');
+            select.className = 'gl-workspace-map-move-select';
+            select.setAttribute('aria-label','Déplacer ' + panel.title + ' vers un écran');
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'DÉPLACER…';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.append(placeholder);
+            for (const destination of screenMapDisplays) {
+              const option = document.createElement('option');
+              option.value = String(destination.index);
+              option.textContent = 'ÉCRAN ' + (destination.index+1);
+              select.append(option);
+            }
+            select.value = '';
+            select.addEventListener('change',function () {
+              const destination = Number(select.value);
+              select.value = '';
+              if (Number.isInteger(destination)) {
+                moveScreenMapPanel(panel.id,destination,.5,.5);
+              }
+            });
+            entry.append(select);
+            list.append(entry);
           }
           if (!visible.length) {
             const empty = document.createElement('span');
@@ -1242,7 +1366,8 @@
           for (const panel of offscreen) addScreenMapPanelButton(section,panel,false,null);
           screenMapScreens.append(section);
         }
-        screenMapMessage.textContent = 'Clique sur une fenêtre pour la retrouver.';
+        screenMapMessage.textContent =
+          'Clique pour retrouver une fenêtre, ou glisse-la vers un autre écran.';
       } catch (error) {
         console.error('Plan des écrans :',error);
         if (generation === screenMapRequest && !screenMapOverlay.hidden) {
@@ -1260,7 +1385,7 @@
       screenMapClose.focus();
       refreshScreenMap();
     });
-    screenMapRefresh.addEventListener('click',refreshScreenMap);
+    screenMapRefresh.addEventListener('click',function () { refreshScreenMap(); });
     screenMapClose.addEventListener('click',function () { closeScreenMap(); });
     screenMapOverlay.addEventListener('click',function (event) {
       if (event.target === screenMapOverlay) closeScreenMap();
