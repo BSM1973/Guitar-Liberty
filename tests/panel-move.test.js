@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {placePanelOnDisplay}=require('../src/panel-layout');
+const {placePanelOnDisplay,findPanelDisplayIndex}=require('../src/panel-layout');
 
 const target={workArea:{x:1600,y:-100,width:1920,height:1080}};
 const current={x:120,y:80,width:510,height:760};
@@ -49,4 +49,35 @@ test('manual placement rejects malformed screen geometry and coordinates',()=>{
   }
   assert.equal(placePanelOnDisplay(current,{workArea:{x:0,y:0,width:-1,height:500}},
     {x:.5,y:.5}),null);
+});
+
+test('monitor assignment selects the largest visible overlap',()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  assert.equal(findPanelDisplayIndex(
+    {x:1500,y:100,width:700,height:600},displays),1);
+  assert.equal(findPanelDisplayIndex(
+    {x:1200,y:100,width:700,height:600},displays),0);
+});
+
+test('monitor assignment skips offscreen and malformed rectangles',()=>{
+  const displays=[{workArea:{x:0,y:0,width:1600,height:900}}];
+  assert.equal(findPanelDisplayIndex(
+    {x:3000,y:100,width:510,height:600},displays),-1);
+  assert.equal(findPanelDisplayIndex(null,displays),-1);
+  assert.equal(findPanelDisplayIndex({x:0,y:0,width:-1,height:500},displays),-1);
+  assert.equal(findPanelDisplayIndex({x:0,y:0,width:500,height:500},[]),-1);
+});
+
+test('monitor assignment handles negative coordinates and equal overlaps deterministically',()=>{
+  const displays=[
+    {workArea:{x:-1600,y:-100,width:1600,height:900}},
+    {workArea:{x:0,y:-100,width:1600,height:900}}
+  ];
+  assert.equal(findPanelDisplayIndex(
+    {x:-250,y:0,width:500,height:500},displays),0);
+  assert.equal(findPanelDisplayIndex(
+    {x:-200,y:0,width:500,height:500},displays),1);
 });
