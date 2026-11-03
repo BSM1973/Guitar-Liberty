@@ -46,6 +46,8 @@ function harness(overrides={}) {
   const favoriteSaves=[];
   const favoriteApplies=[];
   const favoriteRenames=[];
+  const favoriteDeletes=[];
+  const favoriteSwaps=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -88,6 +90,14 @@ function harness(overrides={}) {
     favoriteRenames.push({id,index,area,slot,name});
     return Promise.resolve({id,displayIndex:index,slot,name});
   });
+  const deleteFavorite=overrides.deleteFavorite||((id,index,area,slot)=>{
+    favoriteDeletes.push({id,index,area,slot});
+    return Promise.resolve({id,displayIndex:index,slot,deleted:true});
+  });
+  const swapFavorite=overrides.swapFavorite||((id,index,area,fromSlot,toSlot)=>{
+    favoriteSwaps.push({id,index,area,fromSlot,toSlot});
+    return Promise.resolve({id,displayIndex:index,fromSlot,toSlot,swapped:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -101,7 +111,9 @@ function harness(overrides={}) {
       workspaceUndoScreen:undo,
       workspaceSaveScreenFavorite:saveFavorite,
       workspaceApplyScreenFavorite:applyFavorite,
-      workspaceRenameScreenFavorite:renameFavorite},
+      workspaceRenameScreenFavorite:renameFavorite,
+      workspaceDeleteScreenFavorite:deleteFavorite,
+      workspaceSwapScreenFavorites:swapFavorite},
       confirm:overrides.confirm||(()=>true),
       prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
@@ -109,7 +121,8 @@ function harness(overrides={}) {
   };
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
   return {context,calls,moves,organizations,undos,
-    favoriteSaves,favoriteApplies,favoriteRenames,errors,
+    favoriteSaves,favoriteApplies,favoriteRenames,
+    favoriteDeletes,favoriteSwaps,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -587,4 +600,127 @@ test('PLAN DES ÉCRANS blocks duplicate quick recall while IPC is pending',async
   finish({id:'learning',displayIndex:0,slot:1,applied:1,skipped:0,autoDisabled:false});
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(h.context.screenMapRefresh.disabled,false);
+});
+
+test('PLAN DES ÉCRANS exchanges selected favorite with adjacent slot',async()=>{
+  const slots=[
+    {slot:1,count:1,name:'Composition'},
+    {slot:2,count:0,name:''},
+    {slot:3,count:1,name:'Improvisation'}
+  ];
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:slots.map(x=>({...x}))}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:90,y:80,width:520,height:650}}]
+  }),swapFavorite:async(id,index,area,fromSlot,toSlot)=>{
+    assert.equal(index,0);
+    const a=slots[fromSlot-1],b=slots[toSlot-1];
+    slots[fromSlot-1]={...b,slot:fromSlot};
+    slots[toSlot-1]={...a,slot:toSlot};
+    return {id,displayIndex:index,fromSlot,toSlot,swapped:true};
+  }});
+  await h.open();
+  const c=h.context;
+  const first=c.screenMapScreens.children[0].children[5];
+  assert.equal(first.children[6].children.length,3);
+  assert.equal(first.children[6].children[0].disabled,true);
+  assert.equal(first.children[6].children[1].disabled,false);
+  first.children[6].children[1].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const moved=c.screenMapScreens.children[0].children[5];
+  assert.equal(moved.children[1].value,'2');
+  assert.equal(moved.children[5].children[1].textContent,'Composition');
+  assert.equal(moved.children[5].children[0].disabled,true);
+  assert.equal(moved.children[6].children[0].disabled,false);
+  moved.children[6].children[0].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const restored=c.screenMapScreens.children[0].children[5];
+  assert.equal(restored.children[1].value,'1');
+  assert.equal(restored.children[5].children[0].textContent,'Composition');
+  assert.equal(restored.children[6].children[0].disabled,true);
+  assert.match(c.screenMapMessage.textContent,/déplacé vers FAVORI 1/);
+  assert.equal(c.screenMapOverlay.hidden,false);
+});
+
+test('PLAN DES ÉCRANS confirms deletion and retains other favorite slots',async()=>{
+  const slots=[
+    {slot:1,count:1,name:'Solo'},
+    {slot:2,count:1,name:'Répétition'},
+    {slot:3,count:0,name:''}
+  ];
+  let allowDelete=false,confirmationCount=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:slots.map(x=>({...x}))}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:90,y:80,width:520,height:650}}]
+  }),confirm:()=>{confirmationCount++;return allowDelete},
+  deleteFavorite:async(id,index,area,slot)=>{
+    slots[slot-1]={slot,count:0,name:''};
+    return {id,displayIndex:index,slot,deleted:true};
+  }});
+  await h.open();
+  const c=h.context;
+  const manage=c.screenMapScreens.children[0].children[5].children[6].children;
+  assert.equal(manage[2].textContent,'SUPPRIMER');
+  manage[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmationCount,1);
+  assert.equal(slots[0].count,1);
+  allowDelete=true;
+  manage[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmationCount,2);
+  const after=c.screenMapScreens.children[0].children[5];
+  assert.equal(after.children[1].value,'1');
+  assert.equal(after.children[2].disabled,false,
+    'saving in the emptied slot must remain available');
+  assert.equal(after.children[3].disabled,true);
+  assert.equal(after.children[4].disabled,true);
+  assert.equal(after.children[6].children[2].disabled,true);
+  assert.equal(after.children[5].children[0].disabled,true);
+  assert.equal(after.children[5].children[1].textContent,'Répétition');
+  assert.match(c.screenMapMessage.textContent,/fenêtres sont inchangées/);
+});
+
+test('PLAN DES ÉCRANS blocks concurrent exchanges and duplicate deletions',async()=>{
+  let completeSwap, swapCalls=0, completeDelete,deleteCalls=0;
+  const slots=[
+    {slot:1,count:1,name:'Cours'},
+    {slot:2,count:0,name:''},
+    {slot:3,count:0,name:''}
+  ];
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:slots.map(x=>({...x}))}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:90,y:80,width:520,height:650}}]
+  }),swapFavorite:()=>{swapCalls++;return new Promise(resolve=>{completeSwap=resolve})},
+    deleteFavorite:()=>{deleteCalls++;return new Promise(resolve=>{completeDelete=resolve})}});
+  await h.open();
+  const c=h.context;
+  const first=c.screenMapScreens.children[0].children[5].children[6].children;
+  first[1].fire('click');
+  first[1].fire('click');
+  first[2].fire('click');
+  assert.equal(swapCalls,1);
+  assert.equal(deleteCalls,0);
+  // Simulate backend persistence before the refreshed map is requested.
+  slots[0]={slot:1,count:0,name:''};
+  slots[1]={slot:2,count:1,name:'Cours'};
+  completeSwap({id:'learning',displayIndex:0,fromSlot:1,toSlot:2,swapped:true});
+  await new Promise(resolve=>setImmediate(resolve));
+  const after=c.screenMapScreens.children[0].children[5].children[6].children;
+  after[2].fire('click');
+  after[2].fire('click');
+  assert.equal(deleteCalls,1);
+  slots[1]={slot:2,count:0,name:''};
+  completeDelete({id:'learning',displayIndex:0,slot:2,deleted:true});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapRefresh.disabled,false);
+  assert.equal(c.screenMapOverlay.hidden,false);
 });

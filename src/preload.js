@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   workspaceRenameScreenFavorite: (id, displayIndex, area, slot, name) =>
     ipcRenderer.invoke('gl-workspace-rename-screen-favorite',
       id, displayIndex, area, slot, name),
+  workspaceDeleteScreenFavorite: (id, displayIndex, area, slot) =>
+    ipcRenderer.invoke('gl-workspace-delete-screen-favorite',
+      id, displayIndex, area, slot),
+  workspaceSwapScreenFavorites: (id, displayIndex, area, fromSlot, toSlot) =>
+    ipcRenderer.invoke('gl-workspace-swap-screen-favorites',
+      id, displayIndex, area, fromSlot, toSlot),
   workspaceLayoutStyle: (id, style) =>
     ipcRenderer.invoke('gl-workspace-layout-style', id, style),
   workspaceScreenMode: (id, mode) =>
