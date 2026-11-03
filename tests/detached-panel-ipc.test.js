@@ -1936,7 +1936,7 @@ test('SCREEN FAVORITES save and recall three independent layouts per monitor',as
   assert.equal(apply({sender},'learning',1,area,2).applied,2);
   assert.deepEqual([coach.getBounds(),history.getBounds()],second);
   assert.equal(save({sender},'learning',1,area,3).saved,2);
-  assert.deepEqual(map().screens[1].favorites.map(item=>item.count),[2,2,2]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,item=>item.count),[2,2,2]);
   assert.deepEqual(practice.getBounds(),other);
   assert.deepEqual(session.getBounds(),reduced);
   assert.equal(session.isMinimized(),true);
@@ -1970,7 +1970,7 @@ test('SCREEN FAVORITES survive reboot and are scoped to monitor topology',async 
   const otherSender=restarted.windows[1].webContents;
   const map=()=>restarted.handlers.get('gl-workspace-screen-map')(
     {sender:otherSender},'learning');
-  assert.deepEqual(map().screens[1].favorites.map(item=>item.count),[0,0,1]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,item=>item.count),[0,0,1]);
   await restarted.handlers.get('gl-panel-open')({sender:otherSender},'coach','COACH');
   restarted.windows.at(-1).setBounds({x:2600,y:120,width:490,height:650});
   assert.equal(restarted.handlers.get('gl-workspace-apply-screen-favorite')(
@@ -1980,10 +1980,10 @@ test('SCREEN FAVORITES survive reboot and are scoped to monitor topology',async 
   restarted.emitDisplay('display-metrics-changed');
   const changed=restarted.handlers.get('gl-workspace-screen-map')(
     {sender:otherSender},'learning');
-  assert.deepEqual(changed.screens[1].favorites.map(item=>item.count),[0,0,0]);
+  assert.deepEqual(Array.from(changed.screens[1].favorites,item=>item.count),[0,0,0]);
   displays[1].workArea={...area};
   restarted.emitDisplay('display-metrics-changed');
-  assert.deepEqual(map().screens[1].favorites.map(item=>item.count),[0,0,1]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,item=>item.count),[0,0,1]);
 });
 
 test('SCREEN FAVORITES do not pull windows from other monitors or awaken minimized',async()=>{
@@ -2063,13 +2063,13 @@ test('SCREEN FAVORITES retain independent workspace and monitor slots',async()=>
   assert.equal(save({sender},'learning',0,{...displays[0].workArea},1).saved,1);
   p.setBounds({x:1820,y:90,width:510,height:650});
   assert.equal(save({sender},'learning',1,{...displays[1].workArea},2).saved,1);
-  assert.deepEqual(map().screens[0].favorites.map(v=>v.count),[1,0,0]);
-  assert.deepEqual(map().screens[1].favorites.map(v=>v.count),[0,1,0]);
+  assert.deepEqual(Array.from(map().screens[0].favorites,v=>v.count),[1,0,0]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,v=>v.count),[0,1,0]);
   await h.handlers.get('gl-workspace-switch')({sender},'practice');
   const other=h.handlers.get('gl-workspace-screen-map')({sender},'practice');
-  assert.deepEqual(other.screens[0].favorites.map(v=>v.count),[0,0,0]);
-  assert.deepEqual(other.screens[1].favorites.map(v=>v.count),[0,0,0]);
+  assert.deepEqual(Array.from(other.screens[0].favorites,v=>v.count),[0,0,0]);
+  assert.deepEqual(Array.from(other.screens[1].favorites,v=>v.count),[0,0,0]);
   await h.handlers.get('gl-workspace-switch')({sender},'learning');
-  assert.deepEqual(map().screens[0].favorites.map(v=>v.count),[1,0,0]);
-  assert.deepEqual(map().screens[1].favorites.map(v=>v.count),[0,1,0]);
+  assert.deepEqual(Array.from(map().screens[0].favorites,v=>v.count),[1,0,0]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,v=>v.count),[0,1,0]);
 });
