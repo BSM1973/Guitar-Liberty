@@ -156,6 +156,15 @@
     workspacePresetBar.append(presetButtonList);
     const presetActions = document.createElement('div');
     presetActions.className = 'gl-workspace-preset-actions';
+    const distributeLayoutButton = document.createElement('button');
+    distributeLayoutButton.type = 'button';
+    distributeLayoutButton.className =
+      'gl-workspace-layout-action gl-workspace-layout-distribute';
+    distributeLayoutButton.textContent = 'RÉPARTIR';
+    distributeLayoutButton.title =
+      'Répartir automatiquement les fenêtres détachées sur les écrans disponibles';
+    distributeLayoutButton.setAttribute('aria-label',
+      'Répartir les fenêtres détachées sur les écrans');
     const saveLayoutButton = document.createElement('button');
     saveLayoutButton.type = 'button';
     saveLayoutButton.className = 'gl-workspace-layout-action';
@@ -184,8 +193,8 @@
     deleteWorkspaceButton.textContent = 'SUPPRIMER';
     deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
     deleteWorkspaceButton.hidden = true;
-    presetActions.append(saveLayoutButton, resetLayoutButton,
-      renameWorkspaceButton, deleteWorkspaceButton);
+    presetActions.append(distributeLayoutButton, saveLayoutButton,
+      resetLayoutButton, renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
     content.prepend(transportDock);
@@ -473,6 +482,7 @@
         button.disabled = workspaceSwitchBusy;
       });
       const unavailable = workspaceSwitchBusy || suppressPresetSaving;
+      distributeLayoutButton.disabled = unavailable;
       saveLayoutButton.disabled = unavailable;
       resetLayoutButton.disabled = unavailable;
       const isCustom = workspacePresets.some(preset =>
@@ -1003,6 +1013,34 @@
       } catch (error) {
         console.error('Suppression de l’espace :', error);
         showWorkspaceStatus('Suppression impossible');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    });
+
+    distributeLayoutButton.addEventListener('click', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceDistribute) return;
+      savePresetView();
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      showWorkspaceStatus('');
+      try {
+        const result = await window.guitarAudio.workspaceDistribute(activeWorkspaceId);
+        if (!result || result.id !== activeWorkspaceId ||
+            !Number.isInteger(result.arranged) || result.arranged < 0 ||
+            !Number.isInteger(result.displays) || result.displays < 0) {
+          throw new Error('Répartition non confirmée');
+        }
+        showWorkspaceStatus(result.arranged
+          ? result.arranged + ' fenêtre' + (result.arranged > 1 ? 's' : '') +
+            ' répartie' + (result.arranged > 1 ? 's' : '') +
+            ' sur ' + result.displays + ' écran' + (result.displays > 1 ? 's' : '')
+          : 'Aucune fenêtre détachée à répartir');
+      } catch (error) {
+        console.error('Répartition des fenêtres :', error);
+        showWorkspaceStatus('Répartition impossible');
       } finally {
         workspaceSwitchBusy = false;
         updatePresetButtons();
