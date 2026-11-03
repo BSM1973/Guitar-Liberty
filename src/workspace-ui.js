@@ -1478,8 +1478,35 @@
       const workspaceId=activeWorkspaceId,generation=screenMapRequest;
       screenMapMoving=true;
       screenMapRefresh.disabled=true;
-      screenMapMessage.textContent='Application du FAVORI '+slot+'…';
+      screenMapMessage.textContent='Vérification des chevauchements…';
       try {
+        // Always re-check immediately before applying, including quick recall;
+        // the comparison shown earlier may be outdated after a drag or resize.
+        const checked=await window.guitarAudio.workspacePreviewScreenFavorite(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!checked || checked.id!==workspaceId ||
+            checked.displayIndex!==displayIndex || checked.slot!==slot ||
+            !Array.isArray(checked.items)) throw new Error('Contrôle de disposition non confirmé');
+        const conflicts=checked.overlaps?.after;
+        if (Array.isArray(conflicts) && conflicts.length) {
+          const recent=Array.isArray(checked.overlaps.introduced) ?
+            checked.overlaps.introduced.length : 0;
+          const accepted=window.confirm(
+            'ATTENTION : le FAVORI '+slot+' de l’écran '+(displayIndex+1)+
+            ' présente '+conflicts.length+' chevauchement'+
+            (conflicts.length>1?'s':'')+' entre fenêtres'+
+            (recent?' (dont '+recent+' nouveau'+(recent>1?'x':'')+')':'')+
+            '. Voulez-vous appliquer cette disposition ?');
+          if (!accepted) {
+            screenMapMessage.textContent='Application annulée. Aucune fenêtre déplacée.';
+            return;
+          }
+        }
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        screenMapMessage.textContent='Application du FAVORI '+slot+'…';
         const result=await window.guitarAudio.workspaceApplyScreenFavorite(
           workspaceId,displayIndex,display.workArea,slot);
         if (screenMapOverlay.hidden || generation!==screenMapRequest ||
@@ -1586,6 +1613,14 @@
         }
         const details=document.createElement('div');
         details.className='gl-workspace-map-compare-details';
+        // The backend computes intersections from actual active windows,
+        // including unsaved panels that will remain in their current place.
+        const overlaps=result.overlaps &&
+          ['before','after','introduced'].every(k=>
+            Array.isArray(result.overlaps[k])) ? result.overlaps :
+          {before:[],after:[],introduced:[]};
+        const overlappingBefore=new Set(overlaps.before.flatMap(p=>p.ids||[]));
+        const overlappingAfter=new Set(overlaps.after.flatMap(p=>p.ids||[]));
         const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
         const validRect=r=>r && [r.x,r.y,r.width,r.height].every(Number.isFinite) &&
           r.width>0 && r.height>0;
@@ -1596,7 +1631,9 @@
           const right=clamp((bounds.x+bounds.width-area.x)/area.width*100,0,100);
           const bottom=clamp((bounds.y+bounds.height-area.y)/area.height*100,0,100);
           const box=document.createElement('div');
-          box.className='gl-workspace-map-compare-window '+kind;
+          const collision=parent===before ? overlappingBefore : overlappingAfter;
+          box.className='gl-workspace-map-compare-window '+kind+
+            (collision.has(item.id)?' has-overlap':'');
           box.textContent=item.title;
           box.title=item.title;
           box.style.left=left+'%';
@@ -1648,11 +1685,73 @@
           details.append(line);
         }
         if (!details.children.length) throw new Error('Aucune fenêtre à comparer');
+        // Windows outside the favorite are never moved by APPLIQUER, but
+        // still appear in both comparisons and can cause an intersection.
+        if (Array.isArray(result.contextPanels)) {
+          for (const item of result.contextPanels) {
+            if (!item || typeof item.id!=='string' ||
+                typeof item.title!=='string' || !validRect(item.bounds)) continue;
+            plot(before,item,item.bounds,'is-unchanged is-context');
+            plot(after,item,item.bounds,'is-unchanged is-context');
+            const line=document.createElement('div');
+            line.className='gl-workspace-map-compare-detail is-unchanged';
+            line.textContent=item.title+' — Hors favori : reste en place';
+            details.append(line);
+          }
+        }
+        const intersect=(parent,pairs)=>{
+          for (const pair of pairs) {
+            const r=pair?.bounds;
+            if (!validRect(r)) continue;
+            const left=clamp((r.x-area.x)/area.width*100,0,100);
+            const top=clamp((r.y-area.y)/area.height*100,0,100);
+            const right=clamp((r.x+r.width-area.x)/area.width*100,0,100);
+            const bottom=clamp((r.y+r.height-area.y)/area.height*100,0,100);
+            const zone=document.createElement('div');
+            zone.className='gl-workspace-map-compare-intersection';
+            zone.style.left=left+'%';
+            zone.style.top=top+'%';
+            zone.style.width=Math.max(0,right-left)+'%';
+            zone.style.height=Math.max(0,bottom-top)+'%';
+            zone.title='Zone de chevauchement';
+            parent.children[1].append(zone);
+          }
+        };
+        intersect(before,overlaps.before);
+        intersect(after,overlaps.after);
         views.append(before,after);
         const footnote=document.createElement('p');
         footnote.className='gl-workspace-map-compare-note';
         footnote.textContent='Simulation sans déplacement. Les fenêtres non enregistrées restent en place.';
-        section.append(headline,counters,views,details,footnote);
+        const collisionSummary=document.createElement('div');
+        collisionSummary.className='gl-workspace-map-compare-collisions'+
+          (overlaps.after.length?' has-warning':'');
+        const collisionHeadline=document.createElement('strong');
+        collisionHeadline.textContent='CHEVAUCHEMENTS : ACTUEL '+overlaps.before.length+
+          '  /  FAVORI '+overlaps.after.length+
+          '  /  NOUVEAUX '+overlaps.introduced.length;
+        collisionSummary.append(collisionHeadline);
+        if (overlaps.after.length) {
+          const hint=document.createElement('p');
+          hint.textContent='Attention : des fenêtres se superposeront après application.';
+          collisionSummary.append(hint);
+          for (const pair of overlaps.after) {
+            if (!Array.isArray(pair?.titles) || pair.titles.length!==2 ||
+                !Number.isFinite(pair.areaPixels)) continue;
+            const explanation=document.createElement('span');
+            explanation.className='gl-workspace-map-compare-collision-pair';
+            explanation.textContent=pair.titles[0]+' / '+pair.titles[1]+
+              ' — '+pair.areaPixels+' px²'+
+              (overlaps.introduced.some(item=>item.ids?.join('|')===
+                pair.ids?.join('|'))?' (nouveau)':' (déjà présent)');
+            collisionSummary.append(explanation);
+          }
+        } else {
+          const hint=document.createElement('p');
+          hint.textContent='Aucun chevauchement prévu pour les fenêtres actives.';
+          collisionSummary.append(hint);
+        }
+        section.append(headline,counters,views,details,footnote,collisionSummary);
         card.append(section);
         button.textContent='MASQUER LA COMPARAISON';
         button.setAttribute('aria-pressed','true');
