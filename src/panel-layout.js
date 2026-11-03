@@ -226,5 +226,25 @@ function distributePanelBounds(panelIds, displays, preferredDisplay,
   return result;
 }
 
+// Position one existing native panel on a chosen monitor. The normalized
+// point represents the requested centre within its usable screen area.
+// Never let the window escape the work area, even at the screen edges.
+function placePanelOnDisplay(bounds, targetDisplay, point) {
+  const area = finiteRect(targetDisplay && (targetDisplay.workArea || targetDisplay));
+  const saved = finiteRect(bounds);
+  if (!area || !point || !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y) || point.x < 0 || point.x > 1 ||
+      point.y < 0 || point.y > 1) return null;
+  const width = Math.min(area.width,
+    Math.max(MIN_WIDTH,saved ? saved.width : DEFAULT_WIDTH));
+  const height = Math.min(area.height,
+    Math.max(MIN_HEIGHT,saved ? saved.height : DEFAULT_HEIGHT));
+  const x = Math.round(Math.max(area.x,Math.min(
+    area.x + area.width - width,area.x + point.x * area.width - width / 2)));
+  const y = Math.round(Math.max(area.y,Math.min(
+    area.y + area.height - height,area.y + point.y * area.height - height / 2)));
+  return {x,y,width,height};
+}
+
 module.exports = { finiteRect, restorePanelBounds, distributePanelBounds,
-  displayTopologyKey };
+  displayTopologyKey, placePanelOnDisplay };
