@@ -1126,6 +1126,15 @@
     const screenMapFavoriteSlots = new Map();
     let screenMapFavoritePreview = null;
     let screenMapFavoritePreviewBusy = false;
+    let screenMapFavoriteComparison = null;
+    let screenMapFavoriteCompareBusy = false;
+    function clearScreenMapFavoriteComparison() {
+      if (!screenMapFavoriteComparison) return;
+      screenMapFavoriteComparison.section.hidden = true;
+      screenMapFavoriteComparison.button.textContent = 'COMPARER';
+      screenMapFavoriteComparison.button.setAttribute('aria-pressed','false');
+      screenMapFavoriteComparison = null;
+    }
     function clearScreenMapFavoritePreview() {
       if (screenMapFavoritePreview) {
         screenMapFavoritePreview.layer.hidden = true;
@@ -1145,6 +1154,7 @@
       screenMapPanels = new Set();
       screenMapFavoriteSlots.clear();
       clearScreenMapFavoritePreview();
+      clearScreenMapFavoriteComparison();
       screenMapMoving = false;
       if (restoreFocus) screenMapPreviousFocus?.focus?.();
       screenMapPreviousFocus = null;
@@ -1502,9 +1512,172 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
       }
     }
+    async function compareScreenMapFavorite(displayIndex,slot,button,card) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapFavoritePreviewBusy ||
+          screenMapFavoriteCompareBusy ||
+          !window.guitarAudio?.workspacePreviewScreenFavorite ||
+          !Number.isInteger(slot) || slot<1 || slot>3) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const favorite=display?.favorites?.find(item=>item.slot===slot);
+      if (!display?.workArea || !favorite || favorite.count<1) return;
+      if (screenMapFavoriteComparison &&
+          screenMapFavoriteComparison.displayIndex===displayIndex &&
+          screenMapFavoriteComparison.slot===slot) {
+        clearScreenMapFavoriteComparison();
+        screenMapMessage.textContent='Comparaison masquée. Aucune fenêtre déplacée.';
+        return;
+      }
+      clearScreenMapFavoriteComparison();
+      clearScreenMapFavoritePreview();
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapFavoriteCompareBusy=true;
+      button.disabled=true;
+      screenMapMessage.textContent='Comparaison des dispositions…';
+      try {
+        const result=await window.guitarAudio.workspacePreviewScreenFavorite(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex || result.slot!==slot ||
+            !Array.isArray(result.items) ||
+            !Number.isInteger(result.moving) || result.moving<0 ||
+            !Number.isInteger(result.unchanged) || result.unchanged<0 ||
+            !Number.isInteger(result.unavailable) || result.unavailable<0 ||
+            result.moving+result.unchanged+result.unavailable!==result.items.length) {
+          throw new Error('Comparaison non confirmée');
+        }
+        const area=display.workArea;
+        const section=document.createElement('section');
+        section.className='gl-workspace-map-comparison';
+        const headline=document.createElement('strong');
+        headline.className='gl-workspace-map-compare-heading';
+        headline.textContent='COMPARAISON — '+(favorite.name||'FAVORI '+slot);
+        const counters=document.createElement('div');
+        counters.className='gl-workspace-map-compare-counters';
+        const labels=[
+          [result.moving,'À DÉPLACER','is-moving'],
+          [result.unchanged,'INCHANGÉE(S)','is-unchanged'],
+          [result.unavailable,'INDISPONIBLE(S)','is-unavailable']
+        ];
+        for (const [count,name,kind] of labels) {
+          const mark=document.createElement('span');
+          mark.className='gl-workspace-map-compare-count '+kind;
+          mark.textContent=count+' '+name;
+          counters.append(mark);
+        }
+        const views=document.createElement('div');
+        views.className='gl-workspace-map-compare-grid';
+        const before=document.createElement('div');
+        const after=document.createElement('div');
+        for (const [parent,title] of [
+          [before,'POSITION ACTUELLE'],
+          [after,'APRÈS APPLICATION']
+        ]) {
+          parent.className='gl-workspace-map-compare-column';
+          const label=document.createElement('span');
+          label.className='gl-workspace-map-compare-label';
+          label.textContent=title;
+          const miniature=document.createElement('div');
+          miniature.className='gl-workspace-map-compare-preview';
+          miniature.style.aspectRatio=area.width+' / '+area.height;
+          parent.append(label,miniature);
+        }
+        const details=document.createElement('div');
+        details.className='gl-workspace-map-compare-details';
+        const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+        const validRect=r=>r && [r.x,r.y,r.width,r.height].every(Number.isFinite) &&
+          r.width>0 && r.height>0;
+        const plot=(parent,item,bounds,kind)=>{
+          if (!validRect(bounds)) return;
+          const left=clamp((bounds.x-area.x)/area.width*100,0,100);
+          const top=clamp((bounds.y-area.y)/area.height*100,0,100);
+          const right=clamp((bounds.x+bounds.width-area.x)/area.width*100,0,100);
+          const bottom=clamp((bounds.y+bounds.height-area.y)/area.height*100,0,100);
+          const box=document.createElement('div');
+          box.className='gl-workspace-map-compare-window '+kind;
+          box.textContent=item.title;
+          box.title=item.title;
+          box.style.left=left+'%';
+          box.style.top=top+'%';
+          box.style.width=Math.max(2,right-left)+'%';
+          box.style.height=Math.max(4,bottom-top)+'%';
+          parent.children[1].append(box);
+        };
+        let availableCount=0;
+        for (const item of result.items) {
+          if (!item || typeof item.title!=='string' ||
+              !['ready','closed','minimized','other-screen'].includes(item.status) ||
+              !validRect(item.bounds)) continue;
+          const ready=item.status==='ready';
+          const current=item.comparison?.currentBounds;
+          const validCurrent=ready && validRect(current) &&
+            typeof item.comparison.willChange==='boolean';
+          const move=validCurrent && item.comparison.willChange;
+          const kind=ready ? (move?'is-moving':'is-unchanged') : 'is-unavailable';
+          if (validCurrent) {
+            plot(before,item,current,kind+' is-before');
+            availableCount++;
+          }
+          plot(after,item,item.bounds,kind+' is-after');
+          const line=document.createElement('div');
+          line.className='gl-workspace-map-compare-detail '+kind;
+          const unavailableLabels={closed:'Fermée',minimized:'Réduite',
+            'other-screen':'Sur un autre écran'};
+          let explanation='';
+          if (!ready) explanation=unavailableLabels[item.status]+' — non déplacée';
+          else if (!validCurrent) explanation='Position actuelle indisponible';
+          else if (!move) explanation='Position et taille inchangées';
+          else {
+            const dx=item.bounds.x-current.x,dy=item.bounds.y-current.y;
+            const resized=item.bounds.width!==current.width ||
+              item.bounds.height!==current.height;
+            const position=dx!==0 || dy!==0 ?
+              'Déplacement '+(dx>=0?'+':'')+dx+' px horizontal, '+
+              (dy>=0?'+':'')+dy+' px vertical' : '';
+            const dimensions=resized ?
+              'Taille '+current.width+'×'+current.height+' → '+
+              item.bounds.width+'×'+item.bounds.height : '';
+            const maximize=item.comparison.maximizedBefore!==
+              item.comparison.maximizedAfter ?
+                (item.comparison.maximizedAfter?'Agrandissement':'Retour à la taille normale') : '';
+            explanation=[position,dimensions,maximize].filter(Boolean).join(' ; ');
+          }
+          line.textContent=item.title+' — '+explanation;
+          details.append(line);
+        }
+        if (!details.children.length) throw new Error('Aucune fenêtre à comparer');
+        views.append(before,after);
+        const footnote=document.createElement('p');
+        footnote.className='gl-workspace-map-compare-note';
+        footnote.textContent='Simulation sans déplacement. Les fenêtres non enregistrées restent en place.';
+        section.append(headline,counters,views,details,footnote);
+        card.append(section);
+        button.textContent='MASQUER LA COMPARAISON';
+        button.setAttribute('aria-pressed','true');
+        screenMapFavoriteComparison={displayIndex,slot,section,button};
+        screenMapMessage.textContent='Écran '+(displayIndex+1)+' — '+
+          result.moving+' changement'+(result.moving>1?'s':'')+
+          ', '+result.unchanged+' inchangée'+(result.unchanged>1?'s':'')+
+          ', '+result.unavailable+' indisponible'+
+          (result.unavailable>1?'s':'')+'. Simulation uniquement.';
+      } catch(error) {
+        console.error('Comparaison des favoris :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Comparaison impossible. Actualise le plan.';
+        }
+      } finally {
+        screenMapFavoriteCompareBusy=false;
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          button.disabled=false;
+        }
+      }
+    }
     async function previewScreenMapFavorite(displayIndex,slot,preview,button) {
       if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
           screenMapMoving || screenMapFavoritePreviewBusy ||
+          screenMapFavoriteCompareBusy ||
           !window.guitarAudio?.workspacePreviewScreenFavorite ||
           !Number.isInteger(slot) || slot<1 || slot>3) return;
       const display=screenMapDisplays.find(item=>item.index===displayIndex);
@@ -1518,6 +1691,7 @@
         return;
       }
       clearScreenMapFavoritePreview();
+      clearScreenMapFavoriteComparison();
       const workspaceId=activeWorkspaceId, generation=screenMapRequest;
       screenMapFavoritePreviewBusy=true;
       button.disabled=true;
@@ -1659,6 +1833,7 @@
           (screenMapMoving && allowDuringMove !== true) ||
           !window.guitarAudio?.workspaceScreenMap) return;
       clearScreenMapFavoritePreview();
+      clearScreenMapFavoriteComparison();
       const generation = ++screenMapRequest;
       const workspaceId = activeWorkspaceId;
       screenMapRefresh.disabled = true;
@@ -1819,6 +1994,11 @@
               moveUpFavorite.disabled=selectedCount()===0 || slot===1;
               moveDownFavorite.disabled=selectedCount()===0 || slot===3;
               previewFavorite.disabled=selectedCount()===0;
+              compareFavorite.disabled=selectedCount()===0;
+              if (screenMapFavoriteComparison &&
+                  screenMapFavoriteComparison.displayIndex===display.index) {
+                clearScreenMapFavoriteComparison();
+              }
               if (screenMapFavoritePreview &&
                   screenMapFavoritePreview.displayIndex===display.index) {
                 clearScreenMapFavoritePreview();
@@ -1908,8 +2088,23 @@
             previewScreenMapFavorite(display.index,Number(slotSelect.value),
               preview,previewFavorite);
           });
+          const compareFavorite=document.createElement('button');
+          compareFavorite.type='button';
+          compareFavorite.className='gl-workspace-map-favorite-compare-action';
+          compareFavorite.textContent='COMPARER';
+          compareFavorite.title='Comparer côte à côte les positions actuelles et le favori enregistré';
+          compareFavorite.setAttribute('aria-label',
+            'Comparer le favori sélectionné avec les fenêtres actuelles de l’écran '+
+            (display.index+1));
+          compareFavorite.setAttribute('aria-pressed','false');
+          compareFavorite.disabled=selectedCount()===0;
+          compareFavorite.addEventListener('click',function () {
+            compareScreenMapFavorite(display.index,Number(slotSelect.value),
+              compareFavorite,favorites);
+          });
           favorites.append(favoritesLabel,slotSelect,saveFavorite,applyFavorite,
-            renameFavorite,quickFavorites,favoriteManagement,previewFavorite);
+            renameFavorite,quickFavorites,favoriteManagement,previewFavorite,
+            compareFavorite);
           card.append(heading,resolution,preview,list,controls,favorites);
           screenMapScreens.append(card);
         }

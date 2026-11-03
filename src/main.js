@@ -776,12 +776,28 @@ ipcMain.handle('gl-workspace-preview-screen-favorite',
         displays[displayIndex]);
       const rawTitle=exists ?
         (popup.getTitle?.() || popup.options?.title || item.id) : item.id;
+      const currentBounds=status==='ready' ?
+        finiteRect(popup.getNormalBounds?.() || popup.getBounds()) : null;
+      // Same comparison as the apply operation, including maximization.
+      // Unavailable windows are reported separately, never treated as movable.
+      const willChange=status==='ready' &&
+        (!sameScreenBounds(currentBounds,bounds) ||
+          Boolean(popup.isMaximized?.())!==Boolean(item.maximized));
       return {id:item.id,
         title:String(rawTitle).replace(/ — Guitare Liberty$/,'').slice(0,80),
-        bounds,status};
+        bounds,status,
+        comparison:status==='ready' ?
+          {currentBounds,willChange,
+            maximizedBefore:Boolean(popup.isMaximized?.()),
+            maximizedAfter:Boolean(item.maximized)} : null};
     });
-    return {id:workspaceId,displayIndex,slot,area,
-      items,ready:items.filter(item=>item.status==='ready').length};
+    return {id:workspaceId,displayIndex,slot,area,items,
+      ready:items.filter(item=>item.status==='ready').length,
+      moving:items.filter(item=>item.status==='ready' &&
+        item.comparison.willChange).length,
+      unchanged:items.filter(item=>item.status==='ready' &&
+        !item.comparison.willChange).length,
+      unavailable:items.filter(item=>item.status!=='ready').length};
   });
 
 // Only stored favorites can be renamed; no native window is moved.
