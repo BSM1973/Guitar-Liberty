@@ -484,6 +484,9 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
  font:800 12px/1.2 Arial,sans-serif;
  cursor:pointer;color-scheme:dark;
 }
+#appWorkspace .gl-workspace-screen-select{
+ max-width:184px;
+}
 #appWorkspace .gl-workspace-style-select:hover{
  border-color:#e1b775;background:#293c55;
 }
