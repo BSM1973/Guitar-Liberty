@@ -93,7 +93,8 @@ test('PLAN DES ÉCRANS locates a native panel without refocusing the score',asyn
   await h.open();
   const preview=h.context.screenMapScreens.children[1].children[2].children[0];
   preview.fire('click');
-  await Promise.resolve();await Promise.resolve();
+  // The click launches an asynchronous IPC handler; wait for its completion.
+  await new Promise(resolve=>setImmediate(resolve));
   assert.deepEqual(h.calls,[['learning','coach']]);
   assert.equal(h.context.screenMapOverlay.hidden,true);
   assert.equal(h.context.document.activeElement.focused,false,
