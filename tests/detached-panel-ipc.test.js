@@ -185,6 +185,120 @@ test('minimized detached windows recover only on restore, without stealing focus
   assert.equal(popup.focused,false,'recovery must not force keyboard focus');
 });
 
+test('AUTO per workspace reflows on new panels, monitor add/remove and close',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const setAuto=h.handlers.get('gl-workspace-auto-arrange');
+  const open=h.handlers.get('gl-panel-open');
+  const count=h.windows.length;
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
+  const enabled=setAuto({sender},'learning',true);
+  assert.deepEqual({...enabled},{id:'learning',enabled:true,arranged:0,displays:0});
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,true);
+  await open({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  assert.ok(coach.getBounds().x>=1600,'new panel should auto-open on second screen');
+  await open({sender},'play-with-me','JOUE AVEC MOI');
+  const play=h.windows.at(-1);
+  const first=coach.getBounds(),second=play.getBounds();
+  assert.ok(first.x>=1600 && second.x>=1600);
+  assert.notDeepEqual(first,second,'two panels should not overlap by default');
+  assert.equal(h.windows.length,count+2,'no extra audio or playback renderers');
+
+  displays.pop();
+  h.emitDisplay('display-removed');
+  for(const popup of [coach,play]){
+    const bounds=popup.getBounds();
+    assert.ok(bounds.x>=0 && bounds.x+bounds.width<=1600);
+    assert.ok(bounds.y>=0 && bounds.y+bounds.height<=900);
+  }
+  displays.push({workArea:{x:1600,y:0,width:1920,height:1080}});
+  h.emitDisplay('display-added');
+  assert.ok(coach.getBounds().x>=1600 && play.getBounds().x>=1600,
+    'hotplug should auto-return to secondary monitor');
+
+  play.close();
+  assert.equal(play.destroyed,true);
+  assert.equal(coach.destroyed,false);
+  assert.ok(coach.getBounds().x>=1600);
+  assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})],['coach']);
+  assert.equal(h.windows[1].destroyed,false,'the main playback engine must survive');
+  const disabled=setAuto({sender},'learning',false);
+  assert.equal(disabled.enabled,false);
+  coach.setBounds({x:80,y:80,width:500,height:620});
+  await open({sender},'history','HISTORIQUE');
+  assert.deepEqual(coach.getBounds(),{x:80,y:80,width:500,height:620},
+    'manual layout must remain untouched when AUTO is off');
+});
+
+test('AUTO preference persists independently for built-in and custom workspaces',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-auto-workspaces-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const setAuto=h.handlers.get('gl-workspace-auto-arrange');
+  const switchTo=h.handlers.get('gl-workspace-switch');
+  assert.throws(()=>setAuto({sender:{}},'learning',true),/non autorisé/);
+  assert.throws(()=>setAuto({sender},'practice',true),/non autorisée/);
+  assert.throws(()=>setAuto({sender},'learning','true'),/non autorisée/);
+  assert.equal(setAuto({sender},'learning',true).enabled,true);
+  assert.equal((await switchTo({sender},'practice')).autoArrange,false);
+  assert.equal(setAuto({sender},'practice',true).enabled,true);
+  const custom=h.handlers.get('gl-workspace-create')({sender},'Studio multi-écrans');
+  assert.equal((await switchTo({sender},custom.id)).autoArrange,false);
+  assert.equal(setAuto({sender},custom.id,true).enabled,true);
+  assert.equal((await switchTo({sender},'learning')).autoArrange,true);
+  assert.equal((await switchTo({sender},'improv')).autoArrange,false);
+  h.windows[1].close();
+
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.equal(saved.workspaces.learning.autoArrange,true);
+  assert.equal(saved.workspaces.practice.autoArrange,true);
+  assert.equal(saved.workspaces.improv.autoArrange,false);
+  assert.equal(saved.workspaces[custom.id].autoArrange,true);
+  const restarted=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  const nextSender=restarted.windows[1].webContents;
+  assert.equal(restarted.handlers.get('gl-workspace-get')({sender:nextSender}).autoArrange,false);
+  assert.equal((await restarted.handlers.get('gl-workspace-switch')({sender:nextSender},custom.id)).autoArrange,true);
+  const reset=await restarted.handlers.get('gl-workspace-reset')({sender:nextSender},custom.id);
+  assert.equal(reset.reset,true);
+  assert.equal(restarted.handlers.get('gl-workspace-get')({sender:nextSender}).autoArrange,false);
+  assert.equal((await restarted.handlers.get('gl-workspace-switch')({sender:nextSender},'learning')).autoArrange,true,
+    'resetting a custom workspace must not change built-in AUTO preferences');
+});
+
+test('AUTO respects minimized windows and does not steal focus during hotplug',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'learning',true);
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  popup.minimized=true;
+  const before=popup.getBounds();
+  displays.pop();
+  h.emitDisplay('display-removed');
+  assert.deepEqual(popup.getBounds(),before);
+  popup.minimized=false;
+  popup.emit('restore');
+  const recovered=popup.getBounds();
+  assert.ok(recovered.x>=0 && recovered.x+recovered.width<=1600);
+  assert.equal(popup.focused,false);
+  assert.equal(h.windows[1].destroyed,false);
+});
+
 test('RÉPARTIR repositions native windows on secondary screen without affecting playback',async()=>{
   const displays=[
     {workArea:{x:0,y:0,width:1600,height:900}},
@@ -571,7 +685,7 @@ test('Apprentissage, Entraînement and Improvisation keep independent floating l
   const switchTo = h.handlers.get('gl-workspace-switch');
   const open = h.handlers.get('gl-panel-open');
   assert.deepEqual(JSON.parse(JSON.stringify(get({sender}))),
-    {id:'learning', openPanels:[]});
+    {id:'learning', openPanels:[], autoArrange:false});
 
   await open({sender}, 'coach', 'COACHS');
   const original = h.windows[2];
@@ -618,7 +732,7 @@ test('Apprentissage, Entraînement and Improvisation keep independent floating l
   const nextSender = anotherRun.windows[1].webContents;
   assert.deepEqual(JSON.parse(JSON.stringify(
     anotherRun.handlers.get('gl-workspace-get')({sender:nextSender})
-  )), {id:'practice',openPanels:['practice']});
+  )), {id:'practice',openPanels:['practice'],autoArrange:false});
 });
 
 test('reattaching a panel only affects the active workspace preset', async t => {
