@@ -95,8 +95,8 @@ function harness(overrides={}) {
       workspaceMovePanel:move,workspaceArrangeScreen:organize,
       workspaceUndoScreen:undo,
       workspaceSaveScreenFavorite:saveFavorite,
-      workspaceApplyScreenFavorite:applyFavorite,
-      confirm:overrides.confirm||(()=>true)}},
+      workspaceApplyScreenFavorite:applyFavorite},
+      confirm:overrides.confirm||(()=>true)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
     console:{error:(...args)=>errors.push(args)}
   };
