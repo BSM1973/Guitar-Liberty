@@ -62,4 +62,106 @@ function restorePanelBounds(saved, displays, preferredDisplay) {
   return { x, y, width, height };
 }
 
-module.exports = { finiteRect, restorePanelBounds };
+
+// Deterministic one-click layout for detached windows. Use other monitors
+// first to keep the central tablature visible on the main display. Bounds
+// remain per workspace in the native layout store.
+function distributePanelBounds(panelIds, displays, preferredDisplay) {
+  const ids = Array.isArray(panelIds) ? panelIds : [];
+  if (!ids.length) return [];
+  const GAP = 12;
+  const MARGIN = 12;
+  const TARGET_WIDTH = 480;
+  const TARGET_HEIGHT = 500;
+  const MAX_WIDTH = 700;
+  const MAX_HEIGHT = 850;
+  const areas = (Array.isArray(displays) ? displays : [])
+    .map((display, index) => ({
+      index, area: finiteRect(display && (display.workArea || display))
+    })).filter(item => item.area);
+  if (!areas.length) {
+    areas.push({index: 0, area: {x:0,y:0,width:1280,height:800}});
+  }
+  const preferred = finiteRect(preferredDisplay &&
+    (preferredDisplay.workArea || preferredDisplay));
+  const main = areas.find(item => preferred && overlap(item.area, preferred) > 0) ||
+    areas[0];
+  const others = areas.filter(item => item !== main)
+    .sort((a,b) => a.area.x-b.area.x || a.area.y-b.area.y);
+  const candidates = others.length ? [...others,main] : [main];
+  const buckets = candidates.map(item => {
+    const {area} = item;
+    const maxColumns = Math.max(1,Math.floor(
+      (area.width - 2*MARGIN + GAP) / (TARGET_WIDTH + GAP)));
+    const maxRows = Math.max(1,Math.floor(
+      (area.height - 2*MARGIN + GAP) / (TARGET_HEIGHT + GAP)));
+    return {...item, maxColumns, maxRows,
+      capacity:maxColumns*maxRows, assigned:[]};
+  });
+  // Round-robin across secondary monitors until their comfortable capacity,
+  // then use the main display only when needed.
+  ids.forEach((id,position) => {
+    let eligible = buckets.filter((bucket,index) =>
+      (others.length === 0 || index < others.length) &&
+      bucket.assigned.length < bucket.capacity);
+    if (!eligible.length) eligible = buckets.filter(bucket =>
+      bucket.assigned.length < bucket.capacity);
+    if (!eligible.length) eligible = buckets;
+    eligible.sort((a,b) =>
+      a.assigned.length/a.capacity - b.assigned.length/b.capacity ||
+      a.index-b.index);
+    eligible[0].assigned.push({id,position});
+  });
+  const result = new Array(ids.length);
+  for (const bucket of buckets) {
+    const {area,assigned} = bucket;
+    const count = assigned.length;
+    if (!count) continue;
+    let maxColumns = bucket.maxColumns;
+    let maxRows = bucket.maxRows;
+    if (count > maxColumns*maxRows) {
+      // Tight but still non-overlapping tiles if the display is large enough.
+      maxColumns = Math.max(1,Math.floor(
+        (area.width - 2*MARGIN + GAP) / (MIN_WIDTH + GAP)));
+      maxRows = Math.max(1,Math.floor(
+        (area.height - 2*MARGIN + GAP) / (MIN_HEIGHT + GAP)));
+    }
+    if (count <= maxColumns*maxRows) {
+      const rows = Math.ceil(count/maxColumns);
+      const columns = Math.ceil(count/rows);
+      const cellWidth = (area.width-2*MARGIN-(columns-1)*GAP)/columns;
+      const cellHeight = (area.height-2*MARGIN-(rows-1)*GAP)/rows;
+      const width = Math.round(Math.min(MAX_WIDTH,cellWidth));
+      const height = Math.round(Math.min(MAX_HEIGHT,cellHeight));
+      assigned.forEach((item,i) => {
+        const row = Math.floor(i/columns);
+        const col = i%columns;
+        const rowCount = Math.min(columns,count-row*columns);
+        const rowWidth = rowCount*cellWidth+(rowCount-1)*GAP;
+        const rowStart = area.x+MARGIN+
+          (area.width-2*MARGIN-rowWidth)/2;
+        const x = Math.round(rowStart+col*(cellWidth+GAP)+(cellWidth-width)/2);
+        const y = Math.round(area.y+MARGIN+row*(cellHeight+GAP)+
+          (cellHeight-height)/2);
+        result[item.position] = {id:item.id,displayIndex:bucket.index,
+          bounds:{x,y,width,height}};
+      });
+    } else {
+      // More panels than can physically fit: cascade with visible title
+      // bars rather than hiding any window outside the desktop.
+      const width = Math.max(1,Math.min(MAX_WIDTH,area.width-2*MARGIN));
+      const height = Math.max(1,Math.min(MAX_HEIGHT,area.height-2*MARGIN));
+      const rangeX = Math.max(0,area.width-2*MARGIN-width);
+      const rangeY = Math.max(0,area.height-2*MARGIN-height);
+      assigned.forEach((item,i) => {
+        const x = area.x+MARGIN+(rangeX ? (i*36)%(rangeX+1) : 0);
+        const y = area.y+MARGIN+(rangeY ? (i*32)%(rangeY+1) : 0);
+        result[item.position] = {id:item.id,displayIndex:bucket.index,
+          bounds:{x,y,width,height}};
+      });
+    }
+  }
+  return result;
+}
+
+module.exports = { finiteRect, restorePanelBounds, distributePanelBounds };
