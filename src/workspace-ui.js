@@ -885,7 +885,8 @@
           await openDetachedGroup(group, true);
         }
         if (activeAutoArrange && window.guitarAudio?.workspaceDistribute) {
-          await window.guitarAudio.workspaceDistribute(id);
+          try { await window.guitarAudio.workspaceDistribute(id); }
+          catch (error) { console.warn('Répartition au changement d’espace :', error); }
         }
         return true;
       } catch (error) {
@@ -1210,7 +1211,8 @@
         if (openedDuringRestoration && !workspace.hidden &&
             generation === workspaceGeneration && !pendingRestoredIds?.length &&
             activeAutoArrange && window.guitarAudio?.workspaceDistribute) {
-          await window.guitarAudio.workspaceDistribute(activeWorkspaceId);
+          try { await window.guitarAudio.workspaceDistribute(activeWorkspaceId); }
+          catch (error) { console.warn('Répartition après restauration :', error); }
         }
       } catch (error) {
         // Recover on the next entry if the main process temporarily failed.
