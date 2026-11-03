@@ -16,7 +16,8 @@ function node(tag='div') {
     tag,hidden:false,disabled:false,style:{},textContent:'',title:'',
     value:'',draggable:false,
     children:[],attrs:{},className:'',focused:false,
-    classList:{values:new Set(),add(v){this.values.add(v)}},
+    classList:{values:new Set(),add(v){this.values.add(v)},
+      remove(v){this.values.delete(v)}},
     append(...items){this.children.push(...items)},
     replaceChildren(...items){this.children=items},
     querySelectorAll(){return []},
@@ -97,7 +98,7 @@ test('PLAN DES ÉCRANS displays connected monitors, scaled windows and minimized
   assert.equal(c.screenMapSummary.textContent,'2 écrans connectés — 2 fenêtres détachées');
   assert.equal(c.screenMapScreens.children[0].children[3].children[0]
     .children[0].classList.values.has('is-minimized'),true);
-  assert.match(c.screenMapMessage.textContent,/Clique sur une fenêtre/);
+  assert.match(c.screenMapMessage.textContent,/Clique pour retrouver une fenêtre/);
 });
 
 test('PLAN DES ÉCRANS locates a native panel without refocusing the score',async()=>{
