@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('guitarAudio', {
       id, panelId, displayIndex, area, x, y),
   workspaceArrangeScreen: (id, displayIndex, area) =>
     ipcRenderer.invoke('gl-workspace-arrange-screen', id, displayIndex, area),
+  workspaceUndoScreen: (id, displayIndex, area) =>
+    ipcRenderer.invoke('gl-workspace-undo-screen', id, displayIndex, area),
   workspaceLayoutStyle: (id, style) =>
     ipcRenderer.invoke('gl-workspace-layout-style', id, style),
   workspaceScreenMode: (id, mode) =>
