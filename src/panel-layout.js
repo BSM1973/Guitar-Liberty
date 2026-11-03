@@ -64,16 +64,15 @@ function restorePanelBounds(saved, displays, preferredDisplay) {
 
 
 // Stable identity for the current desktop geometry, independent of Electron's
-// display enumeration order. Include the work area so changed resolutions/DPI
-// can have independent safe layouts, and the display ID when available.
+// display enumeration order or transient OS display IDs. Use work areas so
+// reconnecting a monitor to a different port still restores its positions.
 function displayTopologyKey(displays) {
   const screens = (Array.isArray(displays) ? displays : []).map(display => {
     const area = finiteRect(display && (display.workArea || display));
     if (!area) return null;
-    const id = Number.isSafeInteger(display?.id) ? display.id : null;
-    return [id,area.x,area.y,area.width,area.height];
+    return [area.x,area.y,area.width,area.height];
   }).filter(Boolean);
-  if (!screens.length) screens.push([null,0,0,1280,800]);
+  if (!screens.length) screens.push([0,0,1280,800]);
   screens.sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   return JSON.stringify(screens);
 }
