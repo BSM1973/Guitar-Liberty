@@ -48,6 +48,7 @@ function harness(overrides={}) {
   const favoriteRenames=[];
   const favoriteDeletes=[];
   const favoriteSwaps=[];
+  const favoritePreviews=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -98,6 +99,13 @@ function harness(overrides={}) {
     favoriteSwaps.push({id,index,area,fromSlot,toSlot});
     return Promise.resolve({id,displayIndex:index,fromSlot,toSlot,swapped:true});
   });
+  const previewFavorite=overrides.previewFavorite||((id,index,area,slot)=>{
+    favoritePreviews.push({id,index,area,slot});
+    return Promise.resolve({id,displayIndex:index,slot,ready:1,items:[
+      {id:'coach',title:'COACH',status:'ready',
+        bounds:{x:100,y:80,width:510,height:640}}
+    ]});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -113,7 +121,8 @@ function harness(overrides={}) {
       workspaceApplyScreenFavorite:applyFavorite,
       workspaceRenameScreenFavorite:renameFavorite,
       workspaceDeleteScreenFavorite:deleteFavorite,
-      workspaceSwapScreenFavorites:swapFavorite},
+      workspaceSwapScreenFavorites:swapFavorite,
+      workspacePreviewScreenFavorite:previewFavorite},
       confirm:overrides.confirm||(()=>true),
       prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
@@ -122,7 +131,7 @@ function harness(overrides={}) {
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
   return {context,calls,moves,organizations,undos,
     favoriteSaves,favoriteApplies,favoriteRenames,
-    favoriteDeletes,favoriteSwaps,errors,
+    favoriteDeletes,favoriteSwaps,favoritePreviews,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -722,5 +731,139 @@ test('PLAN DES ÉCRANS blocks concurrent exchanges and duplicate deletions',asyn
   completeDelete({id:'learning',displayIndex:0,slot:2,deleted:true});
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.screenMapRefresh.disabled,false);
+  assert.equal(c.screenMapOverlay.hidden,false);
+});
+
+test('PLAN DES ÉCRANS keeps APERÇU unavailable for an empty favorite',async()=>{
+  const h=harness();
+  await h.open();
+  const first=h.context.screenMapScreens.children[0].children[5];
+  const second=h.context.screenMapScreens.children[1].children[5];
+  assert.equal(first.children[7].textContent,'APERÇU');
+  assert.equal(first.children[7].disabled,true);
+  assert.equal(second.children[7].disabled,true);
+  first.children[7].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.favoritePreviews.length,0);
+});
+
+test('PLAN DES ÉCRANS shows scaled ghosts and availability without moving windows',async()=>{
+  const calls=[];
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[
+      {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+        favorites:[{slot:1,count:0,name:''}]},
+      {index:1,main:false,workArea:{x:1600,y:0,width:1920,height:1080},
+        favorites:[{slot:1,count:2,name:'Studio'}]}
+    ],
+    panels:[{id:'coach',title:'COACH',displayIndex:1,minimized:false,
+      bounds:{x:1800,y:100,width:520,height:650}}]
+  }),previewFavorite:async(id,index,area,slot)=>{
+    calls.push({id,index,slot,area});
+    return {id,displayIndex:index,slot,ready:1,items:[
+      {id:'coach',title:'COACH',status:'ready',
+        bounds:{x:1800,y:80,width:520,height:650}},
+      {id:'history',title:'HISTORIQUE',status:'other-screen',
+        bounds:{x:2470,y:130,width:520,height:650}}
+    ]};
+  }});
+  await h.open();
+  const c=h.context;
+  const preview=c.screenMapScreens.children[1].children[2];
+  assert.equal(preview.children.length,1,'one live panel before preview');
+  const button=c.screenMapScreens.children[1].children[5].children[7];
+  assert.equal(button.disabled,false);
+  button.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].slot,1);
+  assert.equal(preview.children.length,2);
+  assert.equal(preview.children[0].textContent,'COACH','live panel untouched');
+  const overlay=preview.children[1];
+  assert.equal(overlay.className,'gl-workspace-map-favorite-overlay');
+  assert.equal(overlay.attrs['aria-hidden'],'true');
+  assert.equal(overlay.children.length,2);
+  assert.equal(overlay.children[0].style.left,'10.416666666666668%');
+  assert.equal(overlay.children[0].textContent,'COACH');
+  assert.equal(overlay.children[1].className,
+    'gl-workspace-map-favorite-ghost is-unavailable');
+  assert.match(overlay.children[1].textContent,/AUTRE ÉCRAN/);
+  assert.equal(button.textContent,'MASQUER');
+  assert.equal(button.attrs['aria-pressed'],'true');
+  assert.match(c.screenMapMessage.textContent,/1 fenêtre prête/);
+  assert.match(c.screenMapMessage.textContent,/1 indisponible/);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(h.favoriteApplies.length,0);
+  assert.equal(h.moves.length,0);
+});
+
+test('PLAN DES ÉCRANS toggles preview off and clears it when selecting another slot',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'A'},{slot:2,count:1,name:'B'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:650}}]
+  })});
+  await h.open();
+  const c=h.context, fav=c.screenMapScreens.children[0].children[5];
+  const btn=fav.children[7];
+  btn.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const overlay=c.screenMapScreens.children[0].children[2].children[1];
+  assert.equal(overlay.hidden,false);
+  btn.fire('click');
+  assert.equal(overlay.hidden,true);
+  assert.equal(btn.textContent,'APERÇU');
+  assert.equal(btn.attrs['aria-pressed'],'false');
+  btn.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(btn.textContent,'MASQUER');
+  fav.children[1].value='2';
+  fav.children[1].fire('change');
+  assert.equal(btn.textContent,'APERÇU');
+  assert.equal(btn.attrs['aria-pressed'],'false');
+  c.screenMapRefresh.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapScreens.children[0].children[2].children.length,1,
+    'manual refresh drops stale ghost overlays');
+  assert.equal(h.favoriteApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS ignores stale preview replies after refresh and reports failures',async()=>{
+  let resolvePreview,rejectNext=false,requestCount=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Solo'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:650}}]
+  }),previewFavorite:()=>{
+    requestCount++;
+    if(rejectNext) return Promise.reject(new Error('preview IPC refused'));
+    return new Promise(resolve=>{resolvePreview=resolve});
+  }});
+  await h.open();
+  const c=h.context;
+  const original=c.screenMapScreens.children[0].children[5].children[7];
+  original.fire('click');
+  original.fire('click');
+  assert.equal(requestCount,1,'no duplicate IPC while pending');
+  c.screenMapRefresh.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  resolvePreview({id:'learning',displayIndex:0,slot:1,ready:1,items:[
+    {id:'coach',title:'COACH',status:'ready',
+      bounds:{x:80,y:70,width:510,height:650}}
+  ]});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapScreens.children[0].children[2].children.length,1);
+  rejectNext=true;
+  const button=c.screenMapScreens.children[0].children[5].children[7];
+  button.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(c.screenMapMessage.textContent,/Aperçu impossible/);
+  assert.equal(c.screenMapScreens.children[0].children[2].children.length,1);
+  assert.equal(button.disabled,false);
   assert.equal(c.screenMapOverlay.hidden,false);
 });
