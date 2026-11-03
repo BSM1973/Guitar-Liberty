@@ -959,6 +959,12 @@ test('PLAN DES ÉCRANS compares maximization changes and clears on slot selectio
   await new Promise(resolve=>setImmediate(resolve));
   const section=fav.children[9];
   assert.match(section.children[3].children[0].textContent,/Agrandissement/);
+  const actual=section.children[2].children[0].children[1].children[0];
+  const expected=section.children[2].children[1].children[1].children[0];
+  assert.equal(actual.style.left,'4.375%');
+  assert.equal(expected.style.left,'0%');
+  assert.equal(expected.style.width,'100%',
+    'maximized favorite preview should use the entire work area');
   btn.fire('click');
   assert.equal(section.hidden,true);
   assert.equal(btn.textContent,'COMPARER');
