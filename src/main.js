@@ -289,6 +289,9 @@ function recoverDetachedPanelsAfterDisplayChange() {
   } else {
     for (const popup of guitarPanelWindows.values()) {
       ensureDetachedPanelVisible(popup);
+      // The OS may already have moved a panel into view before the display
+      // event. Persist that visible fallback even when no clamp was needed.
+      rememberPanelBounds(popup._glPanelId, popup);
     }
   }
   if (changed) {
