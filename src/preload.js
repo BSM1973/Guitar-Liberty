@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   workspaceScreenMap: (id) => ipcRenderer.invoke('gl-workspace-screen-map', id),
   workspaceFocusPanel: (id, panelId) =>
     ipcRenderer.invoke('gl-workspace-focus-panel', id, panelId),
+  workspaceMovePanel: (id, panelId, displayIndex, area, x, y) =>
+    ipcRenderer.invoke('gl-workspace-move-panel',
+      id, panelId, displayIndex, area, x, y),
   workspaceLayoutStyle: (id, style) =>
     ipcRenderer.invoke('gl-workspace-layout-style', id, style),
   workspaceScreenMode: (id, mode) =>
