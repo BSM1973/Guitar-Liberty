@@ -1,0 +1,92 @@
+/* Native geometry tests for the one-click detached-panel distributor. */
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const {distributePanelBounds} = require('../src/panel-layout');
+
+const screen = (x,y,width,height) => ({workArea:{x,y,width,height}});
+const rectOverlap = (a,b) => Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
+  Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+
+function inside(bounds,area) {
+  return bounds.x >= area.x && bounds.y >= area.y &&
+    bounds.x+bounds.width <= area.x+area.width &&
+    bounds.y+bounds.height <= area.y+area.height;
+}
+function ids(n) {return Array.from({length:n},(_,i)=>'panel-'+i);}
+
+test('secondary monitor is preferred so the tablature stays unobstructed',()=>{
+  const displays=[screen(0,0,1600,900),screen(1600,0,1920,1080)];
+  const layout=distributePanelBounds(ids(4),displays,displays[0]);
+  assert.equal(layout.length,4);
+  assert.deepEqual(layout.map(x=>x.id),ids(4));
+  for(const entry of layout) {
+    assert.equal(entry.displayIndex,1);
+    assert.ok(inside(entry.bounds,displays[1].workArea));
+    assert.ok(entry.bounds.width>=350 && entry.bounds.height>=440);
+  }
+  for(let i=0;i<layout.length;i++)for(let j=i+1;j<layout.length;j++) {
+    assert.equal(rectOverlap(layout[i].bounds,layout[j].bounds),0);
+  }
+  assert.deepEqual(distributePanelBounds(ids(4),displays,displays[0]),layout,
+    'repeat actions must produce the same arrangement');
+});
+
+test('multiple secondary displays share windows without overlap',()=>{
+  const displays=[
+    screen(0,0,1600,900),
+    screen(-1920,0,1920,1080),
+    screen(1600,0,1920,1080)
+  ];
+  const layout=distributePanelBounds(ids(8),displays,displays[0]);
+  const counts=new Map();
+  for(const entry of layout) {
+    assert.notEqual(entry.displayIndex,0);
+    counts.set(entry.displayIndex,(counts.get(entry.displayIndex)||0)+1);
+    assert.ok(inside(entry.bounds,displays[entry.displayIndex].workArea));
+  }
+  assert.equal(counts.get(1),4);
+  assert.equal(counts.get(2),4);
+  for(let i=0;i<layout.length;i++)for(let j=i+1;j<layout.length;j++) {
+    assert.equal(rectOverlap(layout[i].bounds,layout[j].bounds),0);
+  }
+});
+
+test('main screen accepts overflow only after external screen capacity is filled',()=>{
+  const displays=[screen(0,0,1600,900),screen(1600,0,1440,900)];
+  const layout=distributePanelBounds(ids(4),displays,displays[0]);
+  assert.equal(layout.filter(x=>x.displayIndex===1).length,2);
+  assert.equal(layout.filter(x=>x.displayIndex===0).length,2);
+  for(const entry of layout) {
+    assert.ok(inside(entry.bounds,displays[entry.displayIndex].workArea));
+  }
+});
+
+test('single-monitor fallback tiles windows within the usable area',()=>{
+  const displays=[screen(-200,50,1920,1080)];
+  const layout=distributePanelBounds(ids(9),displays,displays[0]);
+  assert.equal(layout.length,9);
+  for(const entry of layout) {
+    assert.equal(entry.displayIndex,0);
+    assert.ok(inside(entry.bounds,displays[0].workArea));
+    assert.ok(entry.bounds.width>=350 && entry.bounds.height>=440);
+  }
+  for(let i=0;i<layout.length;i++)for(let j=i+1;j<layout.length;j++) {
+    assert.equal(rectOverlap(layout[i].bounds,layout[j].bounds),0);
+  }
+});
+
+test('more panels than can fit use a visible cascade instead of offscreen windows',()=>{
+  const displays=[screen(0,0,1280,800)];
+  const layout=distributePanelBounds(ids(9),displays,displays[0]);
+  assert.equal(layout.length,9);
+  for(const entry of layout)assert.ok(inside(entry.bounds,displays[0].workArea));
+  assert.notDeepEqual(layout[0].bounds,layout[1].bounds);
+});
+
+test('empty layouts and missing display metadata are safe',()=>{
+  assert.deepEqual(distributePanelBounds([],[],null),[]);
+  const layout=distributePanelBounds(ids(2),[],null);
+  assert.equal(layout.length,2);
+  for(const entry of layout)assert.ok(inside(entry.bounds,{x:0,y:0,width:1280,height:800}));
+});

@@ -185,6 +185,118 @@ test('minimized detached windows recover only on restore, without stealing focus
   assert.equal(popup.focused,false,'recovery must not force keyboard focus');
 });
 
+test('RÉPARTIR repositions native windows on secondary screen without affecting playback',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const main=h.windows[1],sender=main.webContents;
+  const open=h.handlers.get('gl-panel-open');
+  const ids=['practice','coach','play-with-me','history'];
+  for(const id of ids)await open({sender},id,id);
+  const mainBounds=main.getBounds();
+  const panels=h.windows.slice(2);
+  const contents=panels.map(p=>p.webContents);
+  const result=h.handlers.get('gl-workspace-distribute')({sender},'learning');
+  assert.deepEqual({...result},{id:'learning',arranged:4,displays:1});
+  assert.deepEqual(main.getBounds(),mainBounds,'central tablature must stay in place');
+  assert.equal(h.windows.length,6,'no duplicate renderers or audio hosts');
+  for(let i=0;i<panels.length;i++) {
+    const popup=panels[i],bounds=popup.getBounds();
+    assert.equal(popup.webContents,contents[i]);
+    assert.ok(bounds.x>=1600 && bounds.x+bounds.width<=3520);
+    assert.ok(bounds.y>=0 && bounds.y+bounds.height<=1080);
+    assert.equal(popup.focused,false,'distribution must not steal keyboard focus');
+    assert.equal(popup.destroyed,false);
+  }
+  assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})].sort(),
+    [...ids].sort());
+});
+
+test('automatic positions persist separately in each workspace and after switching back',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-distribute-profiles-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const open=h.handlers.get('gl-panel-open');
+  const distribute=h.handlers.get('gl-workspace-distribute');
+  const switchTo=h.handlers.get('gl-workspace-switch');
+  for(const id of ['coach','practice','history','play-with-me'])
+    await open({sender},id,id);
+  distribute({sender},'learning');
+  const learning=new Map(h.windows.slice(2).map(p=>[p._glPanelId,p.getBounds()]));
+  await switchTo({sender},'practice');
+  for(const id of ['coach','practice'])await open({sender},id,id);
+  const second=distribute({sender},'practice');
+  assert.equal(second.arranged,2);
+  const practice=new Map(h.windows.slice(-2).map(p=>[p._glPanelId,p.getBounds()]));
+  assert.notDeepEqual(practice.get('coach'),learning.get('coach'),
+    'workspace layout must be independent');
+  await switchTo({sender},'learning');
+  const expected=h.handlers.get('gl-panel-restore-session')({sender});
+  assert.deepEqual([...expected].sort(),['coach','history','play-with-me','practice']);
+  for(const id of expected)await open({sender},id,id,true);
+  const restored=new Map(h.windows.slice(-4).map(p=>[p._glPanelId,p.getBounds()]));
+  for(const [id,bounds] of learning)assert.deepEqual(restored.get(id),bounds);
+  h.windows[1].close();
+  const file=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(file.workspaces.learning.panels.coach,learning.get('coach'));
+  assert.deepEqual(file.workspaces.practice.panels.coach,practice.get('coach'));
+});
+
+test('custom spaces retain their own automatic distribution after switching',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const custom=h.handlers.get('gl-workspace-create')({sender},'Mes solos');
+  await h.handlers.get('gl-workspace-switch')({sender},custom.id);
+  for(const id of ['coach','play-with-me','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id);
+  const result=h.handlers.get('gl-workspace-distribute')({sender},custom.id);
+  assert.equal(result.id,custom.id);
+  assert.equal(result.arranged,3);
+  const expected=new Map(h.windows.slice(2).map(p=>[p._glPanelId,p.getBounds()]));
+  await h.handlers.get('gl-workspace-switch')({sender},'learning');
+  assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})],[]);
+  await h.handlers.get('gl-workspace-switch')({sender},custom.id);
+  const restored=h.handlers.get('gl-panel-restore-session')({sender});
+  assert.deepEqual([...restored].sort(),['coach','history','play-with-me']);
+  for(const id of restored)await h.handlers.get('gl-panel-open')({sender},id,id,true);
+  const actual=new Map(h.windows.slice(-3).map(p=>[p._glPanelId,p.getBounds()]));
+  for(const [id,bounds] of expected)assert.deepEqual(actual.get(id),bounds);
+});
+
+test('RÉPARTIR rejects foreign or inactive workspace requests and handles no panels',async()=>{
+  const h=bootMain();
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const distribute=h.handlers.get('gl-workspace-distribute');
+  assert.throws(()=>distribute({sender:{}},'learning'),/non autorisée/);
+  assert.throws(()=>distribute({sender},'practice'),/non actif/);
+  assert.throws(()=>distribute({sender},'unknown'),/non actif/);
+  assert.deepEqual({...distribute({sender},'learning')},
+    {id:'learning',arranged:0,displays:0});
+  assert.equal(h.windows.length,2);
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows[2];
+  popup.minimized=true;
+  const before=popup.getBounds();
+  assert.equal(distribute({sender},'learning').arranged,0);
+  assert.deepEqual(popup.getBounds(),before,'minimized panels must not be moved');
+});
+
 test('floating PLAY/Joue avec moi actions use only the original playback window', async () => {
   const harness = bootMain();
   await Promise.resolve(); // app.whenReady resolves and creates splash + main

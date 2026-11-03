@@ -481,6 +481,14 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
  cursor:pointer;white-space:normal;
  transition:background .15s,border-color .15s,color .15s;
 }
+/* Multi-screen arrangement is a deliberate action, never automatic
+   during playback or a workspace switch. */
+#appWorkspace .gl-workspace-layout-distribute{
+ border-color:#a38b63;background:#334151;color:#f4d6a6;
+}
+#appWorkspace .gl-workspace-layout-action.gl-workspace-layout-distribute:hover{
+ border-color:#dfb66e;background:#405168;color:#ffe4b4;
+}
 #appWorkspace .gl-workspace-layout-action:hover{
  border-color:#8cc4a3;background:#33524a;color:#f4fff8;
 }
