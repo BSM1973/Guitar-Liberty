@@ -665,6 +665,18 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   popup.on('resize', () => rememberPanelBounds(panelId, popup));
   // A minimized panel is not moved until the guitarist restores it.
   popup.on('restore', () => {
+    // Minimized panels are not moved during a display change. Apply their
+    // saved bounds only when restored, without stealing keyboard focus.
+    const stored = readPanelLayouts()[panelId];
+    if (stored && !savedWorkspaces[activeWorkspace]?.autoArrange) {
+      const displays = screen.getAllDisplays();
+      const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
+      const safe = restorePanelBounds(stored, displays, preferred);
+      const current = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+      if (!current || !['x','y','width','height'].every(k => current[k] === safe[k])) {
+        popup.setBounds(safe);
+      }
+    }
     ensureDetachedPanelVisible(popup);
     autoArrangeActivePanels();
   });
