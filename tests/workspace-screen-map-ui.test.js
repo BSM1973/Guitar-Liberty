@@ -867,3 +867,182 @@ test('PLAN DES ÉCRANS ignores stale preview replies after refresh and reports f
   assert.equal(button.disabled,false);
   assert.equal(c.screenMapOverlay.hidden,false);
 });
+
+test('PLAN DES ÉCRANS comparison renders current and saved positions with exact differences',async()=>{
+  const original={x:1800,y:100,width:520,height:640};
+  const destination={x:1920,y:160,width:600,height:700};
+  const unchanged={x:2600,y:90,width:500,height:620};
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:0,name:''}]},
+    {index:1,main:false,workArea:{x:1600,y:0,width:1920,height:1080},
+      favorites:[{slot:1,count:3,name:'Studio'}]}],
+    panels:[
+      {id:'coach',title:'COACH',displayIndex:1,minimized:false,bounds:original},
+      {id:'history',title:'HISTORIQUE',displayIndex:1,minimized:false,bounds:unchanged}
+    ]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:2,moving:1,unchanged:1,unavailable:1,
+    items:[
+      {id:'coach',title:'COACH',status:'ready',bounds:destination,
+        comparison:{currentBounds:original,willChange:true,
+          maximizedBefore:false,maximizedAfter:false}},
+      {id:'history',title:'HISTORIQUE',status:'ready',bounds:unchanged,
+        comparison:{currentBounds:unchanged,willChange:false,
+          maximizedBefore:false,maximizedAfter:false}},
+      {id:'practice',title:'ENTRAÎNEMENT',status:'closed',
+        bounds:{x:2870,y:150,width:510,height:620},comparison:null}
+    ]
+  })});
+  await h.open();
+  const c=h.context;
+  const first=c.screenMapScreens.children[0].children[5];
+  assert.equal(first.children[8].disabled,true);
+  const fav=c.screenMapScreens.children[1].children[5];
+  const compare=fav.children[8];
+  assert.equal(compare.textContent,'COMPARER');
+  assert.equal(compare.disabled,false);
+  compare.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(compare.textContent,'MASQUER LA COMPARAISON');
+  assert.equal(compare.attrs['aria-pressed'],'true');
+  assert.equal(fav.children.length,10);
+  const section=fav.children[9];
+  assert.equal(section.className,'gl-workspace-map-comparison');
+  assert.match(section.children[0].textContent,/Studio/);
+  assert.equal(section.children[1].children[0].textContent,'1 À DÉPLACER');
+  assert.equal(section.children[1].children[1].textContent,'1 INCHANGÉE(S)');
+  assert.equal(section.children[1].children[2].textContent,'1 INDISPONIBLE(S)');
+  const views=section.children[2].children;
+  assert.equal(views[0].children[0].textContent,'POSITION ACTUELLE');
+  assert.equal(views[1].children[0].textContent,'APRÈS APPLICATION');
+  assert.equal(views[0].children[1].children.length,2);
+  assert.equal(views[1].children[1].children.length,3);
+  assert.equal(views[0].children[1].children[0].style.left,'10.416666666666668%');
+  assert.equal(views[1].children[1].children[0].style.left,'16.666666666666664%');
+  assert.match(views[0].children[1].children[0].className,/is-before/);
+  assert.match(views[1].children[1].children[0].className,/is-after/);
+  assert.match(views[1].children[1].children[2].className,/is-unavailable/);
+  const lines=section.children[3].children;
+  assert.match(lines[0].textContent,/Déplacement \+120 px horizontal, \+60 px vertical/);
+  assert.match(lines[0].textContent,/Taille 520×640 → 600×700/);
+  assert.match(lines[1].textContent,/inchangées/);
+  assert.match(lines[2].textContent,/Fermée — non déplacée/);
+  assert.equal(c.screenMapScreens.children[1].children[2].children.length,2,
+    'existing live panel rectangles remain unchanged');
+  assert.equal(h.favoriteApplies.length,0);
+  assert.equal(h.moves.length,0);
+  assert.match(c.screenMapMessage.textContent,/1 changement/);
+});
+
+test('PLAN DES ÉCRANS compares maximization changes and clears on slot selection',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'A'},{slot:2,count:1,name:'B'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:70,y:80,width:520,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:1,unchanged:0,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:70,y:80,width:520,height:640},
+      comparison:{currentBounds:{x:70,y:80,width:520,height:640},
+        willChange:true,maximizedBefore:false,maximizedAfter:true}}]
+  })});
+  await h.open();
+  const c=h.context,fav=c.screenMapScreens.children[0].children[5];
+  const btn=fav.children[8];
+  btn.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const section=fav.children[9];
+  assert.match(section.children[3].children[0].textContent,/Agrandissement/);
+  btn.fire('click');
+  assert.equal(section.hidden,true);
+  assert.equal(btn.textContent,'COMPARER');
+  assert.equal(btn.attrs['aria-pressed'],'false');
+  btn.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(btn.textContent,'MASQUER LA COMPARAISON');
+  fav.children[1].value='2';
+  fav.children[1].fire('change');
+  assert.equal(btn.textContent,'COMPARER');
+  assert.equal(btn.attrs['aria-pressed'],'false');
+  c.screenMapRefresh.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapScreens.children[0].children[5].children.length,9);
+  assert.equal(h.favoriteApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS changes between APERÇU and COMPARER without overlapping overlays',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Solo'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:70,y:80,width:520,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:0,unchanged:1,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:70,y:80,width:520,height:640},
+      comparison:{currentBounds:{x:70,y:80,width:520,height:640},
+        willChange:false,maximizedBefore:false,maximizedAfter:false}}]
+  })});
+  await h.open();
+  const c=h.context,fav=c.screenMapScreens.children[0].children[5];
+  fav.children[7].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const previewLayer=c.screenMapScreens.children[0].children[2].children[1];
+  assert.equal(previewLayer.hidden,false);
+  assert.equal(fav.children[7].textContent,'MASQUER');
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(previewLayer.hidden,true);
+  assert.equal(fav.children[7].textContent,'APERÇU');
+  assert.equal(fav.children[8].textContent,'MASQUER LA COMPARAISON');
+  const comparison=fav.children[9];
+  fav.children[7].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(comparison.hidden,true);
+  assert.equal(fav.children[8].textContent,'COMPARER');
+  assert.equal(fav.children[7].textContent,'MASQUER');
+});
+
+test('PLAN DES ÉCRANS rejects stale and concurrent comparison requests',async()=>{
+  let finish,requests=0,throwNext=false;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Studio'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:90,y:90,width:500,height:640}}]
+  }),previewFavorite:()=>{
+    requests++;
+    if(throwNext) return Promise.reject(new Error('refused'));
+    return new Promise(resolve=>{finish=resolve});
+  }});
+  await h.open();
+  const c=h.context;
+  const btn=c.screenMapScreens.children[0].children[5].children[8];
+  btn.fire('click');btn.fire('click');
+  assert.equal(requests,1);
+  c.screenMapRefresh.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  finish({id:'learning',displayIndex:0,slot:1,
+    ready:1,moving:1,unchanged:0,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:90,y:90,width:520,height:640},
+      comparison:{currentBounds:{x:80,y:90,width:520,height:640},
+        willChange:true,maximizedBefore:false,maximizedAfter:false}}]});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapScreens.children[0].children[5].children.length,9,
+    'a stale comparison must not render after refresh');
+  throwNext=true;
+  const next=c.screenMapScreens.children[0].children[5].children[8];
+  next.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(c.screenMapMessage.textContent,/Comparaison impossible/);
+  assert.equal(next.disabled,false);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(h.favoriteApplies.length,0);
+});
