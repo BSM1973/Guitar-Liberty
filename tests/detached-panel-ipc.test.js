@@ -766,7 +766,7 @@ test('legacy layouts migrate to Apprentissage without losing panel dimensions', 
   const sender = h.windows[1].webContents;
   assert.deepEqual(JSON.parse(JSON.stringify(
     h.handlers.get('gl-workspace-get')({sender})
-  )),{id:'learning',openPanels:['practice']});
+  )),{id:'learning',openPanels:['practice'],autoArrange:false});
   await h.handlers.get('gl-panel-open')({sender},'practice','ENTRAÎNEMENT',true);
   assert.deepEqual(h.windows[2].getBounds(),
     {x:140,y:80,width:520,height:650});
