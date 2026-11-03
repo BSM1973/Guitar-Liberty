@@ -2,7 +2,7 @@ name: Build Guitar Liberty
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/manage-screen-favorites-1199']
   workflow_dispatch:
 
 jobs:
