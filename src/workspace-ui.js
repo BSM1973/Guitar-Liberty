@@ -1371,6 +1371,82 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
       }
     }
+    async function deleteScreenMapFavorite(displayIndex,slot) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !window.guitarAudio?.workspaceDeleteScreenFavorite ||
+          !Number.isInteger(slot) || slot<1 || slot>3) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const favorite=display?.favorites?.find(item=>item.slot===slot);
+      if (!display?.workArea || !favorite || favorite.count<1) return;
+      const label=favorite.name||'FAVORI '+slot;
+      if (!window.confirm('Supprimer « '+label+' » de l’écran '+
+          (displayIndex+1)+' ? Cette action ne peut pas être annulée.')) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Suppression du FAVORI '+slot+'…';
+      try {
+        const result=await window.guitarAudio.workspaceDeleteScreenFavorite(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex || result.slot!==slot ||
+            result.deleted!==true) throw new Error('Suppression non confirmée');
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : '+label+' supprimé. Les fenêtres sont inchangées.';
+        }
+      } catch(error) {
+        console.error('Suppression du favori d’écran :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Suppression impossible. Actualise le plan.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
+    async function exchangeScreenMapFavorites(displayIndex,fromSlot,toSlot) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !window.guitarAudio?.workspaceSwapScreenFavorites ||
+          !Number.isInteger(fromSlot) || fromSlot<1 || fromSlot>3 ||
+          !Number.isInteger(toSlot) || toSlot<1 || toSlot>3 ||
+          fromSlot===toSlot) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const favorite=display?.favorites?.find(item=>item.slot===fromSlot);
+      if (!display?.workArea || !favorite || favorite.count<1) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Réorganisation des favoris…';
+      try {
+        const result=await window.guitarAudio.workspaceSwapScreenFavorites(
+          workspaceId,displayIndex,display.workArea,fromSlot,toSlot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex ||
+            result.fromSlot!==fromSlot || result.toSlot!==toSlot ||
+            result.swapped!==true) throw new Error('Échange non confirmé');
+        screenMapFavoriteSlots.set(displayIndex,toSlot);
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : '+(favorite.name||'FAVORI '+fromSlot)+
+            ' déplacé vers FAVORI '+toSlot+'. Les fenêtres sont inchangées.';
+        }
+      } catch(error) {
+        console.error('Échange des favoris d’écran :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Réorganisation impossible. Actualise le plan.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
     async function applyScreenMapFavorite(displayIndex,slot) {
       if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
           screenMapMoving || !window.guitarAudio?.workspaceApplyScreenFavorite ||
@@ -1641,6 +1717,9 @@
               screenMapFavoriteSlots.set(display.index,slot);
               applyFavorite.disabled=selectedCount()===0;
               renameFavorite.disabled=selectedCount()===0;
+              deleteFavorite.disabled=selectedCount()===0;
+              moveUpFavorite.disabled=selectedCount()===0 || slot===1;
+              moveDownFavorite.disabled=selectedCount()===0 || slot===3;
             }
           });
           saveFavorite.addEventListener('click',function () {
@@ -1679,8 +1758,42 @@
             });
             quickFavorites.append(quick);
           }
+          const favoriteManagement=document.createElement('div');
+          favoriteManagement.className='gl-workspace-map-favorite-management';
+          const moveUpFavorite=document.createElement('button');
+          moveUpFavorite.type='button';
+          moveUpFavorite.className='gl-workspace-map-favorite-move';
+          moveUpFavorite.textContent='MONTER';
+          moveUpFavorite.title='Échanger avec le favori précédent';
+          const moveDownFavorite=document.createElement('button');
+          moveDownFavorite.type='button';
+          moveDownFavorite.className='gl-workspace-map-favorite-move';
+          moveDownFavorite.textContent='DESCENDRE';
+          moveDownFavorite.title='Échanger avec le favori suivant';
+          const deleteFavorite=document.createElement('button');
+          deleteFavorite.type='button';
+          deleteFavorite.className='gl-workspace-map-favorite-delete';
+          deleteFavorite.textContent='SUPPRIMER';
+          deleteFavorite.title='Supprimer le favori sélectionné après confirmation';
+          const currentSlot=Number(slotSelect.value);
+          const hasSelection=selectedCount()>0;
+          moveUpFavorite.disabled=!hasSelection || currentSlot===1;
+          moveDownFavorite.disabled=!hasSelection || currentSlot===3;
+          deleteFavorite.disabled=!hasSelection;
+          moveUpFavorite.addEventListener('click',function () {
+            const slot=Number(slotSelect.value);
+            exchangeScreenMapFavorites(display.index,slot,slot-1);
+          });
+          moveDownFavorite.addEventListener('click',function () {
+            const slot=Number(slotSelect.value);
+            exchangeScreenMapFavorites(display.index,slot,slot+1);
+          });
+          deleteFavorite.addEventListener('click',function () {
+            deleteScreenMapFavorite(display.index,Number(slotSelect.value));
+          });
+          favoriteManagement.append(moveUpFavorite,moveDownFavorite,deleteFavorite);
           favorites.append(favoritesLabel,slotSelect,saveFavorite,applyFavorite,
-            renameFavorite,quickFavorites);
+            renameFavorite,quickFavorites,favoriteManagement);
           card.append(heading,resolution,preview,list,controls,favorites);
           screenMapScreens.append(card);
         }
