@@ -685,7 +685,7 @@ test('Apprentissage, Entraînement and Improvisation keep independent floating l
   const switchTo = h.handlers.get('gl-workspace-switch');
   const open = h.handlers.get('gl-panel-open');
   assert.deepEqual(JSON.parse(JSON.stringify(get({sender}))),
-    {id:'learning', openPanels:[], autoArrange:false});
+    {id:'learning', openPanels:[], autoArrange:false,layoutStyle:'mosaic'});
 
   await open({sender}, 'coach', 'COACHS');
   const original = h.windows[2];
@@ -732,7 +732,7 @@ test('Apprentissage, Entraînement and Improvisation keep independent floating l
   const nextSender = anotherRun.windows[1].webContents;
   assert.deepEqual(JSON.parse(JSON.stringify(
     anotherRun.handlers.get('gl-workspace-get')({sender:nextSender})
-  )), {id:'practice',openPanels:['practice'],autoArrange:false});
+  )), {id:'practice',openPanels:['practice'],autoArrange:false,layoutStyle:'mosaic'});
 });
 
 test('reattaching a panel only affects the active workspace preset', async t => {
@@ -766,7 +766,7 @@ test('legacy layouts migrate to Apprentissage without losing panel dimensions', 
   const sender = h.windows[1].webContents;
   assert.deepEqual(JSON.parse(JSON.stringify(
     h.handlers.get('gl-workspace-get')({sender})
-  )),{id:'learning',openPanels:['practice'],autoArrange:false});
+  )),{id:'learning',openPanels:['practice'],autoArrange:false,layoutStyle:'mosaic'});
   await h.handlers.get('gl-panel-open')({sender},'practice','ENTRAÎNEMENT',true);
   assert.deepEqual(h.windows[2].getBounds(),
     {x:140,y:80,width:520,height:650});
@@ -1009,4 +1009,87 @@ test('malformed custom preset metadata is rejected without losing base profiles'
   await h.handlers.get('gl-workspace-switch')({sender},'custom-1');
   assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})],
     ['coach']);
+});
+
+test('DISPOSITION style persists independently and rearranges existing windows immediately',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-layout-style-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const setStyle=h.handlers.get('gl-workspace-layout-style');
+  const switchTo=h.handlers.get('gl-workspace-switch');
+  const open=h.handlers.get('gl-panel-open');
+  const get=h.handlers.get('gl-workspace-get');
+  assert.equal(get({sender}).layoutStyle,'mosaic');
+  for(const id of ['coach','practice','history','play-with-me'])await open({sender},id,id);
+  const windows=h.windows.slice(2);
+  const before=windows.map(w=>w.getBounds());
+  const columns=setStyle({sender},'learning','columns');
+  assert.equal(columns.style,'columns');
+  assert.equal(columns.arranged,4);
+  assert.equal(columns.displays,1);
+  assert.equal(get({sender}).layoutStyle,'columns');
+  const columnBounds=windows.map(w=>w.getBounds());
+  assert.notDeepEqual(columnBounds,before);
+  assert.equal(columnBounds[0].y,columnBounds[3].y);
+  const cascade=setStyle({sender},'learning','cascade');
+  assert.equal(cascade.style,'cascade');
+  const cascadeBounds=windows.map(w=>w.getBounds());
+  assert.ok(cascadeBounds[1].x>cascadeBounds[0].x);
+  assert.ok(cascadeBounds[1].y>cascadeBounds[0].y);
+  assert.equal(h.windows[1].destroyed,false,'score and playback host stay mounted');
+
+  const training=await switchTo({sender},'practice');
+  assert.equal(training.layoutStyle,'mosaic');
+  assert.equal(setStyle({sender},'practice','columns').style,'columns');
+  const created=h.handlers.get('gl-workspace-create')({sender},'Session colonnes');
+  assert.equal((await switchTo({sender},created.id)).layoutStyle,'mosaic');
+  setStyle({sender},created.id,'cascade');
+  assert.equal((await switchTo({sender},'learning')).layoutStyle,'cascade');
+  h.windows[1].close();
+
+  const stored=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.equal(stored.workspaces.learning.layoutStyle,'cascade');
+  assert.equal(stored.workspaces.practice.layoutStyle,'columns');
+  assert.equal(stored.workspaces.improv.layoutStyle,'mosaic');
+  assert.equal(stored.workspaces[created.id].layoutStyle,'cascade');
+  const restarted=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  const nextSender=restarted.windows[1].webContents;
+  assert.equal(restarted.handlers.get('gl-workspace-get')({sender:nextSender}).layoutStyle,'cascade');
+  assert.equal((await restarted.handlers.get('gl-workspace-switch')({sender:nextSender},created.id)).layoutStyle,'cascade');
+  await restarted.handlers.get('gl-workspace-reset')({sender:nextSender},created.id);
+  assert.equal(restarted.handlers.get('gl-workspace-get')({sender:nextSender}).layoutStyle,'mosaic');
+  assert.equal((await restarted.handlers.get('gl-workspace-switch')({sender:nextSender},'learning')).layoutStyle,'cascade',
+    'reset of a custom workspace must not affect built-in layouts');
+});
+
+test('invalid, inactive and unauthorized DISPOSITION requests cannot alter saved styles',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-layout-style-invalid-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const h=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const setStyle=h.handlers.get('gl-workspace-layout-style');
+  assert.throws(()=>setStyle({sender:{}},'learning','columns'),/non autorisé/);
+  assert.throws(()=>setStyle({sender},'practice','columns'),/non autorisé/);
+  assert.throws(()=>setStyle({sender},'learning','tiles'),/non autorisé/);
+  assert.throws(()=>setStyle({sender},'learning',{}),/non autorisé/);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).layoutStyle,'mosaic');
+  const file=path.join(folder,'detached-panel-layouts.json');
+  h.windows[1].close();
+  const stored=JSON.parse(fs.readFileSync(file,'utf8'));
+  stored.workspaces.learning.layoutStyle='dangerous-unknown';
+  fs.writeFileSync(file,JSON.stringify(stored));
+  const restarted=bootMain({layoutDirectory:folder});
+  await Promise.resolve();
+  assert.equal(restarted.handlers.get('gl-workspace-get')({
+    sender:restarted.windows[1].webContents
+  }).layoutStyle,'mosaic','corrupt saved style falls back to Mosaïque');
 });
