@@ -640,6 +640,35 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
  border-color:#e1b775;background:#3c5168;color:#ffe1b2;
 }
 #appWorkspace .gl-workspace-map-item.is-minimized{border-style:dashed}
+
+#appWorkspace .gl-workspace-map-preview.is-drop-target{
+ border-color:#f1c777;background:#2e4d60;
+ box-shadow:0 0 0 3px #dfb36566,inset 0 0 28px #e1b77528;
+}
+#appWorkspace .gl-workspace-map-window[draggable="true"],
+#appWorkspace .gl-workspace-map-item[draggable="true"]{
+ cursor:grab;
+}
+#appWorkspace .gl-workspace-map-window[draggable="true"]:active,
+#appWorkspace .gl-workspace-map-item[draggable="true"]:active{
+ cursor:grabbing;
+}
+#appWorkspace .gl-workspace-map-panel-entry{
+ display:inline-flex;align-items:center;gap:5px;max-width:100%;
+ padding:3px;border:1px solid #45576e;border-radius:9px;
+ background:#1c3045;
+}
+#appWorkspace .gl-workspace-map-move-select{
+ min-height:30px;max-width:118px;padding:5px 8px;
+ border:1px solid #a48a64;border-radius:7px;
+ background:#233850;color:#f2d6a5;
+ font:700 10px/1.3 Arial,sans-serif;
+ color-scheme:dark;cursor:pointer;
+}
+#appWorkspace .gl-workspace-map-move-select:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+
 #appWorkspace .gl-workspace-map-empty{
  color:#a8b8cc;font:600 11px/1.3 Arial,sans-serif;
 }
