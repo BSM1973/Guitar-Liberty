@@ -2,7 +2,7 @@ name: Build Guitar Liberty
 
 on:
   push:
-    branches: [main, 'feature/undo-screen-organization-1192']
+    branches: [main]
   workflow_dispatch:
 
 jobs:
