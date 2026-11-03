@@ -2485,3 +2485,123 @@ test('SCREEN FAVORITES comparison isolates each display and rejects unauthorized
   assert.throws(()=>compare({sender},'learning',1,{...area,width:1800},1),
     /modifiés/);
 });
+
+test('SCREEN FAVORITES overlap diagnostics detect new collisions with unsaved windows',async()=>{
+  const displays=[{workArea:{x:0,y:0,width:1600,height:900}}];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={...displays[0].workArea};
+  for(const id of ['coach','history']){
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:100,width:500,height:400});
+  history.setBounds({x:650,y:100,width:500,height:400});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  await h.handlers.get('gl-panel-open')({sender},'practice','PRATIQUE');
+  const practice=h.windows.at(-1);
+  practice.setBounds({x:600,y:110,width:400,height:400});
+  coach.setBounds({x:80,y:100,width:500,height:400});
+  history.setBounds({x:1050,y:100,width:500,height:400});
+  const original=[coach.getBounds(),history.getBounds(),practice.getBounds()];
+  const previews=h.handlers.get('gl-workspace-preview-screen-favorite');
+  const state=h.handlers.get('gl-workspace-get')({sender}).autoArrange;
+  const count=h.windows.length;
+  const result=previews({sender},'learning',0,area,1);
+  assert.deepEqual([result.overlaps.before.length,result.overlaps.after.length,
+    result.overlaps.introduced.length],[0,1,1]);
+  const hit=result.overlaps.after[0];
+  assert.deepEqual(Array.from(hit.ids),['history','practice']);
+  assert.deepEqual(JSON.parse(JSON.stringify(hit.bounds)),
+    {x:650,y:110,width:350,height:390});
+  assert.equal(hit.areaPixels,136500);
+  assert.deepEqual(Array.from(result.contextPanels,x=>x.id),['practice']);
+  assert.deepEqual([coach.getBounds(),history.getBounds(),practice.getBounds()],
+    original,'comparison must never move windows');
+  assert.equal(h.windows.length,count,'no new renderer');
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,state);
+});
+
+test('SCREEN FAVORITES overlap diagnostics distinguish existing collisions from new ones',async()=>{
+  const displays=[{workArea:{x:0,y:0,width:1600,height:900}}];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={...displays[0].workArea};
+  for(const id of ['coach','history']){
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:80,y:80,width:600,height:560});
+  history.setBounds({x:600,y:120,width:500,height:540});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,2);
+  const preview=h.handlers.get('gl-workspace-preview-screen-favorite');
+  let compared=preview({sender},'learning',0,area,2);
+  assert.deepEqual([compared.overlaps.before.length,compared.overlaps.after.length,
+    compared.overlaps.introduced.length],[1,1,0]);
+  assert.equal(compared.overlaps.after[0].areaPixels,80*520);
+  history.setBounds({x:680,y:120,width:500,height:540});
+  compared=preview({sender},'learning',0,area,2);
+  assert.deepEqual([compared.overlaps.before.length,compared.overlaps.after.length,
+    compared.overlaps.introduced.length],[0,1,1],
+    'windows touching edges are not overlapping');
+});
+
+test('SCREEN FAVORITES overlap diagnostics exclude reduced, closed and remote panels',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1600,height:900}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={...displays[0].workArea};
+  for(const id of ['coach','history','practice']){
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history,practice]=h.windows.slice(2);
+  coach.setBounds({x:100,y:100,width:550,height:550});
+  history.setBounds({x:300,y:130,width:600,height:500});
+  practice.setBounds({x:450,y:160,width:500,height:500});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,3);
+  history.minimize();
+  practice.setBounds({x:1750,y:100,width:500,height:500});
+  let result=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,3);
+  assert.equal(result.overlaps.before.length,0);
+  assert.equal(result.overlaps.after.length,0);
+  assert.equal(result.overlaps.introduced.length,0);
+  assert.deepEqual(Array.from(result.items,x=>[x.id,x.status]),
+    [['coach','ready'],['history','minimized'],['practice','other-screen']]);
+  history.close();
+  result=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,3);
+  assert.equal(result.items[1].status,'closed');
+  assert.equal(result.overlaps.after.length,0);
+});
+
+test('SCREEN FAVORITES overlap diagnostics account for maximized screen footprint',async()=>{
+  const displays=[{workArea:{x:0,y:0,width:1600,height:900}}];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={...displays[0].workArea};
+  for(const id of ['coach','history']){
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:100,width:400,height:500});
+  history.setBounds({x:900,y:110,width:400,height:500});
+  coach.isMaximized=()=>Boolean(coach.maximized);
+  coach.maximized=true;
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  coach.maximized=false;
+  const result=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,1);
+  assert.deepEqual([result.overlaps.before.length,result.overlaps.after.length,
+    result.overlaps.introduced.length],[0,1,1]);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.overlaps.after[0].bounds)),
+    {x:900,y:110,width:400,height:500});
+  assert.equal(coach.maximized,false,'preview does not maximize anything');
+});
