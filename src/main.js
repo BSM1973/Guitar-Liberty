@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { finiteRect, restorePanelBounds, distributePanelBounds,
   displayTopologyKey, placePanelOnDisplay, findPanelDisplayIndex } = require('./panel-layout');
 
@@ -856,6 +857,208 @@ ipcMain.handle('gl-workspace-preview-screen-favorite',
       overlaps:{before:prior,after:projected,introduced}};
   
   });
+
+
+// Plans are deliberately computed on the main process, never from renderer
+// geometry. Panels absent from the favorite remain fixed on their monitor.
+// All candidate rectangles retain their native dimensions and stay on-screen.
+function computeScreenFavoriteOverlapCorrection(profile,workspaceId,displayIndex,
+  displays,area,slot) {
+  const saved=getScreenFavoriteSlots(profile,activeTopologyKey,area)?.[String(slot)];
+  if (!Array.isArray(saved)||!saved.length)
+    throw new Error('Favori d’écran non enregistré');
+  const active=activeWindowsOnFavoriteScreen(displayIndex,displays);
+  const favorite=new Map(saved.map(item=>[item.id,item]));
+  const fixed=[],movable=[],snapshot=[];
+  for (const [id,popup] of active) {
+    const before=finiteRect(popup.getNormalBounds?.()||popup.getBounds());
+    if (!before) continue;
+    const wasMaximized=Boolean(popup.isMaximized?.());
+    const title=String(popup.getTitle?.()||popup.options?.title||id)
+      .replace(/ — Guitare Liberty$/,'').slice(0,80);
+    const stored=favorite.get(id);
+    snapshot.push({id,before,maximized:wasMaximized});
+    if (!stored) {
+      fixed.push({id,title,
+        bounds:wasMaximized?{...area}:before});
+      continue;
+    }
+    const target=restorePanelBounds(stored.bounds,[displays[displayIndex]],
+      displays[displayIndex]);
+    if (!target) throw new Error('Position du favori invalide');
+    movable.push({id,title,before,desired:target,wasMaximized});
+  }
+  const noFit=reason=>({
+    id:workspaceId,displayIndex,slot,area,possible:false,reason,
+    windows:[],fixed:fixed.map(item=>({...item})),moved:0,token:null
+  });
+  if (!movable.length) {
+    return noFit('Aucune fenêtre active de ce favori à corriger sur cet écran.');
+  }
+  if (favoriteWindowOverlaps(fixed,area).length) {
+    return noFit('Des fenêtres hors favori se chevauchent déjà. Déplace-les ou enregistre-les dans le favori.');
+  }
+  const isInside=r=>r&&r.width>0&&r.height>0&&
+    r.x>=area.x&&r.y>=area.y&&r.x+r.width<=area.x+area.width&&
+    r.y+r.height<=area.y+area.height;
+  const intersects=(a,b)=>a.x<b.x+b.width && a.x+a.width>b.x &&
+    a.y<b.y+b.height && a.y+a.height>b.y;
+  const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+  const propose=(order)=>{
+    const placed=fixed.map(item=>({id:item.id,bounds:item.bounds}));
+    const result=[];
+    for (const window of order) {
+      const wanted=window.desired;
+      if (wanted.width>area.width || wanted.height>area.height) return null;
+      const xs=new Set([wanted.x,window.before.x,area.x,
+        area.x+area.width-wanted.width]);
+      const ys=new Set([wanted.y,window.before.y,area.y,
+        area.y+area.height-wanted.height]);
+      for (const p of placed) {
+        const r=p.bounds;
+        for (const x of [r.x-wanted.width,r.x,r.x+r.width,
+          r.x+r.width-wanted.width]) xs.add(x);
+        for (const y of [r.y-wanted.height,r.y,r.y+r.height,
+          r.y+r.height-wanted.height]) ys.add(y);
+      }
+      let winner=null,score=Infinity;
+      for (const rawX of xs) for (const rawY of ys) {
+        const r={x:Math.round(clamp(rawX,area.x,
+            area.x+area.width-wanted.width)),
+          y:Math.round(clamp(rawY,area.y,
+            area.y+area.height-wanted.height)),
+          width:wanted.width,height:wanted.height};
+        if (!isInside(r)||placed.some(item=>intersects(r,item.bounds))) continue;
+        const cost=Math.abs(r.x-wanted.x)+Math.abs(r.y-wanted.y)+
+          .2*(Math.abs(r.x-window.before.x)+Math.abs(r.y-window.before.y));
+        if (cost<score ||
+            (cost===score && winner &&
+              (r.y<winner.y || (r.y===winner.y&&r.x<winner.x)))) {
+          winner=r;score=cost;
+        }
+      }
+      if (!winner) return null;
+      placed.push({id:window.id,bounds:winner});
+      result.push({id:window.id,title:window.title,bounds:winner,
+        before:window.before,wasMaximized:window.wasMaximized,
+        changed:window.wasMaximized||!sameScreenBounds(window.before,winner)});
+    }
+    if (favoriteWindowOverlaps([
+      ...fixed,...result.map(item=>({id:item.id,title:item.title,bounds:item.bounds}))
+    ],area).length) return null;
+    return {windows:result,score:result.reduce((sum,item)=>{
+      const target=movable.find(window=>window.id===item.id).desired;
+      return sum+Math.abs(item.bounds.x-target.x)+
+        Math.abs(item.bounds.y-target.y);
+    },0)};
+  };
+  const byArea=[...movable].sort((a,b)=>
+    b.desired.width*b.desired.height-a.desired.width*a.desired.height ||
+    a.id.localeCompare(b.id));
+  const byXY=[...movable].sort((a,b)=>a.desired.y-b.desired.y ||
+    a.desired.x-b.desired.x||a.id.localeCompare(b.id));
+  const orders=[movable,[...movable].reverse(),byArea,
+    [...byArea].reverse(),byXY,[...byXY].reverse()];
+  let best=null;
+  for (const order of orders) {
+    const candidate=propose(order);
+    if (candidate && (!best || candidate.score<best.score)) best=candidate;
+  }
+  if (!best) {
+    return noFit('Aucune disposition sans chevauchement calculable sans réduire les fenêtres. Libère de la place sur cet écran.');
+  }
+  const byId=new Map(best.windows.map(item=>[item.id,item]));
+  const windows=movable.map(item=>byId.get(item.id));
+  const moved=windows.filter(item=>item.changed).length;
+  // A token commits to the native window states and the favorite source.
+  // A later APPLY recomputes the whole plan and rejects stale confirmations.
+  const token=crypto.createHash('sha256').update(JSON.stringify({
+    workspaceId,displayIndex,slot,topology:activeTopologyKey,area,
+    saved,snapshot,positions:windows.map(item=>({id:item.id,bounds:item.bounds})),
+    fixed:fixed.map(item=>({id:item.id,bounds:item.bounds}))
+  })).digest('hex');
+  return {id:workspaceId,displayIndex,slot,area,possible:true,token,
+    windows:windows.map(item=>({...item})),
+    fixed:fixed.map(item=>({...item})),moved,
+    unchanged:windows.length-moved,
+    collisions:0};
+}
+
+// The preview and apply handlers use exactly the same deterministic layout.
+// Applying never overwrites the saved favorite or moves unsaved panels.
+ipcMain.handle('gl-workspace-plan-screen-overlap-fix',
+  (event,workspaceId,displayIndex,expectedArea,slot)=>{
+    const {profile,displays,area}=screenFavoriteRequest(
+      event,workspaceId,displayIndex,expectedArea,slot);
+    return computeScreenFavoriteOverlapCorrection(
+      profile,workspaceId,displayIndex,displays,area,slot);
+  });
+
+ipcMain.handle('gl-workspace-apply-screen-overlap-fix',
+  (event,workspaceId,displayIndex,expectedArea,slot,expectedToken)=>{
+    const {profile,displays,area}=screenFavoriteRequest(
+      event,workspaceId,displayIndex,expectedArea,slot);
+    if (typeof expectedToken!=='string'||!/^[a-f0-9]{64}$/.test(expectedToken))
+      throw new Error('Validation de correction invalide');
+    const plan=computeScreenFavoriteOverlapCorrection(
+      profile,workspaceId,displayIndex,displays,area,slot);
+    if (!plan.possible || plan.token!==expectedToken)
+      throw new Error('Disposition modifiée : recalculer la correction');
+    const active=new Map(activeWindowsOnFavoriteScreen(displayIndex,displays));
+    const targets=plan.windows.map(item=>({
+      ...item,popup:active.get(item.id)
+    }));
+    if (targets.some(item=>!item.popup || item.popup.isDestroyed()))
+      throw new Error('Fenêtres modifiées : recalculer la correction');
+    const previousAuto=profile.autoArrange;
+    profile.autoArrange=false;
+    try {
+      for (const item of targets) {
+        if (item.popup.isMaximized?.()) {
+          if (typeof item.popup.unmaximize!=='function')
+            throw new Error('Impossible de quitter le mode agrandi');
+          item.popup.unmaximize();
+        }
+        item.popup.setBounds(item.bounds);
+        rememberPanelBounds(item.id,item.popup);
+      }
+      const now=Array.from(active.entries()).map(([id,popup])=>({
+        id,title:id,
+        bounds:popup.isMaximized?.()?{...area}:
+          finiteRect(popup.getNormalBounds?.()||popup.getBounds())
+      }));
+      // Pre-existing unsaved panels are intentionally fixed, even when
+      // a user left part of one beyond the monitor work area.
+      if (targets.some(item=>!isInsideScreenCorrection(
+            finiteRect(item.popup.getNormalBounds?.()||item.popup.getBounds()),area)) ||
+          favoriteWindowOverlaps(now,area).length) {
+        throw new Error('Chevauchement détecté après déplacement');
+      }
+      if (!flushPanelLayouts())
+        throw new Error('Impossible de sauvegarder les positions corrigées');
+    } catch(error) {
+      profile.autoArrange=previousAuto;
+      for (const item of targets) {
+        if (item.popup.isDestroyed()) continue;
+        if (item.popup.isMaximized?.()) item.popup.unmaximize?.();
+        item.popup.setBounds(item.before);
+        if (item.wasMaximized) item.popup.maximize?.();
+        rememberPanelBounds(item.id,item.popup);
+      }
+      throw error;
+    }
+    lastOrganizedScreen=null;
+    return {id:workspaceId,displayIndex,slot,applied:targets.length,
+      moved:plan.moved,collisions:0,autoDisabled:previousAuto===true,
+      favoriteUnchanged:true};
+  });
+
+function isInsideScreenCorrection(bounds,area) {
+  const r=finiteRect(bounds);
+  return Boolean(r && r.x>=area.x && r.y>=area.y &&
+    r.x+r.width<=area.x+area.width &&
+    r.y+r.height<=area.y+area.height);
+}
 
 // Only stored favorites can be renamed; no native window is moved.
 ipcMain.handle('gl-workspace-rename-screen-favorite',

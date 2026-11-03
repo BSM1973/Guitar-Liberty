@@ -49,6 +49,8 @@ function harness(overrides={}) {
   const favoriteDeletes=[];
   const favoriteSwaps=[];
   const favoritePreviews=[];
+  const overlapPlans=[];
+  const overlapApplies=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -106,6 +108,19 @@ function harness(overrides={}) {
         bounds:{x:100,y:80,width:510,height:640}}
     ]});
   });
+  const planOverlapFix=overrides.planOverlapFix||((id,index,area,slot)=>{
+    overlapPlans.push({id,index,area,slot});
+    return Promise.resolve({id,displayIndex:index,slot,possible:true,
+      token:'a'.repeat(64),moved:1,collisions:0,
+      windows:[{id:'coach',title:'COACH',changed:true,
+        bounds:{x:100,y:80,width:510,height:640}}],
+      fixed:[]});
+  });
+  const applyOverlapFix=overrides.applyOverlapFix||((id,index,area,slot,token)=>{
+    overlapApplies.push({id,index,area,slot,token});
+    return Promise.resolve({id,displayIndex:index,slot,applied:1,moved:1,
+      collisions:0,autoDisabled:true,favoriteUnchanged:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -122,7 +137,9 @@ function harness(overrides={}) {
       workspaceRenameScreenFavorite:renameFavorite,
       workspaceDeleteScreenFavorite:deleteFavorite,
       workspaceSwapScreenFavorites:swapFavorite,
-      workspacePreviewScreenFavorite:previewFavorite},
+      workspacePreviewScreenFavorite:previewFavorite,
+      workspacePlanScreenOverlapFix:planOverlapFix,
+      workspaceApplyScreenOverlapFix:applyOverlapFix},
       confirm:overrides.confirm||(()=>true),
       prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
@@ -131,7 +148,8 @@ function harness(overrides={}) {
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
   return {context,calls,moves,organizations,undos,
     favoriteSaves,favoriteApplies,favoriteRenames,
-    favoriteDeletes,favoriteSwaps,favoritePreviews,errors,
+    favoriteDeletes,favoriteSwaps,favoritePreviews,
+    overlapPlans,overlapApplies,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -1204,4 +1222,197 @@ test('PLAN DES ÉCRANS blocks applying when overlap verification fails or become
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(h.favoriteApplies.length,0);
   assert.equal(c.screenMapOverlay.hidden,true);
+});
+
+test('PLAN DES ÉCRANS exposes correction only after detecting favorite overlaps',async()=>{
+  const area={x:0,y:0,width:1600,height:900};
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:area,
+      favorites:[{slot:1,count:2,name:'Studio'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:2,moving:2,unchanged:0,unavailable:0,
+    items:[
+      {id:'coach',title:'COACH',status:'ready',
+        bounds:{x:80,y:70,width:510,height:640},
+        comparison:{currentBounds:{x:80,y:70,width:510,height:640},
+          willChange:false,maximizedBefore:false,maximizedAfter:false}},
+      {id:'history',title:'HISTO',status:'ready',
+        bounds:{x:300,y:70,width:510,height:640},
+        comparison:{currentBounds:{x:900,y:70,width:510,height:640},
+          willChange:true,maximizedBefore:false,maximizedAfter:false}}
+    ],overlaps:{before:[],after:[{
+      ids:['coach','history'],titles:['COACH','HISTO'],
+      bounds:{x:300,y:70,width:290,height:640},areaPixels:185600
+    }],introduced:[]}
+  })});
+  await h.open();
+  const fav=h.context.screenMapScreens.children[0].children[5];
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const compare=fav.children[9];
+  const warning=compare.children[5];
+  const calculate=warning.children.at(-1);
+  assert.equal(calculate.textContent,'CORRIGER LES CHEVAUCHEMENTS');
+  assert.equal(h.overlapPlans.length,0);
+  calculate.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.overlapPlans.length,1);
+  assert.equal(h.overlapApplies.length,0,'preview must not apply positions');
+  assert.equal(calculate.textContent,'RECALCULER LA CORRECTION');
+  const correction=compare.children[6];
+  assert.equal(correction.className,'gl-workspace-map-fix-panel');
+  assert.match(correction.children[0].textContent,/AUCUN CHEVAUCHEMENT/);
+  assert.equal(correction.children[2].children.length,1);
+  assert.match(correction.children[2].children[0].className,/is-moved/);
+  assert.equal(correction.children[5].textContent,'APPLIQUER LA CORRECTION');
+  assert.equal(correction.children[5].disabled,false);
+  assert.match(h.context.screenMapMessage.textContent,/Aucune fenêtre déplacée/);
+  assert.equal(h.moves.length,0);
+  assert.equal(h.favoriteApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS applies computed correction only after explicit approval',async()=>{
+  let confirmations=0,accept=false;
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:2,name:'Travail'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:1,unchanged:0,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:80,y:70,width:510,height:640},
+      comparison:{currentBounds:{x:900,y:70,width:510,height:640},
+        willChange:true,maximizedBefore:false,maximizedAfter:false}}],
+    overlaps:{before:[],after:[{ids:['coach','history'],
+      titles:['COACH','HISTO'],bounds:{x:300,y:90,width:290,height:550},
+      areaPixels:159500}],introduced:[]}
+  }),confirm:()=>{confirmations++;return accept}});
+  await h.open();
+  const fav=h.context.screenMapScreens.children[0].children[5];
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  fav.children[9].children[5].children.at(-1).fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const apply=fav.children[9].children[6].children[5];
+  apply.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,1);
+  assert.equal(h.overlapApplies.length,0,'cancel must not move any window');
+  assert.equal(h.context.screenMapOverlay.hidden,false);
+  accept=true;
+  apply.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,2);
+  assert.equal(h.overlapApplies.length,1);
+  assert.equal(h.overlapApplies[0].token,'a'.repeat(64));
+  assert.equal(h.favoriteApplies.length,0,'old unsafe apply is not used');
+  assert.equal(h.context.activeAutoArrange,false);
+  assert.match(h.context.screenMapMessage.textContent,/aucun chevauchement/);
+  assert.match(h.context.screenMapMessage.textContent,/Favori conservé/);
+});
+
+test('PLAN DES ÉCRANS does not offer apply when there is no collision-free packing',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:2,name:'Deux fenêtres'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:1,unchanged:0,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:80,y:70,width:510,height:640},
+      comparison:{currentBounds:{x:900,y:70,width:510,height:640},
+        willChange:true,maximizedBefore:false,maximizedAfter:false}}],
+    overlaps:{before:[],after:[{ids:['coach','history'],
+      titles:['COACH','HISTO'],bounds:{x:300,y:90,width:200,height:400},
+      areaPixels:80000}],introduced:[]}
+  }),planOverlapFix:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,possible:false,
+    reason:'Aucune disposition possible sans réduire les fenêtres.',
+    windows:[],fixed:[],token:null,moved:0
+  })});
+  await h.open();
+  const fav=h.context.screenMapScreens.children[0].children[5];
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const warning=fav.children[9].children[5];
+  warning.children.at(-1).fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(h.context.screenMapMessage.textContent,/Aucune disposition possible/);
+  assert.equal(fav.children[9].children.length,6,'no correction preview');
+  assert.equal(h.overlapApplies.length,0);
+  assert.equal(h.favoriteApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS ignores stale plans after changing workspace or closing map',async()=>{
+  let finish;
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:2,name:'Studio'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:1,unchanged:0,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:80,y:70,width:510,height:640},
+      comparison:{currentBounds:{x:900,y:70,width:510,height:640},
+        willChange:true,maximizedBefore:false,maximizedAfter:false}}],
+    overlaps:{before:[],after:[{ids:['coach','history'],
+      titles:['COACH','HISTO'],bounds:{x:300,y:90,width:200,height:400},
+      areaPixels:80000}],introduced:[]}
+  }),planOverlapFix:()=>new Promise(resolve=>{finish=resolve})});
+  await h.open();
+  const c=h.context;
+  const fav=c.screenMapScreens.children[0].children[5];
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const compare=fav.children[9];
+  compare.children[5].children.at(-1).fire('click');
+  c.screenMapClose.fire('click');
+  finish({id:'learning',displayIndex:0,slot:1,possible:true,
+    token:'a'.repeat(64),moved:1,collisions:0,
+    windows:[{id:'coach',title:'COACH',changed:true,
+      bounds:{x:80,y:70,width:510,height:640}}],fixed:[]});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapOverlay.hidden,true);
+  assert.equal(compare.children.length,6);
+  assert.equal(h.overlapApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS rejects stale correction token without claiming success',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:2,name:'Studio'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:70,width:510,height:640}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:1,unchanged:0,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:80,y:70,width:510,height:640},
+      comparison:{currentBounds:{x:900,y:70,width:510,height:640},
+        willChange:true,maximizedBefore:false,maximizedAfter:false}}],
+    overlaps:{before:[],after:[{ids:['coach','history'],
+      titles:['COACH','HISTO'],bounds:{x:300,y:90,width:200,height:400},
+      areaPixels:80000}],introduced:[]}
+  }),applyOverlapFix:()=>Promise.reject(new Error('stale plan'))});
+  await h.open();
+  const c=h.context,fav=c.screenMapScreens.children[0].children[5];
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  fav.children[9].children[5].children.at(-1).fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  fav.children[9].children[6].children[5].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(c.screenMapMessage.textContent,/Correction refusée/);
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(h.favoriteApplies.length,0);
+  assert.equal(c.screenMapRefresh.disabled,false);
 });
