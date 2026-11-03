@@ -1462,7 +1462,8 @@ test('PLAN DES ÉCRANS maps real monitors, native windows and minimized state',a
   history.minimized=true;
   const data=map({sender},'learning');
   assert.equal(data.panels.length,2);
-  assert.deepEqual(data.panels.map(p=>[p.id,p.title,p.displayIndex,p.minimized]),[
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    data.panels.map(p=>[p.id,p.title,p.displayIndex,p.minimized]))),[
     ['coach','COACH',1,false],['history','HISTORIQUE',0,true]
   ]);
   assert.deepEqual(data.panels[0].bounds,coach.getBounds());
