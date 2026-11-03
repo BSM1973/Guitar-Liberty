@@ -1466,7 +1466,7 @@ test('PLAN DES ÉCRANS maps real monitors, native windows and minimized state',a
     data.panels.map(p=>[p.id,p.title,p.displayIndex,p.minimized]))),[
     ['coach','COACH',1,false],['history','HISTORIQUE',0,true]
   ]);
-  assert.deepEqual(data.panels[0].bounds,coach.getBounds());
+  assert.deepEqual({...data.panels[0].bounds},coach.getBounds());
   assert.equal(data.style,'mosaic');
   assert.equal(data.mode,'secondary-first');
   assert.equal(data.auto,false);
