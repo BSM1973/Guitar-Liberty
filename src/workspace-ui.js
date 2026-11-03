@@ -201,6 +201,12 @@
       'Répartir automatiquement les fenêtres détachées sur les écrans disponibles';
     distributeLayoutButton.setAttribute('aria-label',
       'Répartir les fenêtres détachées sur les écrans');
+    const screenMapButton = document.createElement('button');
+    screenMapButton.type = 'button';
+    screenMapButton.className = 'gl-workspace-layout-action gl-workspace-layout-map';
+    screenMapButton.textContent = 'PLAN DES ÉCRANS';
+    screenMapButton.title = 'Voir les moniteurs et retrouver les fenêtres détachées';
+    screenMapButton.setAttribute('aria-label', 'Afficher le plan des écrans');
     const autoLayoutButton = document.createElement('button');
     autoLayoutButton.type = 'button';
     autoLayoutButton.className = 'gl-workspace-layout-action gl-workspace-layout-auto';
@@ -237,7 +243,7 @@
     deleteWorkspaceButton.textContent = 'SUPPRIMER';
     deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
     deleteWorkspaceButton.hidden = true;
-    presetActions.append(layoutStyleLabel, screenModeLabel, distributeLayoutButton, autoLayoutButton, saveLayoutButton,
+    presetActions.append(layoutStyleLabel, screenModeLabel, distributeLayoutButton, screenMapButton, autoLayoutButton, saveLayoutButton,
       resetLayoutButton, renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
@@ -349,6 +355,35 @@
     const workspaceNameError = workspaceNameOverlay.querySelector('.gl-workspace-name-error');
     const workspaceNameCancel = workspaceNameOverlay.querySelector('.gl-workspace-name-cancel');
     const workspaceNameSubmit = workspaceNameOverlay.querySelector('.gl-workspace-name-submit');
+
+    // Read-only overview of the physical screens and native detached windows.
+    // The preview never embeds another tablature or audio renderer.
+    const screenMapOverlay = document.createElement('div');
+    screenMapOverlay.className = 'gl-workspace-map-overlay';
+    screenMapOverlay.hidden = true;
+    screenMapOverlay.innerHTML = `
+      <section class="gl-workspace-map-dialog" role="dialog" aria-modal="true"
+               aria-labelledby="glWorkspaceMapTitle">
+        <header class="gl-workspace-map-header">
+          <div>
+            <h2 id="glWorkspaceMapTitle">PLAN DES ÉCRANS</h2>
+            <p class="gl-workspace-map-summary" aria-live="polite"></p>
+          </div>
+          <button type="button" class="gl-workspace-map-close"
+                  aria-label="Fermer le plan des écrans">FERMER</button>
+        </header>
+        <div class="gl-workspace-map-screens"></div>
+        <div class="gl-workspace-map-footer">
+          <span class="gl-workspace-map-message" role="status" aria-live="polite"></span>
+          <button type="button" class="gl-workspace-map-refresh">ACTUALISER</button>
+        </div>
+      </section>`;
+    workspace.append(screenMapOverlay);
+    const screenMapSummary = screenMapOverlay.querySelector('.gl-workspace-map-summary');
+    const screenMapScreens = screenMapOverlay.querySelector('.gl-workspace-map-screens');
+    const screenMapMessage = screenMapOverlay.querySelector('.gl-workspace-map-message');
+    const screenMapClose = screenMapOverlay.querySelector('.gl-workspace-map-close');
+    const screenMapRefresh = screenMapOverlay.querySelector('.gl-workspace-map-refresh');
 
     const groups = new Map();
     let active = null;
@@ -534,6 +569,7 @@
       screenModeSelect.disabled = unavailable;
       screenModeSelect.value = activeScreenMode;
       distributeLayoutButton.disabled = unavailable;
+      screenMapButton.disabled = unavailable;
       autoLayoutButton.disabled = unavailable;
       autoLayoutButton.textContent = activeAutoArrange ? 'AUTO : OUI' : 'AUTO : NON';
       autoLayoutButton.setAttribute('aria-pressed', String(activeAutoArrange));
