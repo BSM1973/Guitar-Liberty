@@ -1896,3 +1896,180 @@ test('ANNULER is invalidated when switching workspaces',async()=>{
   assert.throws(()=>h.handlers.get('gl-workspace-undo-screen')(
     {sender},'learning',1,area),/indisponible/);
 });
+
+test('SCREEN FAVORITES save and recall three independent layouts per monitor',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-screen-favorites-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  for (const id of ['coach','history','practice','session']) {
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history,practice,session]=h.windows.slice(2);
+  coach.setBounds({x:1820,y:70,width:500,height:640});
+  history.setBounds({x:2420,y:120,width:510,height:660});
+  practice.setBounds({x:120,y:80,width:510,height:670});
+  session.setBounds({x:3000,y:140,width:500,height:650});
+  session.minimized=true;
+  const area={...displays[1].workArea};
+  const save=h.handlers.get('gl-workspace-save-screen-favorite');
+  const apply=h.handlers.get('gl-workspace-apply-screen-favorite');
+  const map=()=>h.handlers.get('gl-workspace-screen-map')({sender},'learning');
+  const first=[coach.getBounds(),history.getBounds()];
+  const other=practice.getBounds(),reduced=session.getBounds();
+  const count=h.windows.length;
+  assert.equal(save({sender},'learning',1,area,1).saved,2);
+  coach.setBounds({x:1970,y:100,width:630,height:700});
+  history.setBounds({x:2690,y:180,width:470,height:720});
+  const second=[coach.getBounds(),history.getBounds()];
+  assert.equal(save({sender},'learning',1,area,2).saved,2);
+  coach.setBounds({x:2100,y:140,width:500,height:650});
+  history.setBounds({x:2800,y:100,width:500,height:650});
+  assert.deepEqual([...map().screens[1].favorites].map(item=>item.count),[2,2,0]);
+  assert.equal(apply({sender},'learning',1,area,1).applied,2);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],first);
+  assert.equal(apply({sender},'learning',1,area,2).applied,2);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],second);
+  assert.equal(save({sender},'learning',1,area,3).saved,2);
+  assert.deepEqual(Array.from(map().screens[1].favorites,item=>item.count),[2,2,2]);
+  assert.deepEqual(practice.getBounds(),other);
+  assert.deepEqual(session.getBounds(),reduced);
+  assert.equal(session.isMinimized(),true);
+  assert.equal(h.windows.length,count,'favorites do not create audio or native windows');
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  const favoriteTopologies=Object.values(saved.workspaces.learning.screenFavorites);
+  assert.equal(favoriteTopologies.length,1);
+  assert.equal(Object.values(favoriteTopologies[0])[0]['1'].length,2);
+});
+
+test('SCREEN FAVORITES survive reboot and are scoped to monitor topology',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-favorite-reboot-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const original=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=original.windows[1].webContents;
+  await original.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=original.windows.at(-1);
+  popup.setBounds({x:1800,y:75,width:520,height:680});
+  const preferred=popup.getBounds();
+  const area={...displays[1].workArea};
+  original.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',1,area,3);
+  const restarted=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const otherSender=restarted.windows[1].webContents;
+  const map=()=>restarted.handlers.get('gl-workspace-screen-map')(
+    {sender:otherSender},'learning');
+  assert.deepEqual(Array.from(map().screens[1].favorites,item=>item.count),[0,0,1]);
+  await restarted.handlers.get('gl-panel-open')({sender:otherSender},'coach','COACH');
+  restarted.windows.at(-1).setBounds({x:2600,y:120,width:490,height:650});
+  assert.equal(restarted.handlers.get('gl-workspace-apply-screen-favorite')(
+    {sender:otherSender},'learning',1,area,3).applied,1);
+  assert.deepEqual(restarted.windows.at(-1).getBounds(),preferred);
+  displays[1].workArea={...area,width:1700};
+  restarted.emitDisplay('display-metrics-changed');
+  const changed=restarted.handlers.get('gl-workspace-screen-map')(
+    {sender:otherSender},'learning');
+  assert.deepEqual(Array.from(changed.screens[1].favorites,item=>item.count),[0,0,0]);
+  displays[1].workArea={...area};
+  restarted.emitDisplay('display-metrics-changed');
+  assert.deepEqual(Array.from(map().screens[1].favorites,item=>item.count),[0,0,1]);
+});
+
+test('SCREEN FAVORITES do not pull windows from other monitors or awaken minimized',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  for (const id of ['coach','history']) {
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:1820,y:80,width:520,height:650});
+  history.setBounds({x:2500,y:100,width:520,height:660});
+  const area={...displays[1].workArea};
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',1,area,1);
+  history.setBounds({x:80,y:70,width:520,height:660});
+  const untouched=history.getBounds();
+  coach.setBounds({x:2000,y:140,width:520,height:650});
+  const result=h.handlers.get('gl-workspace-apply-screen-favorite')(
+    {sender},'learning',1,area,1);
+  assert.equal(result.applied,1);
+  assert.equal(result.skipped,1);
+  assert.deepEqual(history.getBounds(),untouched);
+  coach.minimized=true;
+  const was=coach.getBounds();
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-favorite')(
+    {sender},'learning',1,area,1),/compatible/);
+  assert.equal(coach.isMinimized(),true);
+  assert.deepEqual(coach.getBounds(),was);
+});
+
+test('SCREEN FAVORITES reject foreign renderers, stale displays and invalid slots',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  popup.setBounds({x:1850,y:90,width:520,height:650});
+  const area={...displays[1].workArea};
+  const save=h.handlers.get('gl-workspace-save-screen-favorite');
+  const apply=h.handlers.get('gl-workspace-apply-screen-favorite');
+  assert.throws(()=>save({sender:popup.webContents},'learning',1,area,1),
+    /non autorisé/);
+  assert.throws(()=>save({sender},'practice',1,area,1),/non autorisé/);
+  assert.throws(()=>save({sender},'learning',1,area,0),/non autorisé/);
+  assert.throws(()=>save({sender},'learning',1,area,4),/non autorisé/);
+  assert.throws(()=>save({sender},'learning',1,{...area,width:1800},1),
+    /modifiés/);
+  assert.throws(()=>apply({sender},'learning',1,area,1),/non enregistré/);
+  assert.equal(save({sender},'learning',1,area,1).saved,1);
+  displays[1].workArea={...area,width:1800};
+  assert.throws(()=>apply({sender},'learning',1,area,1),/modifiés/);
+});
+
+test('SCREEN FAVORITES retain independent workspace and monitor slots',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const popupOpen=h.handlers.get('gl-panel-open');
+  await popupOpen({sender},'coach','COACH');
+  const p=h.windows.at(-1);
+  p.setBounds({x:150,y:90,width:510,height:650});
+  const save=h.handlers.get('gl-workspace-save-screen-favorite');
+  const map=()=>h.handlers.get('gl-workspace-screen-map')({sender},'learning');
+  assert.equal(save({sender},'learning',0,{...displays[0].workArea},1).saved,1);
+  p.setBounds({x:1820,y:90,width:510,height:650});
+  assert.equal(save({sender},'learning',1,{...displays[1].workArea},2).saved,1);
+  assert.deepEqual(Array.from(map().screens[0].favorites,v=>v.count),[1,0,0]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,v=>v.count),[0,1,0]);
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  const other=h.handlers.get('gl-workspace-screen-map')({sender},'practice');
+  assert.deepEqual(Array.from(other.screens[0].favorites,v=>v.count),[0,0,0]);
+  assert.deepEqual(Array.from(other.screens[1].favorites,v=>v.count),[0,0,0]);
+  await h.handlers.get('gl-workspace-switch')({sender},'learning');
+  assert.deepEqual(Array.from(map().screens[0].favorites,v=>v.count),[1,0,0]);
+  assert.deepEqual(Array.from(map().screens[1].favorites,v=>v.count),[0,1,0]);
+});
