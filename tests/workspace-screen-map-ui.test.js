@@ -41,6 +41,7 @@ function harness(overrides={}) {
   const screenMapSummary=node();
   const calls=[];
   const moves=[];
+  const organizations=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -61,6 +62,11 @@ function harness(overrides={}) {
     moves.push({id,panelId,index,area,x,y});
     return Promise.resolve({id,panelId,displayIndex:index,autoDisabled:true});
   });
+  const organize=overrides.organize||((id,index,area)=>{
+    organizations.push({id,index,area});
+    return Promise.resolve({id,displayIndex:index,arranged:1,
+      style:'mosaic',autoDisabled:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -70,12 +76,12 @@ function harness(overrides={}) {
     suppressPresetSaving:false,activeWorkspaceId:'learning',
     document:{activeElement:node('button'),createElement:node},
     window:{guitarAudio:{workspaceScreenMap:map,workspaceFocusPanel:focus,
-      workspaceMovePanel:move}},
+      workspaceMovePanel:move,workspaceArrangeScreen:organize}},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
     console:{error:(...args)=>errors.push(args)}
   };
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
-  return {context,calls,moves,errors,
+  return {context,calls,moves,organizations,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -217,4 +223,84 @@ test('PLAN DES ÉCRANS ignores an in-flight relocation after the map is closed',
   assert.equal(c.screenMapOverlay.hidden,true);
   assert.equal(c.activeAutoArrange,true,'stale response must not change UI state');
   assert.equal(h.moves.length,0);
+});
+
+test('PLAN DES ÉCRANS shows ORGANISER for each screen and disables empty screens',async()=>{
+  const h=harness();
+  await h.open();
+  const screens=h.context.screenMapScreens.children;
+  const mainControl=screens[0].children[4];
+  const secondaryControl=screens[1].children[4];
+  assert.equal(mainControl.children[0].textContent,'0 fenêtre active');
+  assert.equal(mainControl.children[1].textContent,'ORGANISER');
+  assert.equal(mainControl.children[1].disabled,true,
+    'a minimized panel is not rearranged');
+  assert.equal(secondaryControl.children[0].textContent,'1 fenêtre active');
+  assert.equal(secondaryControl.children[1].disabled,false);
+  assert.match(secondaryControl.children[1].attrs['aria-label'],/écran 2/);
+});
+
+test('PLAN DES ÉCRANS organizes only selected monitor and refreshes overview',async()=>{
+  const h=harness();
+  await h.open();
+  const c=h.context;
+  const organize=c.screenMapScreens.children[1].children[4].children[1];
+  organize.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.organizations.length,1);
+  assert.equal(h.organizations[0].id,'learning');
+  assert.equal(h.organizations[0].index,1);
+  assert.equal(h.organizations[0].area.width,1920);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(c.activeAutoArrange,false);
+  assert.equal(c.updated,true);
+  assert.equal(c.screenMapScreens.children.length,2);
+  assert.match(c.screenMapMessage.textContent,/Écran 2 : 1 fenêtre organisée en mosaïque/);
+  assert.match(c.screenMapMessage.textContent,/AUTO désactivé/);
+  assert.equal(c.screenMapRefresh.disabled,false);
+});
+
+test('PLAN DES ÉCRANS reports screen organization failure without closing map',async()=>{
+  const h=harness({organize:async()=>{throw Error('Display disconnected')}});
+  await h.open();
+  const c=h.context;
+  c.screenMapScreens.children[1].children[4].children[1].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.match(c.screenMapMessage.textContent,/Organisation impossible/);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(h.errors.length,1);
+});
+
+test('PLAN DES ÉCRANS ignores organization response after modal closes',async()=>{
+  let resolveOrganize;
+  const h=harness({organize:()=>new Promise(resolve=>{resolveOrganize=resolve})});
+  await h.open();
+  const c=h.context;
+  c.screenMapScreens.children[1].children[4].children[1].fire('click');
+  c.screenMapClose.fire('click');
+  resolveOrganize({id:'learning',displayIndex:1,arranged:1,
+    style:'mosaic',autoDisabled:true});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapOverlay.hidden,true);
+  assert.equal(c.activeAutoArrange,true);
+});
+
+test('PLAN DES ÉCRANS ignores duplicate organize clicks while native IPC is pending',async()=>{
+  let resolveOrganize;
+  let count=0;
+  const h=harness({organize:()=>{count++;return new Promise(resolve=>{
+    resolveOrganize=resolve;
+  })}});
+  await h.open();
+  const c=h.context;
+  const button=c.screenMapScreens.children[1].children[4].children[1];
+  button.fire('click');
+  button.fire('click');
+  assert.equal(count,1);
+  resolveOrganize({id:'learning',displayIndex:1,arranged:1,
+    style:'mosaic',autoDisabled:false});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapRefresh.disabled,false);
 });

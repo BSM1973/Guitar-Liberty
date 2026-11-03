@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { finiteRect, restorePanelBounds, distributePanelBounds,
-  displayTopologyKey, placePanelOnDisplay } = require('./panel-layout');
+  displayTopologyKey, placePanelOnDisplay, findPanelDisplayIndex } = require('./panel-layout');
 
 // The original workspace stays authoritative. Detached native windows receive
 // visual snapshots and forward user actions to the existing UI controls.
@@ -418,22 +418,12 @@ ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
       main: Boolean(mainArea &&
         ['x','y','width','height'].every(k => mainArea[k] === workArea[k]))} : null;
   }).filter(Boolean);
-  const intersection = (a,b) => Math.max(0,
-    Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
-    Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
   const panels = [];
   for (const [id,popup] of guitarPanelWindows) {
     if (popup.isDestroyed()) continue;
     const bounds = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
     if (!bounds) continue;
-    let displayIndex = -1, largest = 0;
-    for (const item of screens) {
-      const overlap = intersection(bounds,item.workArea);
-      if (overlap > largest) {
-        largest = overlap;
-        displayIndex = item.index;
-      }
-    }
+    const displayIndex = findPanelDisplayIndex(bounds, displays);
     const rawTitle = popup.getTitle?.() || popup.options?.title || id;
     panels.push({id,
       title: String(rawTitle).replace(/ — Guitare Liberty$/, '').slice(0,80),
@@ -520,6 +510,68 @@ ipcMain.handle('gl-workspace-move-panel', (event, workspaceId, panelId,
   return {id:workspaceId,panelId,displayIndex,bounds:nextBounds,
     autoDisabled:previousAuto === true};
 });
+
+// Organize only panels already on the chosen monitor. Never move other
+// monitors' windows, wake minimized panels, or create a new audio renderer.
+// A deliberate local arrangement is manual and disables AUTO for this space.
+ipcMain.handle('gl-workspace-arrange-screen',
+  (event, workspaceId, displayIndex, expectedArea) => {
+    assertMainWorkspaceSender(event);
+    readPanelLayouts();
+    if (!isWorkspaceId(workspaceId) || workspaceId !== activeWorkspace ||
+        switchingWorkspace || shuttingDownWorkspace ||
+        !Number.isInteger(displayIndex) || displayIndex < 0) {
+      throw new Error('Organisation de cet écran non autorisée');
+    }
+    const displays = screen.getAllDisplays();
+    const target = displays[displayIndex];
+    const actualArea = finiteRect(target && (target.workArea || target));
+    const claimedArea = finiteRect(expectedArea);
+    if (!actualArea || !claimedArea ||
+        !['x','y','width','height'].every(key => actualArea[key] === claimedArea[key]) ||
+        activeTopologyKey !== displayTopologyKey(displays)) {
+      throw new Error('Écrans modifiés : actualiser le plan');
+    }
+    const windows = Array.from(guitarPanelWindows.entries())
+      .filter(([,popup]) => !popup.isDestroyed() && !popup.isMinimized?.())
+      .filter(([,popup]) => findPanelDisplayIndex(
+        popup.getNormalBounds?.() || popup.getBounds(), displays) === displayIndex);
+    if (!windows.length) {
+      return {id:workspaceId,displayIndex,arranged:0,
+        style:savedWorkspaces[workspaceId].layoutStyle,autoDisabled:false};
+    }
+    const profile = savedWorkspaces[workspaceId];
+    const previousAuto = profile.autoArrange;
+    const original = windows.map(([id,popup]) => ({
+      id,popup,bounds:finiteRect(popup.getNormalBounds?.() || popup.getBounds()),
+      maximized:Boolean(popup.isMaximized?.())
+    }));
+    if (original.some(item => !item.bounds)) throw new Error('Fenêtre sans position valide');
+    const layout = distributePanelBounds(windows.map(([id]) => id),
+      [target],target,profile.layoutStyle,'primary');
+    if (layout.length !== windows.length) throw new Error('Disposition incomplète');
+    profile.autoArrange = false;
+    try {
+      for (const item of layout) {
+        const popup = guitarPanelWindows.get(item.id);
+        if (popup.isMaximized?.()) popup.unmaximize();
+        popup.setBounds(item.bounds);
+        rememberPanelBounds(item.id,popup);
+      }
+      if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la disposition');
+    } catch (error) {
+      profile.autoArrange = previousAuto;
+      for (const item of original) {
+        if (item.popup.isDestroyed()) continue;
+        item.popup.setBounds(item.bounds);
+        if (item.maximized) item.popup.maximize?.();
+        rememberPanelBounds(item.id,item.popup);
+      }
+      throw error;
+    }
+    return {id:workspaceId,displayIndex,arranged:layout.length,
+      style:profile.layoutStyle,autoDisabled:previousAuto === true};
+  });
 
 // RÉPARTIR arranges the existing native windows without creating new
 // renderers or changing the permanent tablature / playback host. Each profile

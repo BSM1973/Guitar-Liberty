@@ -1648,3 +1648,136 @@ test('PLAN DES ÉCRANS rejects stale monitor, foreign workspace and malformed mo
   assert.deepEqual(popup.getBounds(),before);
   assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
 });
+
+test('ORGANISER arranges only non-minimized panels on one screen in columns',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-organize-screen-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  h.handlers.get('gl-workspace-layout-style')({sender},'learning','columns');
+  const open=h.handlers.get('gl-panel-open');
+  await open({sender},'coach','COACH');
+  await open({sender},'history','HISTORIQUE');
+  await open({sender},'practice','ENTRAÎNEMENT');
+  await open({sender},'session','SESSION');
+  const [coach,history,practice,session]=h.windows.slice(2);
+  coach.setBounds({x:1850,y:80,width:550,height:650});
+  history.setBounds({x:1950,y:120,width:520,height:680});
+  practice.setBounds({x:200,y:100,width:510,height:670});
+  session.setBounds({x:2600,y:140,width:530,height:660});
+  session.minimized=true;
+  const untouched=practice.getBounds(),minimized=session.getBounds();
+  const originalWindows=h.windows.length;
+  const result=h.handlers.get('gl-workspace-arrange-screen')(
+    {sender},'learning',1,{...displays[1].workArea});
+  assert.equal(result.id,'learning');
+  assert.equal(result.arranged,2);
+  assert.equal(result.displayIndex,1);
+  assert.equal(result.style,'columns');
+  assert.equal(result.autoDisabled,false);
+  assert.deepEqual(practice.getBounds(),untouched,'other monitor untouched');
+  assert.deepEqual(session.getBounds(),minimized,'minimized panel untouched');
+  assert.equal(session.isMinimized(),true);
+  assert.equal(h.windows.length,originalWindows,'must not create native windows');
+  const a=coach.getBounds(),b=history.getBounds();
+  for(const rect of [a,b]){
+    assert.ok(rect.x>=1600&&rect.x+rect.width<=3520);
+    assert.ok(rect.y>=0&&rect.y+rect.height<=1080);
+  }
+  assert.ok(a.x+a.width<=b.x || b.x+b.width<=a.x,
+    'column windows must not overlap horizontally');
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(saved.workspaces.learning.panels.coach,a);
+  assert.deepEqual(saved.workspaces.learning.panels.history,b);
+  assert.deepEqual(saved.workspaces.learning.panels.practice,untouched);
+  assert.equal(saved.workspaces.learning.layoutStyle,'columns');
+});
+
+test('ORGANISER respects Cascade and disables AUTO only for this workspace',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  h.handlers.get('gl-workspace-layout-style')({sender},'learning','cascade');
+  for(const id of ['coach','history','session']){
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const popups=h.windows.slice(2);
+  for(const [i,popup] of popups.entries()){
+    popup.setBounds({x:1700+i*70,y:100+i*40,width:550,height:680});
+  }
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'learning',true);
+  const result=h.handlers.get('gl-workspace-arrange-screen')(
+    {sender},'learning',1,{...displays[1].workArea});
+  assert.equal(result.arranged,3);
+  assert.equal(result.style,'cascade');
+  assert.equal(result.autoDisabled,true);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
+  const [a,b]=popups.map(p=>p.getBounds());
+  const overlap=Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x))*
+    Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+  assert.ok(overlap>0,'cascade retains deliberate overlap');
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'practice',true);
+  await h.handlers.get('gl-workspace-switch')({sender},'learning');
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,true);
+});
+
+test('ORGANISER rejects stale monitor and foreign renderer without moving windows',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  popup.setBounds({x:1800,y:100,width:500,height:700});
+  const original=popup.getBounds();
+  const arrange=h.handlers.get('gl-workspace-arrange-screen');
+  const area={...displays[1].workArea};
+  assert.throws(()=>arrange({sender:popup.webContents},'learning',1,area),
+    /non autorisé/);
+  assert.throws(()=>arrange({sender},'practice',1,area),/non autorisée/);
+  assert.throws(()=>arrange({sender},'learning',-1,area),/non autorisée/);
+  assert.throws(()=>arrange({sender},'learning',2,area),/modifiés/);
+  assert.throws(()=>arrange({sender},'learning',1,{...area,width:1800}),
+    /modifiés/);
+  displays[1].workArea={...area,width:1700};
+  assert.throws(()=>arrange({sender},'learning',1,area),/modifiés/);
+  assert.deepEqual(popup.getBounds(),original);
+});
+
+test('ORGANISER does not alter AUTO or wake panels on an empty monitor',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'history','HISTORIQUE');
+  const popup=h.windows.at(-1);
+  popup.setBounds({x:1800,y:100,width:520,height:700});
+  popup.minimized=true;
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'learning',true);
+  const result=h.handlers.get('gl-workspace-arrange-screen')(
+    {sender},'learning',1,{...displays[1].workArea});
+  assert.equal(result.arranged,0);
+  assert.equal(result.autoDisabled,false);
+  assert.equal(popup.isMinimized(),true);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,true);
+});

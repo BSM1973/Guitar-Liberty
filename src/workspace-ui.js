@@ -1200,6 +1200,53 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled = false;
       }
     }
+    async function organizeScreenMapDisplay(displayIndex) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || !window.guitarAudio?.workspaceArrangeScreen) return;
+      const display = screenMapDisplays.find(item => item.index === displayIndex);
+      if (!display?.workArea) return;
+      const workspaceId = activeWorkspaceId;
+      const generation = screenMapRequest;
+      screenMapMoving = true;
+      screenMapRefresh.disabled = true;
+      screenMapMessage.textContent = 'Organisation de l’écran ' + (displayIndex+1) + '…';
+      try {
+        const result = await window.guitarAudio.workspaceArrangeScreen(
+          workspaceId,displayIndex,display.workArea);
+        if (screenMapOverlay.hidden || generation !== screenMapRequest ||
+            workspaceId !== activeWorkspaceId) return;
+        if (!result || result.id !== workspaceId ||
+            result.displayIndex !== displayIndex ||
+            !Number.isInteger(result.arranged) || result.arranged < 0) {
+          throw new Error('Organisation non confirmée');
+        }
+        if (result.autoDisabled) {
+          activeAutoArrange = false;
+          updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId === activeWorkspaceId) {
+          const styleNames = {mosaic:'mosaïque',columns:'colonnes',cascade:'cascade'};
+          const styleName = styleNames[result.style] || 'disposition sélectionnée';
+          screenMapMessage.textContent = result.arranged
+            ? 'Écran ' + (displayIndex+1) + ' : ' + result.arranged +
+              ' fenêtre' + (result.arranged > 1 ? 's' : '') +
+              ' organisée' + (result.arranged > 1 ? 's' : '') +
+              ' en ' + styleName +
+              (result.autoDisabled ? ' — AUTO désactivé pour cet espace' : '') + '.'
+            : 'Aucune fenêtre active à organiser sur cet écran.';
+        }
+      } catch (error) {
+        console.error('Organisation d’un écran :',error);
+        if (!screenMapOverlay.hidden && generation === screenMapRequest) {
+          screenMapMessage.textContent =
+            'Organisation impossible. Actualise le plan et réessaie.';
+        }
+      } finally {
+        screenMapMoving = false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled = false;
+      }
+    }
     function addScreenMapDropTarget(preview,display) {
       preview.addEventListener('dragover',function (event) {
         if (!screenMapDraggedId || screenMapMoving ||
@@ -1353,7 +1400,27 @@
             empty.textContent = 'Aucune fenêtre détachée';
             list.append(empty);
           }
-          card.append(heading,resolution,preview,list);
+          const controls = document.createElement('div');
+          controls.className = 'gl-workspace-map-screen-controls';
+          const count = document.createElement('span');
+          const activeCount = visible.filter(panel => !panel.minimized).length;
+          count.textContent = activeCount + ' fenêtre' +
+            (activeCount > 1 ? 's' : '') + ' active' +
+            (activeCount > 1 ? 's' : '');
+          const organize = document.createElement('button');
+          organize.type = 'button';
+          organize.className = 'gl-workspace-map-organize';
+          organize.textContent = 'ORGANISER';
+          organize.title = 'Organiser uniquement les panneaux de l’écran ' +
+            (display.index+1) + ' selon la disposition choisie';
+          organize.setAttribute('aria-label',
+            'Organiser les fenêtres de l’écran ' + (display.index+1));
+          organize.disabled = activeCount === 0;
+          organize.addEventListener('click',function () {
+            organizeScreenMapDisplay(display.index);
+          });
+          controls.append(count,organize);
+          card.append(heading,resolution,preview,list,controls);
           screenMapScreens.append(card);
         }
         const offscreen = panels.filter(panel => panel.displayIndex < 0);
