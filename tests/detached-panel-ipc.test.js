@@ -1781,3 +1781,118 @@ test('ORGANISER does not alter AUTO or wake panels on an empty monitor',async()=
   assert.equal(popup.isMinimized(),true);
   assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,true);
 });
+
+test('ANNULER ORGANISER restores only the selected monitor and keeps minimized panels',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-undo-screen-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  h.handlers.get('gl-workspace-layout-style')({sender},'learning','columns');
+  for (const id of ['coach','history','practice','session']) {
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history,practice,session]=h.windows.slice(2);
+  coach.setBounds({x:1850,y:90,width:520,height:650});
+  history.setBounds({x:2450,y:100,width:530,height:650});
+  practice.setBounds({x:100,y:90,width:500,height:650});
+  session.setBounds({x:2900,y:90,width:500,height:650});
+  session.minimized=true;
+  const all=[coach,history,practice,session];
+  const before=all.map(p=>p.getBounds());
+  const windowCount=h.windows.length;
+  const area={...displays[1].workArea};
+  const organize=h.handlers.get('gl-workspace-arrange-screen');
+  const undo=h.handlers.get('gl-workspace-undo-screen');
+  const map=()=>h.handlers.get('gl-workspace-screen-map')({sender},'learning');
+  assert.equal(map().screens[1].canUndo,false);
+  assert.equal(organize({sender},'learning',1,area).arranged,2);
+  assert.equal(map().screens[1].canUndo,true);
+  assert.equal(map().screens[0].canUndo,false);
+  assert.equal(undo({sender},'learning',1,area).restored,2);
+  assert.deepEqual(all.map(p=>p.getBounds()),before);
+  assert.equal(session.isMinimized(),true);
+  assert.equal(h.windows.length,windowCount);
+  assert.equal(map().screens[1].canUndo,false);
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(saved.workspaces.learning.panels.coach,before[0]);
+  assert.deepEqual(saved.workspaces.learning.panels.history,before[1]);
+  assert.deepEqual(saved.workspaces.learning.panels.practice,before[2]);
+  assert.throws(()=>undo({sender},'learning',1,area),/indisponible/);
+});
+
+test('ANNULER refuses manually moved windows and altered monitor geometry',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  for (const id of ['coach','history']) {
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [a,b]=h.windows.slice(2);
+  a.setBounds({x:1850,y:90,width:500,height:650});
+  b.setBounds({x:2550,y:100,width:500,height:650});
+  const area={...displays[1].workArea};
+  const organize=h.handlers.get('gl-workspace-arrange-screen');
+  const undo=h.handlers.get('gl-workspace-undo-screen');
+  organize({sender},'learning',1,area);
+  const moved={...a.getBounds(),x:a.getBounds().x+10};
+  a.setBounds(moved);
+  assert.throws(()=>undo({sender},'learning',1,area),/indisponible/);
+  assert.deepEqual(a.getBounds(),moved);
+  organize({sender},'learning',1,area);
+  displays[1].workArea={...area,width:1800};
+  assert.throws(()=>undo({sender},'learning',1,area),/indisponible/);
+});
+
+test('ANNULER restores previously enabled AUTO after organizing one display',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  coach.setBounds({x:1850,y:90,width:500,height:650});
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'learning',true);
+  const before=coach.getBounds();
+  const area={...displays[1].workArea};
+  const organized=h.handlers.get('gl-workspace-arrange-screen')(
+    {sender},'learning',1,area);
+  assert.equal(organized.arranged,1);
+  assert.equal(organized.autoDisabled,true);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
+  const undone=h.handlers.get('gl-workspace-undo-screen')(
+    {sender},'learning',1,area);
+  assert.equal(undone.autoRestored,true);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,true);
+  assert.deepEqual(coach.getBounds(),before);
+});
+
+test('ANNULER is invalidated when switching workspaces',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  h.windows.at(-1).setBounds({x:1810,y:90,width:510,height:670});
+  const area={...displays[1].workArea};
+  h.handlers.get('gl-workspace-arrange-screen')({sender},'learning',1,area);
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  await h.handlers.get('gl-workspace-switch')({sender},'learning');
+  assert.throws(()=>h.handlers.get('gl-workspace-undo-screen')(
+    {sender},'learning',1,area),/indisponible/);
+});

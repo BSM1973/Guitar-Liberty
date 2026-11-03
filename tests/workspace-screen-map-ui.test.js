@@ -42,6 +42,7 @@ function harness(overrides={}) {
   const calls=[];
   const moves=[];
   const organizations=[];
+  const undos=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -67,6 +68,10 @@ function harness(overrides={}) {
     return Promise.resolve({id,displayIndex:index,arranged:1,
       style:'mosaic',autoDisabled:true});
   });
+  const undo=overrides.undo||((id,index,area)=>{
+    undos.push({id,index,area});
+    return Promise.resolve({id,displayIndex:index,restored:1,autoRestored:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -76,12 +81,13 @@ function harness(overrides={}) {
     suppressPresetSaving:false,activeWorkspaceId:'learning',
     document:{activeElement:node('button'),createElement:node},
     window:{guitarAudio:{workspaceScreenMap:map,workspaceFocusPanel:focus,
-      workspaceMovePanel:move,workspaceArrangeScreen:organize}},
+      workspaceMovePanel:move,workspaceArrangeScreen:organize,
+      workspaceUndoScreen:undo}},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
     console:{error:(...args)=>errors.push(args)}
   };
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
-  return {context,calls,moves,organizations,errors,
+  return {context,calls,moves,organizations,undos,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -303,4 +309,54 @@ test('PLAN DES ÉCRANS ignores duplicate organize clicks while native IPC is pen
     style:'mosaic',autoDisabled:false});
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.screenMapRefresh.disabled,false);
+});
+
+test('PLAN DES ÉCRANS offers ANNULER only for an undoable screen',async()=>{
+  let canUndo=true;
+  const h=harness({map:async()=>({id:'learning',
+    screens:[
+      {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
+      {index:1,main:false,canUndo,
+        workArea:{x:1600,y:0,width:1920,height:1080}}
+    ],
+    panels:[{id:'coach',title:'COACH',displayIndex:1,minimized:false,
+      bounds:{x:1850,y:100,width:520,height:650}}]
+  }),undo:async(id,index,area)=>{
+    assert.equal(id,'learning');
+    assert.equal(index,1);
+    assert.equal(area.width,1920);
+    canUndo=false;
+    return {id,displayIndex:index,restored:1,autoRestored:true};
+  }});
+  await h.open();
+  const c=h.context;
+  assert.equal(c.screenMapScreens.children[0].children[4].children.length,2);
+  const controls=c.screenMapScreens.children[1].children[4].children;
+  assert.equal(controls[2].textContent,'ANNULER');
+  assert.match(controls[2].attrs['aria-label'],/écran 2/);
+  c.activeAutoArrange=false;
+  controls[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(c.updated,true);
+  assert.match(c.screenMapMessage.textContent,/disposition précédente restaurée/);
+  assert.equal(c.screenMapScreens.children[1].children[4].children.length,2);
+  assert.equal(c.screenMapOverlay.hidden,false);
+});
+test('PLAN DES ÉCRANS reports refused undo without closing the overview',async()=>{
+  const h=harness({map:async()=>({id:'learning',
+    screens:[{index:0,main:true,canUndo:true,
+      workArea:{x:0,y:0,width:1600,height:900}}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:90,y:100,width:520,height:650}}]
+  }),undo:async()=>{throw Error('Disposed window was moved')}});
+  await h.open();
+  const c=h.context;
+  c.screenMapScreens.children[0].children[4].children[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.match(c.screenMapMessage.textContent,/Annulation impossible/);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(h.errors.length,1);
 });
