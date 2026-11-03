@@ -2377,3 +2377,111 @@ test('SCREEN FAVORITES preview rejects invalid slots, stale areas and detached r
   displays[1].workArea={...area,width:1800};
   assert.throws(()=>preview({sender},'learning',1,area,1),/modifiés/);
 });
+
+test('SCREEN FAVORITES comparison distinguishes moved, unchanged and unavailable panels',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  for(const id of ['coach','history','practice']){
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  }
+  const [coach,history,practice]=h.windows.slice(2);
+  const area={...displays[1].workArea};
+  const savedCoach={x:1800,y:80,width:520,height:650};
+  const savedHistory={x:2430,y:90,width:510,height:630};
+  const savedPractice={x:2950,y:100,width:490,height:620};
+  coach.setBounds(savedCoach);
+  history.setBounds(savedHistory);
+  practice.setBounds(savedPractice);
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',1,area,1);
+  const changedCoach={x:1920,y:140,width:570,height:700};
+  coach.setBounds(changedCoach);
+  practice.minimize();
+  const before=[coach.getBounds(),history.getBounds(),practice.getBounds()];
+  const count=h.windows.length;
+  const auto=h.handlers.get('gl-workspace-get')({sender}).autoArrange;
+  const result=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',1,area,1);
+  assert.deepEqual(
+    [result.ready,result.moving,result.unchanged,result.unavailable],
+    [2,1,1,1]);
+  const items=Array.from(result.items,item=>({
+    id:item.id,status:item.status,
+    bounds:item.bounds&&JSON.parse(JSON.stringify(item.bounds)),
+    comparison:item.comparison&&{
+      currentBounds:item.comparison.currentBounds&&
+        JSON.parse(JSON.stringify(item.comparison.currentBounds)),
+      willChange:item.comparison.willChange,
+      maximizedBefore:item.comparison.maximizedBefore,
+      maximizedAfter:item.comparison.maximizedAfter
+    }
+  }));
+  assert.deepEqual(items,[
+    {id:'coach',status:'ready',bounds:savedCoach,comparison:{
+      currentBounds:changedCoach,willChange:true,
+      maximizedBefore:false,maximizedAfter:false}},
+    {id:'history',status:'ready',bounds:savedHistory,comparison:{
+      currentBounds:savedHistory,willChange:false,
+      maximizedBefore:false,maximizedAfter:false}},
+    {id:'practice',status:'minimized',bounds:savedPractice,comparison:null}
+  ]);
+  assert.equal(h.windows.length,count);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,auto);
+  assert.deepEqual([coach.getBounds(),history.getBounds(),practice.getBounds()],before);
+  assert.equal(practice.isMinimized(),true);
+});
+
+test('SCREEN FAVORITES comparison detects maximization change without geometry change',async()=>{
+  const displays=[{workArea:{x:0,y:0,width:1920,height:1080}}];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  const area={...displays[0].workArea};
+  coach.setBounds({x:120,y:100,width:650,height:640});
+  coach.isMaximized=()=>Boolean(coach.maximized);
+  coach.maximized=true;
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,2);
+  coach.maximized=false;
+  const compare=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,2);
+  assert.deepEqual([compare.moving,compare.unchanged,compare.unavailable],[1,0,0]);
+  assert.deepEqual(Array.from(compare.items,item=>[
+    item.comparison.willChange,
+    item.comparison.maximizedBefore,
+    item.comparison.maximizedAfter]),[[true,false,true]]);
+  assert.equal(coach.maximized,false,'comparison never maximizes windows');
+});
+
+test('SCREEN FAVORITES comparison isolates each display and rejects unauthorized sender',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={...displays[1].workArea};
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  coach.setBounds({x:1780,y:90,width:520,height:630});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',1,area,1);
+  const compare=h.handlers.get('gl-workspace-preview-screen-favorite');
+  const result=compare({sender},'learning',1,area,1);
+  assert.equal(result.unchanged,1);
+  assert.equal(result.moving,0);
+  assert.equal(result.unavailable,0);
+  assert.throws(()=>compare({sender:coach.webContents},'learning',1,area,1),
+    /non autorisé/);
+  assert.throws(()=>compare({sender},'learning',0,displays[0].workArea,1),
+    /non enregistré/);
+  assert.throws(()=>compare({sender},'learning',1,{...area,width:1800},1),
+    /modifiés/);
+});
