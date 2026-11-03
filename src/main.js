@@ -782,6 +782,70 @@ ipcMain.handle('gl-workspace-rename-screen-favorite',
     return {id:workspaceId,displayIndex,slot,name};
   });
 
+
+// Remove only the selected saved layout and its label. No detached window,
+// score, playback process or AUTO preference is changed.
+ipcMain.handle('gl-workspace-delete-screen-favorite',
+  (event,workspaceId,displayIndex,expectedArea,slot)=>{
+    const {profile,area}=screenFavoriteRequest(
+      event,workspaceId,displayIndex,expectedArea,slot);
+    const key=screenFavoriteAreaKey(area),topology=activeTopologyKey;
+    const entries=getScreenFavoriteSlots(profile,topology,area);
+    if (!Array.isArray(entries?.[String(slot)]) || !entries[String(slot)].length) {
+      throw new Error('Favori non enregistré');
+    }
+    const names=profile.screenFavoriteNames?.[topology]?.[key];
+    const savedEntries=entries[String(slot)];
+    const savedName=names?.[String(slot)];
+    delete entries[String(slot)];
+    if (names) delete names[String(slot)];
+    if (!flushPanelLayouts()) {
+      entries[String(slot)]=savedEntries;
+      if (names && savedName!==undefined) names[String(slot)]=savedName;
+      throw new Error('Impossible de supprimer le favori');
+    }
+    return {id:workspaceId,displayIndex,slot,deleted:true};
+  });
+
+// Rearrange two favorite positions atomically, keeping each saved geometry
+// together with its custom label. Moving into an empty slot is supported.
+ipcMain.handle('gl-workspace-swap-screen-favorites',
+  (event,workspaceId,displayIndex,expectedArea,fromSlot,toSlot)=>{
+    const {profile,area}=screenFavoriteRequest(
+      event,workspaceId,displayIndex,expectedArea,fromSlot);
+    if (!Number.isInteger(toSlot) || toSlot<1 ||
+        toSlot>SCREEN_FAVORITE_SLOTS || fromSlot===toSlot) {
+      throw new Error('Destination de favori non autorisée');
+    }
+    const key=screenFavoriteAreaKey(area),topology=activeTopologyKey;
+    const entries=getScreenFavoriteSlots(profile,topology,area);
+    if (!Array.isArray(entries?.[String(fromSlot)]) ||
+        !entries[String(fromSlot)].length) {
+      throw new Error('Favori à déplacer non enregistré');
+    }
+    const names=profile.screenFavoriteNames?.[topology]?.[key];
+    const source=String(fromSlot),destination=String(toSlot);
+    const a=entries[source], b=entries[destination];
+    const nameA=names?.[source],nameB=names?.[destination];
+    const assign=(obj,key,value)=>{
+      if (!obj) return;
+      if (value===undefined) delete obj[key];
+      else obj[key]=value;
+    };
+    assign(entries,source,b);
+    assign(entries,destination,a);
+    assign(names,source,nameB);
+    assign(names,destination,nameA);
+    if (!flushPanelLayouts()) {
+      assign(entries,source,a);
+      assign(entries,destination,b);
+      assign(names,source,nameA);
+      assign(names,destination,nameB);
+      throw new Error('Impossible de réorganiser les favoris');
+    }
+    return {id:workspaceId,displayIndex,fromSlot,toSlot,swapped:true};
+  });
+
 // Favorites contain only the currently visible windows on this display.
 ipcMain.handle('gl-workspace-save-screen-favorite',
   (event,workspaceId,displayIndex,expectedArea,slot)=>{
