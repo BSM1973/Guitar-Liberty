@@ -52,6 +52,8 @@ function harness(existing={}) {
       disabled:false
     }])),
     layoutStyleSelect:{disabled:false,value:'mosaic'},
+    screenModeSelect:{disabled:false,value:'secondary-first'},
+    activeScreenMode:'secondary-first',
     activeLayoutStyle:'mosaic',
     distributeLayoutButton:{disabled:false},
     autoLayoutButton:{disabled:false,textContent:'',attrs:{},
