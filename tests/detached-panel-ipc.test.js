@@ -1193,3 +1193,141 @@ test('secondary-only AUTO recovers on monitor disconnect without changing music 
   assert.equal(h.handlers.get('gl-workspace-get')({sender}).screenMode,'secondary');
   assert.equal(h.windows[1].destroyed,false,'main playback and tablature remain active');
 });
+
+test('manual windows return to their exact second-monitor positions on reconnect',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-topology-return-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {id:11,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:22,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const open=h.handlers.get('gl-panel-open');
+  await open({sender},'coach','COACH');
+  await open({sender},'play-with-me','JOUE AVEC MOI');
+  const [coach,play]=h.windows.slice(2);
+  const coachHome={x:1820,y:100,width:510,height:700};
+  const playHome={x:2590,y:170,width:590,height:740};
+  coach.setBounds(coachHome);
+  play.setBounds(playHome);
+  const count=h.windows.length;
+  const renderer=coach.webContents;
+  displays.pop();
+  // Simulate the OS moving a window before the display-removed event.
+  coach.setBounds({x:90,y:90,width:510,height:700});
+  h.emitDisplay('display-removed');
+  assert.ok(coach.getBounds().x+coach.getBounds().width<=1600);
+  assert.ok(play.getBounds().x+play.getBounds().width<=1600);
+  const fallback=coach.getBounds();
+  coach.setBounds({x:270,y:140,width:510,height:700});
+  assert.notDeepEqual(coach.getBounds(),fallback,
+    'single-monitor manual edits should have their own snapshot');
+  displays.push({id:22,workArea:{x:1600,y:0,width:1920,height:1080}});
+  h.emitDisplay('display-added');
+  assert.deepEqual(coach.getBounds(),coachHome);
+  assert.deepEqual(play.getBounds(),playHome);
+  assert.equal(h.windows.length,count,'no new renderer or duplicated audio');
+  assert.equal(coach.webContents,renderer);
+  assert.equal(coach.focused,false,'monitor recovery must not steal focus');
+  h.windows[1].close();
+  const stored=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.equal(Object.keys(stored.workspaces.learning.displayLayouts).length,2);
+  assert.deepEqual(stored.workspaces.learning.panels.coach,coachHome);
+});
+
+test('reconnect restores the old monitor geometry even after app restart offline',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-topology-restart-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const original={x:1940,y:150,width:530,height:650};
+  h.windows[2].setBounds(original);
+  displays.pop();
+  h.emitDisplay('display-removed');
+  const oneScreen=h.windows[2].getBounds();
+  assert.ok(oneScreen.x+oneScreen.width<=1600);
+  h.windows[1].close();
+
+  const restartedDisplays=[{id:1,workArea:{x:0,y:0,width:1600,height:900}}];
+  const restarted=bootMain({layoutDirectory:folder,displays:restartedDisplays});
+  await Promise.resolve();
+  const nextSender=restarted.windows[1].webContents;
+  await restarted.handlers.get('gl-panel-open')({sender:nextSender},'coach','COACH',true);
+  assert.deepEqual(restarted.windows[2].getBounds(),oneScreen);
+  restartedDisplays.push({id:2,workArea:{x:1600,y:0,width:1920,height:1080}});
+  restarted.emitDisplay('display-added');
+  assert.deepEqual(restarted.windows[2].getBounds(),original,
+    'manual geometry must survive an offline restart');
+});
+
+test('manual topology snapshots stay independent across workspaces and display resolutions',async()=>{
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const open=h.handlers.get('gl-panel-open');
+  const switchTo=h.handlers.get('gl-workspace-switch');
+  await open({sender},'coach','COACH');
+  const learning={x:1850,y:100,width:510,height:650};
+  h.windows.at(-1).setBounds(learning);
+  await switchTo({sender},'practice');
+  await open({sender},'coach','COACH');
+  const training={x:2480,y:220,width:560,height:650};
+  h.windows.at(-1).setBounds(training);
+  displays[1].workArea={x:1600,y:0,width:1500,height:850};
+  h.emitDisplay('display-metrics-changed');
+  const resized=h.windows.at(-1).getBounds();
+  assert.notDeepEqual(resized,training);
+  displays[1].workArea={x:1600,y:0,width:1920,height:1080};
+  h.emitDisplay('display-metrics-changed');
+  assert.deepEqual(h.windows.at(-1).getBounds(),training,
+    'restoring monitor resolution restores this workspace geometry');
+  await switchTo({sender},'learning');
+  await open({sender},'coach','COACH');
+  assert.deepEqual(h.windows.at(-1).getBounds(),learning,
+    'workspace switching must not import another workspace position');
+  await switchTo({sender},'practice');
+  await open({sender},'coach','COACH');
+  assert.deepEqual(h.windows.at(-1).getBounds(),training);
+});
+
+test('minimized panel returns to its saved monitor after reconnect only on restore',async()=>{
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const saved={x:2100,y:170,width:530,height:640};
+  popup.setBounds(saved);
+  popup.minimized=true;
+  displays.pop();
+  h.emitDisplay('display-removed');
+  assert.deepEqual(popup.getBounds(),saved);
+  popup.minimized=false;
+  popup.emit('restore');
+  assert.ok(popup.getBounds().x+popup.getBounds().width<=1600);
+  popup.minimized=true;
+  displays.push({id:2,workArea:{x:1600,y:0,width:1920,height:1080}});
+  h.emitDisplay('display-added');
+  assert.ok(popup.getBounds().x<1600,'minimized window must not be moved on hotplug');
+  popup.minimized=false;
+  popup.emit('restore');
+  assert.deepEqual(popup.getBounds(),saved);
+  assert.equal(popup.focused,false);
+});

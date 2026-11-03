@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { finiteRect, restorePanelBounds, distributePanelBounds } = require('./panel-layout');
+const { finiteRect, restorePanelBounds, distributePanelBounds,
+  displayTopologyKey } = require('./panel-layout');
 
 // The original workspace stays authoritative. Detached native windows receive
 // visual snapshots and forward user actions to the existing UI controls.
@@ -65,6 +66,44 @@ let savedPanelLayouts = null;
 let savedDetachedPanelIds = null;
 let layoutSaveTimer = null;
 let shuttingDownWorkspace = false;
+const MAX_DISPLAY_LAYOUTS = 8;
+let activeTopologyKey = null;
+
+function copyPanelBounds(source) {
+  const result = {};
+  if (!source || typeof source !== 'object') return result;
+  for (const id of detachablePanelIds) {
+    const rect = finiteRect(source[id]);
+    if (rect) result[id] = rect;
+  }
+  return result;
+}
+
+// Keep one bounded set of positions per monitor topology, per workspace.
+// A temporary single-screen fallback must not erase the user's carefully
+// positioned windows on a disconnected second monitor.
+function snapshotActiveTopology() {
+  if (!savedWorkspaces || !activeTopologyKey) return;
+  const profile = savedWorkspaces[activeWorkspace];
+  if (!profile) return;
+  const snapshots = profile.displayLayouts;
+  if (!Object.hasOwn(snapshots, activeTopologyKey) &&
+      Object.keys(snapshots).length >= MAX_DISPLAY_LAYOUTS) {
+    delete snapshots[Object.keys(snapshots)[0]];
+  }
+  snapshots[activeTopologyKey] = copyPanelBounds(profile.panels);
+}
+
+function activateTopologyLayout(workspaceId) {
+  const profile = savedWorkspaces[workspaceId];
+  const stored = activeTopologyKey && profile.displayLayouts[activeTopologyKey];
+  if (stored) {
+    profile.panels = {...copyPanelBounds(profile.panels), ...copyPanelBounds(stored)};
+  }
+  savedPanelLayouts = profile.panels;
+  return Boolean(stored);
+}
+
 function panelLayoutsPath() {
   return path.join(app.getPath('userData'), 'detached-panel-layouts.json');
 }
@@ -73,7 +112,8 @@ function readPanelLayouts() {
   savedWorkspaces = Object.create(null);
   for (const id of workspaceIds) {
     savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false,
-      layoutStyle: 'mosaic', screenMode: 'secondary-first' };
+      layoutStyle: 'mosaic', screenMode: 'secondary-first',
+      displayLayouts: Object.create(null) };
   }
   let parsed = null;
   try {
@@ -95,7 +135,8 @@ function readPanelLayouts() {
       if (!label || !workspaceNameAvailable(label)) continue;
       customWorkspaces.push({id: entry.id, label});
       savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false,
-        layoutStyle: 'mosaic', screenMode: 'secondary-first'};
+        layoutStyle: 'mosaic', screenMode: 'secondary-first',
+        displayLayouts: Object.create(null)};
     }
   }
 
@@ -116,6 +157,15 @@ function readPanelLayouts() {
     savedWorkspaces[id].autoArrange = source.autoArrange === true;
     savedWorkspaces[id].layoutStyle = validLayoutStyle(source.layoutStyle);
     savedWorkspaces[id].screenMode = validScreenMode(source.screenMode);
+    if (source.displayLayouts && typeof source.displayLayouts === 'object' &&
+        !Array.isArray(source.displayLayouts)) {
+      for (const [key, value] of Object.entries(source.displayLayouts)) {
+        if (Object.keys(savedWorkspaces[id].displayLayouts).length >= MAX_DISPLAY_LAYOUTS) break;
+        if (key.length > 2048 || !key.startsWith('[[') ||
+            !value || typeof value !== 'object' || Array.isArray(value)) continue;
+        savedWorkspaces[id].displayLayouts[key] = copyPanelBounds(value);
+      }
+    }
     if (Array.isArray(source.openPanels)) {
       for (const panelId of source.openPanels) {
         if (typeof panelId === 'string' && detachablePanelIds.has(panelId)) {
@@ -127,7 +177,8 @@ function readPanelLayouts() {
 
   activeWorkspace = parsed && isWorkspaceId(parsed.activeWorkspace)
     ? parsed.activeWorkspace : defaultWorkspace;
-  savedPanelLayouts = savedWorkspaces[activeWorkspace].panels;
+  activeTopologyKey = displayTopologyKey(screen.getAllDisplays());
+  activateTopologyLayout(activeWorkspace);
   savedDetachedPanelIds = savedWorkspaces[activeWorkspace].openPanels;
   return savedPanelLayouts;
 }
@@ -148,7 +199,8 @@ function flushPanelLayouts() {
         openPanels: Array.from(profile.openPanels),
         autoArrange: profile.autoArrange === true,
         layoutStyle: profile.layoutStyle,
-        screenMode: profile.screenMode
+        screenMode: profile.screenMode,
+        displayLayouts: profile.displayLayouts
       };
     }
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -204,12 +256,47 @@ function ensureDetachedPanelVisible(popup) {
 function recoverDetachedPanelsAfterDisplayChange() {
   if (switchingWorkspace || shuttingDownWorkspace) return;
   readPanelLayouts();
+  const nextTopology = displayTopologyKey(screen.getAllDisplays());
+  const changed = nextTopology !== activeTopologyKey;
+  let knownLayout = false;
+  if (changed) {
+    // Native move/resize events may fire before Electron reports display
+    // removal. Keep the last known desktop's stored positions authoritative.
+    snapshotActiveTopology();
+    activeTopologyKey = nextTopology;
+    knownLayout = activateTopologyLayout(activeWorkspace);
+  }
   if (savedWorkspaces[activeWorkspace]?.autoArrange) {
     autoArrangeActivePanels();
+    if (changed) schedulePanelLayoutSave();
     return;
   }
-  for (const popup of guitarPanelWindows.values()) {
-    ensureDetachedPanelVisible(popup);
+  if (changed && knownLayout) {
+    const displays = screen.getAllDisplays();
+    const preferred = guitarMainWindow && !guitarMainWindow.isDestroyed()
+      ? screen.getDisplayMatching(guitarMainWindow.getBounds())
+      : screen.getPrimaryDisplay();
+    for (const [panelId, popup] of guitarPanelWindows) {
+      if (popup.isDestroyed() || popup.isMinimized?.()) continue;
+      const saved = savedPanelLayouts[panelId];
+      const safe = restorePanelBounds(saved, displays, preferred);
+      const current = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+      if (!current || !['x','y','width','height'].every(k => current[k] === safe[k])) {
+        popup.setBounds(safe);
+      }
+      rememberPanelBounds(panelId, popup);
+    }
+  } else {
+    for (const popup of guitarPanelWindows.values()) {
+      ensureDetachedPanelVisible(popup);
+      // The OS may already have moved a panel into view before the display
+      // event. Persist that visible fallback even when no clamp was needed.
+      rememberPanelBounds(popup._glPanelId, popup);
+    }
+  }
+  if (changed) {
+    snapshotActiveTopology();
+    schedulePanelLayoutSave();
   }
 }
 
@@ -248,11 +335,15 @@ function autoArrangeActivePanels() {
 
 function rememberPanelBounds(id, popup) {
   if (popup.isDestroyed() || popup.isMinimized?.()) return;
+  const layouts = readPanelLayouts();
+  // Do not accidentally replace the two-monitor geometry with OS-driven
+  // fallback bounds before the display-removed notification arrives.
+  if (activeTopologyKey !== displayTopologyKey(screen.getAllDisplays())) return;
   const rect = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
   if (!rect) return;
-  const layouts = readPanelLayouts();
   if (layouts[id] && ['x','y','width','height'].every(k => layouts[id][k] === rect[k])) return;
   layouts[id] = rect;
+  snapshotActiveTopology();
   schedulePanelLayoutSave();
 }
 
@@ -403,7 +494,8 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
     }
     await Promise.all(closing);
     const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false,
-      layoutStyle: 'mosaic', screenMode: 'secondary-first' };
+      layoutStyle: 'mosaic', screenMode: 'secondary-first',
+      displayLayouts: Object.create(null) };
     savedWorkspaces[workspaceId] = resetProfile;
     savedPanelLayouts = resetProfile.panels;
     savedDetachedPanelIds = resetProfile.openPanels;
@@ -442,7 +534,8 @@ ipcMain.handle('gl-workspace-create', (event, requestedName) => {
   const profile = {id, label};
   customWorkspaces.push(profile);
   savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false,
-    layoutStyle: 'mosaic', screenMode: 'secondary-first'};
+    layoutStyle: 'mosaic', screenMode: 'secondary-first',
+    displayLayouts: Object.create(null)};
   if (!flushPanelLayouts()) {
     customWorkspaces.pop();
     delete savedWorkspaces[id];
@@ -517,7 +610,7 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
     // reused when the same tool is detached in the new workspace.
     await Promise.all(closing);
     activeWorkspace = workspaceId;
-    savedPanelLayouts = savedWorkspaces[workspaceId].panels;
+    activateTopologyLayout(workspaceId);
     savedDetachedPanelIds = savedWorkspaces[workspaceId].openPanels;
     schedulePanelLayoutSave();
     flushPanelLayouts();
@@ -567,11 +660,26 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   popup._glPanelId = panelId;
   guitarPanelWindows.set(panelId, popup);
   setDetachedPreference(panelId, true);
+  // Save the visible, clamped initial geometry for the current topology.
+  // Without this, a newly restored window can keep stale off-screen bounds.
+  rememberPanelBounds(panelId, popup);
   // Persist independently for every tool, including user move/resize changes.
   popup.on('move', () => rememberPanelBounds(panelId, popup));
   popup.on('resize', () => rememberPanelBounds(panelId, popup));
   // A minimized panel is not moved until the guitarist restores it.
   popup.on('restore', () => {
+    // Minimized panels are not moved during a display change. Apply their
+    // saved bounds only when restored, without stealing keyboard focus.
+    const stored = readPanelLayouts()[panelId];
+    if (stored && !savedWorkspaces[activeWorkspace]?.autoArrange) {
+      const displays = screen.getAllDisplays();
+      const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
+      const safe = restorePanelBounds(stored, displays, preferred);
+      const current = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+      if (!current || !['x','y','width','height'].every(k => current[k] === safe[k])) {
+        popup.setBounds(safe);
+      }
+    }
     ensureDetachedPanelVisible(popup);
     autoArrangeActivePanels();
   });

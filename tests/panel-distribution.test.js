@@ -2,7 +2,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {distributePanelBounds} = require('../src/panel-layout');
+const {distributePanelBounds, displayTopologyKey} = require('../src/panel-layout');
 
 const screen = (x,y,width,height) => ({workArea:{x,y,width,height}});
 const rectOverlap = (a,b) => Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
@@ -179,4 +179,21 @@ test('legacy screen policy remains secondary-first and invalid values fall back'
     'legacy behavior keeps secondary monitors preferred');
   assert.equal(old.filter(x=>x.displayIndex===0).length,2,
     'legacy behavior overflows to main monitor');
+});
+
+test('display topology identity is order-independent but detects screen geometry',()=>{
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const original=displayTopologyKey(displays);
+  assert.equal(displayTopologyKey(displays.slice().reverse()),original);
+  assert.notEqual(displayTopologyKey(displays.slice(0,1)),original);
+  assert.notEqual(displayTopologyKey([
+    displays[0],{id:2,workArea:{x:1600,y:0,width:1440,height:900}}
+  ]),original);
+  assert.equal(displayTopologyKey([
+    displays[0],{id:3,workArea:displays[1].workArea}
+  ]),original,'changing the monitor OS ID must not lose its layout');
+  assert.equal(displayTopologyKey([]),displayTopologyKey(null));
 });

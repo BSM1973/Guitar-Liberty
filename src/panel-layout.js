@@ -63,6 +63,20 @@ function restorePanelBounds(saved, displays, preferredDisplay) {
 }
 
 
+// Stable identity for the current desktop geometry, independent of Electron's
+// display enumeration order or transient OS display IDs. Use work areas so
+// reconnecting a monitor to a different port still restores its positions.
+function displayTopologyKey(displays) {
+  const screens = (Array.isArray(displays) ? displays : []).map(display => {
+    const area = finiteRect(display && (display.workArea || display));
+    if (!area) return null;
+    return [area.x,area.y,area.width,area.height];
+  }).filter(Boolean);
+  if (!screens.length) screens.push([0,0,1280,800]);
+  screens.sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  return JSON.stringify(screens);
+}
+
 // Deterministic one-click layout for detached windows. Use other monitors
 // first to keep the central tablature visible on the main display. Bounds
 // remain per workspace in the native layout store.
@@ -212,4 +226,5 @@ function distributePanelBounds(panelIds, displays, preferredDisplay,
   return result;
 }
 
-module.exports = { finiteRect, restorePanelBounds, distributePanelBounds };
+module.exports = { finiteRect, restorePanelBounds, distributePanelBounds,
+  displayTopologyKey };
