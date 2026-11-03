@@ -252,6 +252,32 @@ test('automatic positions persist separately in each workspace and after switchi
   assert.deepEqual(file.workspaces.practice.panels.coach,practice.get('coach'));
 });
 
+test('custom spaces retain their own automatic distribution after switching',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const custom=h.handlers.get('gl-workspace-create')({sender},'Mes solos');
+  await h.handlers.get('gl-workspace-switch')({sender},custom.id);
+  for(const id of ['coach','play-with-me','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id);
+  const result=h.handlers.get('gl-workspace-distribute')({sender},custom.id);
+  assert.equal(result.id,custom.id);
+  assert.equal(result.arranged,3);
+  const expected=new Map(h.windows.slice(2).map(p=>[p._glPanelId,p.getBounds()]));
+  await h.handlers.get('gl-workspace-switch')({sender},'learning');
+  assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})],[]);
+  await h.handlers.get('gl-workspace-switch')({sender},custom.id);
+  const restored=h.handlers.get('gl-panel-restore-session')({sender});
+  assert.deepEqual([...restored].sort(),['coach','history','play-with-me']);
+  for(const id of restored)await h.handlers.get('gl-panel-open')({sender},id,id,true);
+  const actual=new Map(h.windows.slice(-3).map(p=>[p._glPanelId,p.getBounds()]));
+  for(const [id,bounds] of expected)assert.deepEqual(actual.get(id),bounds);
+});
+
 test('RÉPARTIR rejects foreign or inactive workspace requests and handles no panels',async()=>{
   const h=bootMain();
   await Promise.resolve();
