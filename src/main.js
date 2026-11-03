@@ -18,6 +18,10 @@ const builtinWorkspaceNames = Object.freeze({
   improv: 'IMPROVISATION'
 });
 const MAX_CUSTOM_WORKSPACES = 8;
+const layoutStyles = new Set(['mosaic', 'columns', 'cascade']);
+function validLayoutStyle(value) {
+  return layoutStyles.has(value) ? value : 'mosaic';
+}
 const defaultWorkspace = 'learning';
 let activeWorkspace = defaultWorkspace;
 let customWorkspaces = [];
@@ -64,7 +68,7 @@ function readPanelLayouts() {
   if (savedWorkspaces) return savedPanelLayouts;
   savedWorkspaces = Object.create(null);
   for (const id of workspaceIds) {
-    savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false };
+    savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic' };
   }
   let parsed = null;
   try {
@@ -85,7 +89,7 @@ function readPanelLayouts() {
       const label = cleanWorkspaceName(entry.label);
       if (!label || !workspaceNameAvailable(label)) continue;
       customWorkspaces.push({id: entry.id, label});
-      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false};
+      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic'};
     }
   }
 
@@ -104,6 +108,7 @@ function readPanelLayouts() {
       }
     }
     savedWorkspaces[id].autoArrange = source.autoArrange === true;
+    savedWorkspaces[id].layoutStyle = validLayoutStyle(source.layoutStyle);
     if (Array.isArray(source.openPanels)) {
       for (const panelId of source.openPanels) {
         if (typeof panelId === 'string' && detachablePanelIds.has(panelId)) {
@@ -134,7 +139,8 @@ function flushPanelLayouts() {
       workspaces[id] = {
         panels: profile.panels,
         openPanels: Array.from(profile.openPanels),
-        autoArrange: profile.autoArrange === true
+        autoArrange: profile.autoArrange === true,
+        layoutStyle: profile.layoutStyle
       };
     }
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -211,7 +217,8 @@ function arrangeActiveDetachedPanels() {
   const displays = screen.getAllDisplays();
   const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
   const layout = distributePanelBounds(
-    windows.map(([panelId]) => panelId), displays, preferred);
+    windows.map(([panelId]) => panelId), displays, preferred,
+    savedWorkspaces[activeWorkspace].layoutStyle);
   for (const item of layout) {
     const popup = guitarPanelWindows.get(item.id);
     if (!popup || popup.isDestroyed()) continue;
@@ -259,7 +266,8 @@ ipcMain.handle('gl-workspace-get', (event) => {
   }
   readPanelLayouts();
   return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds),
-    autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true };
+    autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true,
+    layoutStyle: savedWorkspaces[activeWorkspace].layoutStyle };
 });
 
 // RÉPARTIR arranges the existing native windows without creating new
@@ -278,6 +286,26 @@ ipcMain.handle('gl-workspace-distribute', (event, workspaceId) => {
   const result = arrangeActiveDetachedPanels();
   if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la répartition');
   return {id: activeWorkspace, ...result};
+});
+
+// Choosing a style applies it immediately, even when AUTO is off. Only the
+// active profile is modified; other profiles keep their own style and bounds.
+ipcMain.handle('gl-workspace-layout-style', (event, workspaceId, requestedStyle) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || activeWorkspace !== workspaceId ||
+      switchingWorkspace || !layoutStyles.has(requestedStyle)) {
+    throw new Error('Style de disposition non autorisé');
+  }
+  const profile = savedWorkspaces[workspaceId];
+  const previous = profile.layoutStyle;
+  profile.layoutStyle = requestedStyle;
+  const result = arrangeActiveDetachedPanels();
+  if (!flushPanelLayouts()) {
+    profile.layoutStyle = previous;
+    throw new Error('Impossible de sauvegarder le style de disposition');
+  }
+  return {id: workspaceId, style: requestedStyle, ...result};
 });
 
 // AUTO ON/OFF belongs to the selected workspace. Older layouts remain
@@ -344,7 +372,7 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
       }));
     }
     await Promise.all(closing);
-    const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false };
+    const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic' };
     savedWorkspaces[workspaceId] = resetProfile;
     savedPanelLayouts = resetProfile.panels;
     savedDetachedPanelIds = resetProfile.openPanels;
@@ -382,7 +410,7 @@ ipcMain.handle('gl-workspace-create', (event, requestedName) => {
   const id = 'custom-' + index;
   const profile = {id, label};
   customWorkspaces.push(profile);
-  savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false};
+  savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic'};
   if (!flushPanelLayouts()) {
     customWorkspaces.pop();
     delete savedWorkspaces[id];
@@ -435,7 +463,8 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   if (switchingWorkspace) throw new Error('Changement d’espace déjà en cours');
   if (activeWorkspace === workspaceId) {
     return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds),
-      autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true };
+      autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true,
+      layoutStyle: savedWorkspaces[activeWorkspace].layoutStyle };
   }
   // Save the old workspace before closing its native windows. These closes
   // must not be mistaken for a deliberate RATTACHER.
@@ -460,7 +489,8 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
     schedulePanelLayoutSave();
     flushPanelLayouts();
     return { id: workspaceId, openPanels: Array.from(savedDetachedPanelIds),
-      autoArrange: savedWorkspaces[workspaceId].autoArrange === true };
+      autoArrange: savedWorkspaces[workspaceId].autoArrange === true,
+      layoutStyle: savedWorkspaces[workspaceId].layoutStyle };
   } finally {
     switchingWorkspace = false;
   }
