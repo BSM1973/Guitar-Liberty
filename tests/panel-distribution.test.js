@@ -90,3 +90,49 @@ test('empty layouts and missing display metadata are safe',()=>{
   assert.equal(layout.length,2);
   for(const entry of layout)assert.ok(inside(entry.bounds,{x:0,y:0,width:1280,height:800}));
 });
+
+test('Mosaïque, Colonnes et Cascade produce distinct deterministic layouts',()=>{
+  const displays=[screen(0,0,1600,900),screen(1600,0,1920,1080)];
+  const byStyle={};
+  for(const style of ['mosaic','columns','cascade']){
+    const layout=distributePanelBounds(ids(4),displays,displays[0],style);
+    byStyle[style]=layout;
+    assert.deepEqual(layout,distributePanelBounds(ids(4),displays,displays[0],style));
+    assert.deepEqual(layout.map(entry=>entry.id),ids(4));
+    assert.ok(layout.every(entry=>entry.displayIndex===1));
+    assert.ok(layout.every(entry=>inside(entry.bounds,displays[1].workArea)));
+  }
+  assert.notDeepEqual(byStyle.mosaic,byStyle.columns);
+  assert.notDeepEqual(byStyle.columns,byStyle.cascade);
+  assert.notDeepEqual(byStyle.mosaic,byStyle.cascade);
+  assert.equal(byStyle.columns[0].bounds.y,byStyle.columns[3].bounds.y,
+    'columns favor tall side-by-side windows');
+  for(let i=0;i<4;i++)for(let j=i+1;j<4;j++){
+    assert.equal(rectOverlap(byStyle.columns[i].bounds,byStyle.columns[j].bounds),0);
+  }
+  assert.ok(rectOverlap(byStyle.cascade[0].bounds,byStyle.cascade[1].bounds)>0,
+    'cascade intentionally overlaps while leaving title bars visible');
+  assert.ok(byStyle.cascade[1].bounds.x>byStyle.cascade[0].bounds.x);
+  assert.ok(byStyle.cascade[1].bounds.y>byStyle.cascade[0].bounds.y);
+});
+
+test('all styles keep windows on-screen with one display and overload',()=>{
+  for(const style of ['mosaic','columns','cascade']){
+    const displays=[screen(-1600,120,1440,900)];
+    const layout=distributePanelBounds(ids(9),displays,displays[0],style);
+    assert.equal(layout.length,9);
+    for(const entry of layout){
+      assert.equal(entry.displayIndex,0);
+      assert.ok(inside(entry.bounds,displays[0].workArea),style+' is offscreen');
+      assert.ok(entry.bounds.width>0 && entry.bounds.height>0);
+    }
+  }
+});
+
+test('invalid style and old callers preserve the original mosaic',()=>{
+  const displays=[screen(0,0,1920,1080)];
+  const old=distributePanelBounds(ids(4),displays,displays[0]);
+  assert.deepEqual(distributePanelBounds(ids(4),displays,displays[0],'mosaic'),old);
+  assert.deepEqual(distributePanelBounds(ids(4),displays,displays[0],'unknown'),old);
+  assert.deepEqual(distributePanelBounds([],displays,displays[0],'cascade'),[]);
+});
