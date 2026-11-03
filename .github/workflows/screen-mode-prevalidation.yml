@@ -1,0 +1,26 @@
+name: Prévalidation écrans par espace
+
+on:
+  push:
+    branches:
+      - feature/workspace-monitor-target-20261103
+
+jobs:
+  tests-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm test
+  tests-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm test
