@@ -1128,6 +1128,7 @@
     let screenMapFavoritePreviewBusy = false;
     let screenMapFavoriteComparison = null;
     let screenMapFavoriteCompareBusy = false;
+    let screenMapOverlapFixBusy = false;
     function clearScreenMapFavoriteComparison() {
       if (!screenMapFavoriteComparison) return;
       screenMapFavoriteComparison.section.hidden = true;
@@ -1470,7 +1471,8 @@
     }
     async function applyScreenMapFavorite(displayIndex,slot) {
       if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
-          screenMapMoving || !window.guitarAudio?.workspaceApplyScreenFavorite ||
+          screenMapMoving || screenMapOverlapFixBusy ||
+          !window.guitarAudio?.workspaceApplyScreenFavorite ||
           !Number.isInteger(slot) || slot<1 || slot>3) return;
       const display=screenMapDisplays.find(item=>item.index===displayIndex);
       const saved=display?.favorites?.find(item=>item.slot===slot);
@@ -1537,6 +1539,172 @@
       } finally {
         screenMapMoving=false;
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
+    async function applyScreenMapOverlapFix(displayIndex,slot,token,confirmButton) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapOverlapFixBusy ||
+          !window.guitarAudio?.workspaceApplyScreenOverlapFix ||
+          typeof token!=='string' || token.length!==64) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const comparison=screenMapFavoriteComparison;
+      if (!display?.workArea || comparison?.displayIndex!==displayIndex ||
+          comparison.slot!==slot || comparison.fixPlan?.token!==token) return;
+      if (!window.confirm('Appliquer la disposition corrigée sur l’écran '+
+          (displayIndex+1)+' ? Les fenêtres seront déplacées. '+
+          'Le favori enregistré ne sera pas écrasé.')) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapOverlapFixBusy=true;
+      confirmButton.disabled=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Application de la correction…';
+      try {
+        const result=await window.guitarAudio.workspaceApplyScreenOverlapFix(
+          workspaceId,displayIndex,display.workArea,slot,token);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex || result.slot!==slot ||
+            result.collisions!==0 || result.favoriteUnchanged!==true ||
+            !Number.isInteger(result.applied) || result.applied<1) {
+          throw new Error('Correction non confirmée');
+        }
+        if (result.autoDisabled) {
+          activeAutoArrange=false;
+          updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : correction appliquée à '+result.applied+' fenêtre'+
+            (result.applied>1?'s':'')+
+            ', aucun chevauchement. Favori conservé.';
+        }
+      } catch(error) {
+        console.error('Application de la correction des chevauchements :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent=
+            'Correction refusée : les fenêtres ont pu changer. Recalcule la disposition.';
+          if (screenMapFavoriteComparison) {
+            screenMapFavoriteComparison.fixPlan=null;
+          }
+        }
+      } finally {
+        screenMapMoving=false;
+        screenMapOverlapFixBusy=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
+    async function planScreenMapOverlapFix(displayIndex,slot,section,trigger) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapOverlapFixBusy ||
+          !window.guitarAudio?.workspacePlanScreenOverlapFix) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const comparison=screenMapFavoriteComparison;
+      if (!display?.workArea || !comparison ||
+          comparison.displayIndex!==displayIndex || comparison.slot!==slot ||
+          comparison.section!==section) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapOverlapFixBusy=true;
+      trigger.disabled=true;
+      screenMapMessage.textContent='Calcul d’une disposition sans chevauchement…';
+      if (comparison.fixPanel) comparison.fixPanel.hidden=true;
+      comparison.fixPlan=null;
+      try {
+        const plan=await window.guitarAudio.workspacePlanScreenOverlapFix(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId ||
+            screenMapFavoriteComparison!==comparison) return;
+        if (!plan || plan.id!==workspaceId ||
+            plan.displayIndex!==displayIndex || plan.slot!==slot ||
+            typeof plan.possible!=='boolean') {
+          throw new Error('Calcul non confirmé');
+        }
+        if (!plan.possible) {
+          screenMapMessage.textContent=plan.reason||
+            'Aucune disposition sans chevauchement trouvée.';
+          return;
+        }
+        if (!Array.isArray(plan.windows)||!plan.windows.length||
+            !Array.isArray(plan.fixed) || plan.collisions!==0 ||
+            !/^[a-f0-9]{64}$/.test(plan.token||'')) {
+          throw new Error('Plan de correction invalide');
+        }
+        const area=display.workArea;
+        const panel=document.createElement('div');
+        panel.className='gl-workspace-map-fix-panel';
+        const heading=document.createElement('strong');
+        heading.textContent='DISPOSITION CORRIGÉE — AUCUN CHEVAUCHEMENT';
+        const caption=document.createElement('p');
+        caption.textContent=plan.moved+' fenêtre'+(plan.moved>1?'s':'')+
+          ' à repositionner, '+plan.fixed.length+' fenêtre'+
+          (plan.fixed.length>1?'s':'')+' hors favori conservée'+
+          (plan.fixed.length>1?'s':'')+'.';
+        const miniature=document.createElement('div');
+        miniature.className='gl-workspace-map-fix-preview';
+        miniature.style.aspectRatio=area.width+' / '+area.height;
+        const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+        for (const item of [...plan.fixed,...plan.windows]) {
+          const r=item?.bounds;
+          if (!r || typeof item.title!=='string' ||
+              ![r.x,r.y,r.width,r.height].every(Number.isFinite) ||
+              r.width<=0 || r.height<=0) continue;
+          const piece=document.createElement('div');
+          piece.className='gl-workspace-map-fix-window '+
+            (plan.fixed.some(entry=>entry.id===item.id)?
+              'is-fixed':item.changed?'is-moved':'is-unchanged');
+          piece.textContent=item.title;
+          piece.title=item.title;
+          const left=clamp((r.x-area.x)/area.width*100,0,100);
+          const top=clamp((r.y-area.y)/area.height*100,0,100);
+          const right=clamp((r.x+r.width-area.x)/area.width*100,0,100);
+          const bottom=clamp((r.y+r.height-area.y)/area.height*100,0,100);
+          piece.style.left=left+'%';
+          piece.style.top=top+'%';
+          piece.style.width=Math.max(2,right-left)+'%';
+          piece.style.height=Math.max(4,bottom-top)+'%';
+          miniature.append(piece);
+        }
+        const details=document.createElement('div');
+        details.className='gl-workspace-map-fix-details';
+        for (const item of plan.windows) {
+          const line=document.createElement('span');
+          line.textContent=item.title+' : '+
+            (item.changed ?
+              'position corrigée ('+item.bounds.x+', '+item.bounds.y+')' :
+              'position conservée');
+          details.append(line);
+        }
+        const note=document.createElement('p');
+        note.className='gl-workspace-map-fix-note';
+        note.textContent='Prévisualisation uniquement. Les dimensions sont conservées. Le favori reste inchangé.';
+        const apply=document.createElement('button');
+        apply.type='button';
+        apply.className='gl-workspace-map-fix-apply';
+        apply.textContent='APPLIQUER LA CORRECTION';
+        apply.disabled=plan.moved===0;
+        apply.addEventListener('click',function () {
+          applyScreenMapOverlapFix(displayIndex,slot,plan.token,apply);
+        });
+        panel.append(heading,caption,miniature,details,note,apply);
+        section.append(panel);
+        comparison.fixPanel=panel;
+        comparison.fixPlan=plan;
+        trigger.textContent='RECALCULER LA CORRECTION';
+        screenMapMessage.textContent='Disposition calculée sans chevauchement. '+
+          'Aucune fenêtre déplacée. Confirme pour appliquer.';
+      } catch(error) {
+        console.error('Calcul des corrections de chevauchements :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Calcul impossible. Actualise le plan.';
+        }
+      } finally {
+        screenMapOverlapFixBusy=false;
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          trigger.disabled=false;
+        }
       }
     }
     async function compareScreenMapFavorite(displayIndex,slot,button,card) {
@@ -1754,6 +1922,17 @@
           const hint=document.createElement('p');
           hint.textContent='Aucun chevauchement prévu pour les fenêtres actives.';
           collisionSummary.append(hint);
+        }
+        if (overlaps.after.length) {
+          const fixButton=document.createElement('button');
+          fixButton.type='button';
+          fixButton.className='gl-workspace-map-fix-calculate';
+          fixButton.textContent='CORRIGER LES CHEVAUCHEMENTS';
+          fixButton.title='Calculer et prévisualiser une disposition sans collision';
+          fixButton.addEventListener('click',function () {
+            planScreenMapOverlapFix(displayIndex,slot,section,fixButton);
+          });
+          collisionSummary.append(fixButton);
         }
         section.append(headline,counters,views,details,footnote,collisionSummary);
         card.append(section);
