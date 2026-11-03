@@ -1027,7 +1027,10 @@ ipcMain.handle('gl-workspace-apply-screen-overlap-fix',
         bounds:popup.isMaximized?.()?{...area}:
           finiteRect(popup.getNormalBounds?.()||popup.getBounds())
       }));
-      if (now.some(item=>!isInsideScreenCorrection(item.bounds,area)) ||
+      // Pre-existing unsaved panels are intentionally fixed, even when
+      // a user left part of one beyond the monitor work area.
+      if (targets.some(item=>!isInsideScreenCorrection(
+            finiteRect(item.popup.getNormalBounds?.()||item.popup.getBounds()),area)) ||
           favoriteWindowOverlaps(now,area).length) {
         throw new Error('Chevauchement détecté après déplacement');
       }
