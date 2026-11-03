@@ -769,6 +769,33 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
 }
 
 
+#appWorkspace .gl-workspace-map-favorite-management{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:6px;width:100%;margin-top:3px;
+}
+#appWorkspace .gl-workspace-map-favorite-move,
+#appWorkspace .gl-workspace-map-favorite-delete{
+ min-width:0;min-height:34px;padding:6px 7px;
+ border:1px solid #7b9cbd;border-radius:8px;
+ background:#2a405a;color:#e3ecfa;
+ font:800 10px/1.25 Arial,sans-serif;cursor:pointer;
+}
+#appWorkspace .gl-workspace-map-favorite-delete{
+ border-color:#bb857c;background:#493b48;color:#ffe2db;
+}
+#appWorkspace .gl-workspace-map-favorite-move:hover:not(:disabled){
+ background:#3a5774;border-color:#d4ebff;
+}
+#appWorkspace .gl-workspace-map-favorite-delete:hover:not(:disabled){
+ background:#68434b;border-color:#f0a79b;
+}
+#appWorkspace .gl-workspace-map-favorite-management button:disabled{
+ opacity:.43;cursor:not-allowed;
+}
+#appWorkspace .gl-workspace-map-favorite-management button:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+
 #appWorkspace .gl-workspace-map-empty{
  color:#a8b8cc;font:600 11px/1.3 Arial,sans-serif;
 }
