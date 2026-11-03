@@ -753,6 +753,37 @@ ipcMain.handle('gl-workspace-arrange-screen',
   });
 
 
+
+// Read-only preview of one favorite on the chosen live monitor. Report which
+// saved panels would actually move before a user chooses APPLIQUER.
+// The exact same "active on this monitor" condition is used by apply.
+ipcMain.handle('gl-workspace-preview-screen-favorite',
+  (event,workspaceId,displayIndex,expectedArea,slot)=>{
+    const {profile,displays,area}=screenFavoriteRequest(
+      event,workspaceId,displayIndex,expectedArea,slot);
+    const entries=getScreenFavoriteSlots(profile,activeTopologyKey,area)?.[String(slot)];
+    if (!Array.isArray(entries) || !entries.length) {
+      throw new Error('Favori d’écran non enregistré');
+    }
+    const active=new Map(activeWindowsOnFavoriteScreen(displayIndex,displays));
+    const items=entries.map(item=>{
+      const popup=guitarPanelWindows.get(item.id);
+      const exists=popup && !popup.isDestroyed();
+      const status=!exists ? 'closed' :
+        popup.isMinimized?.() ? 'minimized' :
+        active.has(item.id) ? 'ready' : 'other-screen';
+      const bounds=restorePanelBounds(item.bounds,[displays[displayIndex]],
+        displays[displayIndex]);
+      const rawTitle=exists ?
+        (popup.getTitle?.() || popup.options?.title || item.id) : item.id;
+      return {id:item.id,
+        title:String(rawTitle).replace(/ — Guitare Liberty$/,'').slice(0,80),
+        bounds,status};
+    });
+    return {id:workspaceId,displayIndex,slot,area,
+      items,ready:items.filter(item=>item.status==='ready').length};
+  });
+
 // Only stored favorites can be renamed; no native window is moved.
 ipcMain.handle('gl-workspace-rename-screen-favorite',
   (event,workspaceId,displayIndex,expectedArea,slot,requestedName)=>{
