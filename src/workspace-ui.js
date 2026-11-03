@@ -156,6 +156,22 @@
     workspacePresetBar.append(presetButtonList);
     const presetActions = document.createElement('div');
     presetActions.className = 'gl-workspace-preset-actions';
+    const layoutStyleLabel = document.createElement('label');
+    layoutStyleLabel.className = 'gl-workspace-style-label';
+    layoutStyleLabel.textContent = 'DISPOSITION';
+    const layoutStyleSelect = document.createElement('select');
+    layoutStyleSelect.className = 'gl-workspace-style-select';
+    layoutStyleSelect.setAttribute('aria-label', 'Style de disposition des fenêtres détachées');
+    for (const [value, text] of [
+      ['mosaic', 'Mosaïque'], ['columns', 'Colonnes'], ['cascade', 'Cascade']
+    ]) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = text;
+      layoutStyleSelect.append(option);
+    }
+    layoutStyleSelect.value = 'mosaic';
+    layoutStyleLabel.append(layoutStyleSelect);
     const distributeLayoutButton = document.createElement('button');
     distributeLayoutButton.type = 'button';
     distributeLayoutButton.className =
@@ -201,7 +217,7 @@
     deleteWorkspaceButton.textContent = 'SUPPRIMER';
     deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
     deleteWorkspaceButton.hidden = true;
-    presetActions.append(distributeLayoutButton, autoLayoutButton, saveLayoutButton,
+    presetActions.append(layoutStyleLabel, distributeLayoutButton, autoLayoutButton, saveLayoutButton,
       resetLayoutButton, renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
@@ -318,6 +334,7 @@
     let active = null;
     let activeWorkspaceId = 'learning';
     let activeAutoArrange = false;
+    let activeLayoutStyle = 'mosaic';
     let workspaceSwitchBusy = false;
     let workspaceGeneration = 0;
     // Do not overwrite an existing saved preset with the initial home-button
@@ -491,6 +508,8 @@
         button.disabled = workspaceSwitchBusy;
       });
       const unavailable = workspaceSwitchBusy || suppressPresetSaving;
+      layoutStyleSelect.disabled = unavailable;
+      layoutStyleSelect.value = activeLayoutStyle;
       distributeLayoutButton.disabled = unavailable;
       autoLayoutButton.disabled = unavailable;
       autoLayoutButton.textContent = activeAutoArrange ? 'AUTO : OUI' : 'AUTO : NON';
@@ -868,6 +887,8 @@
         }
         nativeSwitched = true;
         activeAutoArrange = layout.autoArrange === true;
+        activeLayoutStyle = ['mosaic','columns','cascade'].includes(layout.layoutStyle)
+          ? layout.layoutStyle : 'mosaic';
         // The main process has closed the old windows, preserving their layout.
         groups.forEach(function (group) {
           group.detached = false;
@@ -1036,6 +1057,37 @@
       }
     });
 
+    layoutStyleSelect.addEventListener('change', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceLayoutStyle) {
+        layoutStyleSelect.value = activeLayoutStyle;
+        return;
+      }
+      const requestedStyle = layoutStyleSelect.value;
+      if (!['mosaic','columns','cascade'].includes(requestedStyle) ||
+          requestedStyle === activeLayoutStyle) return;
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      showWorkspaceStatus('');
+      try {
+        const result = await window.guitarAudio.workspaceLayoutStyle(
+          activeWorkspaceId, requestedStyle);
+        if (!result || result.id !== activeWorkspaceId ||
+            result.style !== requestedStyle) {
+          throw new Error('Style non confirmé');
+        }
+        activeLayoutStyle = requestedStyle;
+        const labels = {mosaic:'Mosaïque',columns:'Colonnes',cascade:'Cascade'};
+        showWorkspaceStatus('Disposition ' + labels[requestedStyle] + ' enregistrée');
+      } catch (error) {
+        console.error('Style de disposition :', error);
+        showWorkspaceStatus('Impossible de changer la disposition');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    });
+
     autoLayoutButton.addEventListener('click', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceAutoArrange) return;
@@ -1138,6 +1190,7 @@
         });
         closePanel();
         activeAutoArrange = false;
+        activeLayoutStyle = 'mosaic';
         try { localStorage.removeItem(PRESET_KEY + activeWorkspaceId); } catch (_) {}
         applyPresetView(activeWorkspaceId);
         showWorkspaceStatus('Disposition initiale restaurée');
@@ -1188,6 +1241,8 @@
             if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
               activeWorkspaceId = layout.id;
               activeAutoArrange = layout.autoArrange === true;
+              activeLayoutStyle = ['mosaic','columns','cascade'].includes(layout.layoutStyle)
+                ? layout.layoutStyle : 'mosaic';
               applyPresetView(layout.id, Array.isArray(layout.openPanels)
                 ? layout.openPanels : []);
             } else suppressPresetSaving = false;
