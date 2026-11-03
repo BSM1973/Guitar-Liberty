@@ -19,6 +19,10 @@ const builtinWorkspaceNames = Object.freeze({
 });
 const MAX_CUSTOM_WORKSPACES = 8;
 const layoutStyles = new Set(['mosaic', 'columns', 'cascade']);
+const screenModes = new Set(['secondary-first', 'all', 'primary', 'secondary']);
+function validScreenMode(value) {
+  return screenModes.has(value) ? value : 'secondary-first';
+}
 function validLayoutStyle(value) {
   return layoutStyles.has(value) ? value : 'mosaic';
 }
@@ -68,7 +72,8 @@ function readPanelLayouts() {
   if (savedWorkspaces) return savedPanelLayouts;
   savedWorkspaces = Object.create(null);
   for (const id of workspaceIds) {
-    savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic' };
+    savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false,
+      layoutStyle: 'mosaic', screenMode: 'secondary-first' };
   }
   let parsed = null;
   try {
@@ -89,7 +94,8 @@ function readPanelLayouts() {
       const label = cleanWorkspaceName(entry.label);
       if (!label || !workspaceNameAvailable(label)) continue;
       customWorkspaces.push({id: entry.id, label});
-      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic'};
+      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false,
+        layoutStyle: 'mosaic', screenMode: 'secondary-first'};
     }
   }
 
@@ -109,6 +115,7 @@ function readPanelLayouts() {
     }
     savedWorkspaces[id].autoArrange = source.autoArrange === true;
     savedWorkspaces[id].layoutStyle = validLayoutStyle(source.layoutStyle);
+    savedWorkspaces[id].screenMode = validScreenMode(source.screenMode);
     if (Array.isArray(source.openPanels)) {
       for (const panelId of source.openPanels) {
         if (typeof panelId === 'string' && detachablePanelIds.has(panelId)) {
@@ -140,7 +147,8 @@ function flushPanelLayouts() {
         panels: profile.panels,
         openPanels: Array.from(profile.openPanels),
         autoArrange: profile.autoArrange === true,
-        layoutStyle: profile.layoutStyle
+        layoutStyle: profile.layoutStyle,
+        screenMode: profile.screenMode
       };
     }
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -218,7 +226,8 @@ function arrangeActiveDetachedPanels() {
   const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
   const layout = distributePanelBounds(
     windows.map(([panelId]) => panelId), displays, preferred,
-    savedWorkspaces[activeWorkspace].layoutStyle);
+    savedWorkspaces[activeWorkspace].layoutStyle,
+    savedWorkspaces[activeWorkspace].screenMode);
   for (const item of layout) {
     const popup = guitarPanelWindows.get(item.id);
     if (!popup || popup.isDestroyed()) continue;
@@ -267,7 +276,8 @@ ipcMain.handle('gl-workspace-get', (event) => {
   readPanelLayouts();
   return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds),
     autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true,
-    layoutStyle: savedWorkspaces[activeWorkspace].layoutStyle };
+    layoutStyle: savedWorkspaces[activeWorkspace].layoutStyle,
+    screenMode: savedWorkspaces[activeWorkspace].screenMode };
 });
 
 // RÉPARTIR arranges the existing native windows without creating new
@@ -306,6 +316,26 @@ ipcMain.handle('gl-workspace-layout-style', (event, workspaceId, requestedStyle)
     throw new Error('Impossible de sauvegarder le style de disposition');
   }
   return {id: workspaceId, style: requestedStyle, ...result};
+});
+
+// The selected monitor policy is independent of the layout style and AUTO
+// state. Apply it immediately without recreating windows or touching playback.
+ipcMain.handle('gl-workspace-screen-mode', (event, workspaceId, requestedMode) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || activeWorkspace !== workspaceId ||
+      switchingWorkspace || !screenModes.has(requestedMode)) {
+    throw new Error('Choix des écrans non autorisé');
+  }
+  const profile = savedWorkspaces[workspaceId];
+  const previous = profile.screenMode;
+  profile.screenMode = requestedMode;
+  const result = arrangeActiveDetachedPanels();
+  if (!flushPanelLayouts()) {
+    profile.screenMode = previous;
+    throw new Error('Impossible de sauvegarder le choix des écrans');
+  }
+  return {id: workspaceId, mode: requestedMode, ...result};
 });
 
 // AUTO ON/OFF belongs to the selected workspace. Older layouts remain
@@ -372,7 +402,8 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
       }));
     }
     await Promise.all(closing);
-    const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic' };
+    const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false,
+      layoutStyle: 'mosaic', screenMode: 'secondary-first' };
     savedWorkspaces[workspaceId] = resetProfile;
     savedPanelLayouts = resetProfile.panels;
     savedDetachedPanelIds = resetProfile.openPanels;
@@ -410,7 +441,8 @@ ipcMain.handle('gl-workspace-create', (event, requestedName) => {
   const id = 'custom-' + index;
   const profile = {id, label};
   customWorkspaces.push(profile);
-  savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false, layoutStyle: 'mosaic'};
+  savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false,
+    layoutStyle: 'mosaic', screenMode: 'secondary-first'};
   if (!flushPanelLayouts()) {
     customWorkspaces.pop();
     delete savedWorkspaces[id];
@@ -464,7 +496,8 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   if (activeWorkspace === workspaceId) {
     return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds),
       autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true,
-      layoutStyle: savedWorkspaces[activeWorkspace].layoutStyle };
+      layoutStyle: savedWorkspaces[activeWorkspace].layoutStyle,
+      screenMode: savedWorkspaces[activeWorkspace].screenMode };
   }
   // Save the old workspace before closing its native windows. These closes
   // must not be mistaken for a deliberate RATTACHER.
@@ -490,7 +523,8 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
     flushPanelLayouts();
     return { id: workspaceId, openPanels: Array.from(savedDetachedPanelIds),
       autoArrange: savedWorkspaces[workspaceId].autoArrange === true,
-      layoutStyle: savedWorkspaces[workspaceId].layoutStyle };
+      layoutStyle: savedWorkspaces[workspaceId].layoutStyle,
+      screenMode: savedWorkspaces[workspaceId].screenMode };
   } finally {
     switchingWorkspace = false;
   }

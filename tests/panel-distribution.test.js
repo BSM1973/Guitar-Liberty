@@ -136,3 +136,47 @@ test('invalid style and old callers preserve the original mosaic',()=>{
   assert.deepEqual(distributePanelBounds(ids(4),displays,displays[0],'unknown'),old);
   assert.deepEqual(distributePanelBounds([],displays,displays[0],'cascade'),[]);
 });
+
+test('ÉCRANS policy targets primary, secondary or all screens independently',()=>{
+  const displays=[
+    screen(0,0,1600,900),screen(1600,0,1920,1080),
+    screen(-1920,0,1920,1080)
+  ];
+  const names=ids(8);
+  for(const style of ['mosaic','columns','cascade']){
+    const primary=distributePanelBounds(names,displays,displays[0],style,'primary');
+    assert.ok(primary.every(entry=>entry.displayIndex===0),style+' primary');
+    const secondary=distributePanelBounds(names,displays,displays[0],style,'secondary');
+    assert.ok(secondary.every(entry=>entry.displayIndex!==0),style+' secondary');
+    const all=distributePanelBounds(names,displays,displays[0],style,'all');
+    assert.ok(new Set(all.map(entry=>entry.displayIndex)).size===3,style+' all');
+    for(const layout of [primary,secondary,all]){
+      assert.deepEqual(layout.map(entry=>entry.id),names);
+      for(const entry of layout){
+        assert.ok(inside(entry.bounds,displays[entry.displayIndex].workArea),
+          style+' '+entry.displayIndex+' offscreen');
+      }
+    }
+  }
+});
+
+test('secondary-only policy safely falls back to main screen after unplug',()=>{
+  const displays=[screen(0,0,1440,900),screen(1440,0,1600,900)];
+  const two=distributePanelBounds(ids(3),displays,displays[0],'columns','secondary');
+  assert.ok(two.every(entry=>entry.displayIndex===1));
+  displays.pop();
+  const one=distributePanelBounds(ids(3),displays,displays[0],'columns','secondary');
+  assert.ok(one.every(entry=>entry.displayIndex===0));
+  assert.ok(one.every(entry=>inside(entry.bounds,displays[0].workArea)));
+});
+
+test('legacy screen policy remains secondary-first and invalid values fall back',()=>{
+  const displays=[screen(0,0,1600,900),screen(1600,0,1440,900)];
+  const old=distributePanelBounds(ids(4),displays,displays[0],'mosaic');
+  assert.deepEqual(distributePanelBounds(ids(4),displays,displays[0],'mosaic','secondary-first'),old);
+  assert.deepEqual(distributePanelBounds(ids(4),displays,displays[0],'mosaic','not-a-mode'),old);
+  assert.equal(old.filter(x=>x.displayIndex===1).length,2,
+    'legacy behavior keeps secondary monitors preferred');
+  assert.equal(old.filter(x=>x.displayIndex===0).length,2,
+    'legacy behavior overflows to main monitor');
+});

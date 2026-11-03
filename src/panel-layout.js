@@ -66,11 +66,15 @@ function restorePanelBounds(saved, displays, preferredDisplay) {
 // Deterministic one-click layout for detached windows. Use other monitors
 // first to keep the central tablature visible on the main display. Bounds
 // remain per workspace in the native layout store.
-function distributePanelBounds(panelIds, displays, preferredDisplay, style = 'mosaic') {
+function distributePanelBounds(panelIds, displays, preferredDisplay,
+    style = 'mosaic', screenMode = 'secondary-first') {
   const ids = Array.isArray(panelIds) ? panelIds : [];
   if (!ids.length) return [];
   // Unknown or older saved preferences retain the original mosaic behavior.
   if (!['mosaic', 'columns', 'cascade'].includes(style)) style = 'mosaic';
+  if (!['secondary-first', 'all', 'primary', 'secondary'].includes(screenMode)) {
+    screenMode = 'secondary-first';
+  }
   const GAP = 12;
   const MARGIN = 12;
   const TARGET_WIDTH = 480;
@@ -90,7 +94,12 @@ function distributePanelBounds(panelIds, displays, preferredDisplay, style = 'mo
     areas[0];
   const others = areas.filter(item => item !== main)
     .sort((a,b) => a.area.x-b.area.x || a.area.y-b.area.y);
-  const candidates = others.length ? [...others,main] : [main];
+  // Respect each workspace's monitor policy. If a secondary monitor is
+  // unplugged, "secondary only" falls back to the display with the score.
+  const candidates = screenMode === 'primary' ? [main] :
+    screenMode === 'secondary' ? (others.length ? others : [main]) :
+    screenMode === 'all' ? [main,...others] :
+    (others.length ? [...others,main] : [main]);
   const buckets = candidates.map(item => {
     const {area} = item;
     const maxColumns = Math.max(1,Math.floor(
@@ -100,11 +109,12 @@ function distributePanelBounds(panelIds, displays, preferredDisplay, style = 'mo
     return {...item, maxColumns, maxRows,
       capacity:maxColumns*maxRows, assigned:[]};
   });
-  // Round-robin across secondary monitors until their comfortable capacity,
-  // then use the main display only when needed.
+  // Balance across the eligible monitors by comfortable capacity. The
+  // legacy policy prioritizes secondary monitors before using the main one.
   ids.forEach((id,position) => {
     let eligible = buckets.filter((bucket,index) =>
-      (others.length === 0 || index < others.length) &&
+      (screenMode !== 'secondary-first' || others.length === 0 ||
+        index < others.length) &&
       bucket.assigned.length < bucket.capacity);
     if (!eligible.length) eligible = buckets.filter(bucket =>
       bucket.assigned.length < bucket.capacity);
