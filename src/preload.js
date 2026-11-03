@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   workspaceApplyScreenFavorite: (id, displayIndex, area, slot) =>
     ipcRenderer.invoke('gl-workspace-apply-screen-favorite',
       id, displayIndex, area, slot),
+  workspacePreviewScreenFavorite: (id, displayIndex, area, slot) =>
+    ipcRenderer.invoke('gl-workspace-preview-screen-favorite',
+      id, displayIndex, area, slot),
   workspaceRenameScreenFavorite: (id, displayIndex, area, slot, name) =>
     ipcRenderer.invoke('gl-workspace-rename-screen-favorite',
       id, displayIndex, area, slot, name),
