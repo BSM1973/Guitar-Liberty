@@ -43,6 +43,8 @@ function harness(overrides={}) {
   const moves=[];
   const organizations=[];
   const undos=[];
+  const favoriteSaves=[];
+  const favoriteApplies=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -72,6 +74,15 @@ function harness(overrides={}) {
     undos.push({id,index,area});
     return Promise.resolve({id,displayIndex:index,restored:1,autoRestored:true});
   });
+  const saveFavorite=overrides.saveFavorite||((id,index,area,slot)=>{
+    favoriteSaves.push({id,index,area,slot});
+    return Promise.resolve({id,displayIndex:index,slot,saved:1});
+  });
+  const applyFavorite=overrides.applyFavorite||((id,index,area,slot)=>{
+    favoriteApplies.push({id,index,area,slot});
+    return Promise.resolve({id,displayIndex:index,slot,applied:1,
+      skipped:0,autoDisabled:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -82,12 +93,16 @@ function harness(overrides={}) {
     document:{activeElement:node('button'),createElement:node},
     window:{guitarAudio:{workspaceScreenMap:map,workspaceFocusPanel:focus,
       workspaceMovePanel:move,workspaceArrangeScreen:organize,
-      workspaceUndoScreen:undo}},
+      workspaceUndoScreen:undo,
+      workspaceSaveScreenFavorite:saveFavorite,
+      workspaceApplyScreenFavorite:applyFavorite,
+      confirm:overrides.confirm||(()=>true)}},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
     console:{error:(...args)=>errors.push(args)}
   };
   vm.runInNewContext(source.slice(start,end),context,{filename:'workspace-screen-map-ui.js'});
-  return {context,calls,moves,organizations,undos,errors,
+  return {context,calls,moves,organizations,undos,
+    favoriteSaves,favoriteApplies,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -359,4 +374,103 @@ test('PLAN DES ÉCRANS reports refused undo without closing the overview',async(
   assert.equal(c.screenMapRefresh.disabled,false);
   assert.equal(c.activeAutoArrange,true);
   assert.equal(h.errors.length,1);
+});
+
+test('PLAN DES ÉCRANS renders three favorites for every monitor',async()=>{
+  const h=harness();
+  await h.open();
+  for(const screen of h.context.screenMapScreens.children.slice(0,2)){
+    const favorite=screen.children[5];
+    assert.equal(favorite.children[0].textContent,'FAVORIS');
+    assert.equal(favorite.children[1].children.length,3);
+    assert.equal(favorite.children[1].children[0].textContent,'FAVORI 1 — VIDE');
+    assert.equal(favorite.children[2].textContent,'ENREGISTRER');
+    assert.equal(favorite.children[3].textContent,'APPLIQUER');
+    assert.equal(favorite.children[3].disabled,true);
+  }
+  assert.equal(h.context.screenMapScreens.children[0].children[5].children[2].disabled,true,
+    'minimized panels are not saved as favorites');
+  assert.equal(h.context.screenMapScreens.children[1].children[5].children[2].disabled,false);
+});
+
+test('PLAN DES ÉCRANS saves favorite 2 and applies it without disturbing the map',async()=>{
+  let saved=false;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[
+      {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+        favorites:[{slot:1,count:0},{slot:2,count:0},{slot:3,count:0}]},
+      {index:1,main:false,workArea:{x:1600,y:0,width:1920,height:1080},
+        favorites:[{slot:1,count:0},{slot:2,count:saved?1:0},{slot:3,count:0}]}
+    ],
+    panels:[{id:'coach',title:'COACH',displayIndex:1,minimized:false,
+      bounds:{x:1820,y:100,width:500,height:650}}]
+  }),saveFavorite:async(id,index,area,slot)=>{
+    assert.equal(index,1); assert.equal(slot,2);
+    saved=true;
+    return {id,displayIndex:index,slot,saved:1};
+  }});
+  await h.open();
+  const c=h.context;
+  const favorite=c.screenMapScreens.children[1].children[5];
+  const select=favorite.children[1];
+  select.value='2';
+  select.fire('change');
+  assert.equal(favorite.children[3].disabled,true);
+  favorite.children[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const refreshed=c.screenMapScreens.children[1].children[5];
+  assert.equal(refreshed.children[1].value,'2');
+  assert.equal(refreshed.children[3].disabled,false);
+  assert.match(c.screenMapMessage.textContent,/FAVORI 2 enregistré/);
+  c.activeAutoArrange=true;
+  refreshed.children[3].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.favoriteApplies.length,1);
+  assert.equal(h.favoriteApplies[0].index,1);
+  assert.equal(h.favoriteApplies[0].slot,2);
+  assert.equal(c.activeAutoArrange,false);
+  assert.equal(c.updated,true);
+  assert.match(c.screenMapMessage.textContent,/FAVORI 2 appliqué/);
+  assert.equal(c.screenMapOverlay.hidden,false);
+});
+
+test('PLAN DES ÉCRANS asks before overwriting a saved favorite',async()=>{
+  let confirmations=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1},{slot:2,count:0},{slot:3,count:0}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:90,width:510,height:650}}]
+  }),confirm:()=>{confirmations++;return false}});
+  await h.open();
+  const controls=h.context.screenMapScreens.children[0].children[5].children;
+  assert.equal(controls[3].disabled,false);
+  controls[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,1);
+  assert.equal(h.favoriteSaves.length,0);
+  assert.equal(h.context.screenMapOverlay.hidden,false);
+});
+
+test('PLAN DES ÉCRANS ignores duplicate favorite application while busy',async()=>{
+  let finishApply,count=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1},{slot:2,count:0},{slot:3,count:0}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:90,width:510,height:650}}]
+  }),applyFavorite:()=>{count++;return new Promise(resolve=>{finishApply=resolve})}});
+  await h.open();
+  const c=h.context;
+  const apply=c.screenMapScreens.children[0].children[5].children[3];
+  apply.fire('click');
+  apply.fire('click');
+  assert.equal(count,1);
+  finishApply({id:'learning',displayIndex:0,slot:1,applied:1,
+    skipped:0,autoDisabled:false});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapRefresh.disabled,false);
 });
