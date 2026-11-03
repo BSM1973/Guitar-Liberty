@@ -246,5 +246,23 @@ function placePanelOnDisplay(bounds, targetDisplay, point) {
   return {x,y,width,height};
 }
 
+// Return the screen with the greatest overlap, matching the monitor map.
+// Windows outside all usable display areas are deliberately left unassigned.
+function findPanelDisplayIndex(bounds, displays) {
+  const rect = finiteRect(bounds);
+  if (!rect || !Array.isArray(displays)) return -1;
+  let index = -1;
+  let largest = 0;
+  displays.forEach((display, i) => {
+    const area = finiteRect(display && (display.workArea || display));
+    const visible = area ? overlap(rect, area) : 0;
+    if (visible > largest) {
+      largest = visible;
+      index = i;
+    }
+  });
+  return index;
+}
+
 module.exports = { finiteRect, restorePanelBounds, distributePanelBounds,
-  displayTopologyKey, placePanelOnDisplay };
+  displayTopologyKey, placePanelOnDisplay, findPanelDisplayIndex };
