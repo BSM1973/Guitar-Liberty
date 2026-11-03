@@ -472,6 +472,27 @@ html.gl-panel-is-resizing iframe{pointer-events:none!important}
  display:flex;flex-wrap:wrap;align-items:center;
  gap:7px;margin-left:auto;
 }
+#appWorkspace .gl-workspace-style-label{
+ display:inline-flex;align-items:center;gap:7px;min-height:35px;
+ color:#aebfd3;font:800 10px/1.2 Arial,sans-serif;
+ letter-spacing:.045em;white-space:nowrap;
+}
+#appWorkspace .gl-workspace-style-select{
+ min-height:35px;max-width:155px;padding:7px 26px 7px 10px;
+ border:1px solid #ad8a5b;border-radius:10px;
+ background:#1b2d43;color:#f4d9aa;
+ font:800 12px/1.2 Arial,sans-serif;
+ cursor:pointer;color-scheme:dark;
+}
+#appWorkspace .gl-workspace-style-select:hover{
+ border-color:#e1b775;background:#293c55;
+}
+#appWorkspace .gl-workspace-style-select:focus-visible{
+ outline:2px solid #e8ba68;outline-offset:2px;
+}
+#appWorkspace .gl-workspace-style-select:disabled{
+ opacity:.65;cursor:wait;
+}
 #appWorkspace .gl-workspace-layout-action{
  display:inline-flex;align-items:center;justify-content:center;
  min-height:35px;max-width:100%;margin:0;padding:8px 12px;

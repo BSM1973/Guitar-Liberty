@@ -51,6 +51,8 @@ function harness(existing={}) {
       setAttribute:()=>{},
       disabled:false
     }])),
+    layoutStyleSelect:{disabled:false,value:'mosaic'},
+    activeLayoutStyle:'mosaic',
     distributeLayoutButton:{disabled:false},
     autoLayoutButton:{disabled:false,textContent:'',attrs:{},
       setAttribute(name,value){this.attrs[name]=value;}},activeAutoArrange:false,
