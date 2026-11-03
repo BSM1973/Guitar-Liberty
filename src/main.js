@@ -64,7 +64,7 @@ function readPanelLayouts() {
   if (savedWorkspaces) return savedPanelLayouts;
   savedWorkspaces = Object.create(null);
   for (const id of workspaceIds) {
-    savedWorkspaces[id] = { panels: {}, openPanels: new Set() };
+    savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false };
   }
   let parsed = null;
   try {
@@ -85,7 +85,7 @@ function readPanelLayouts() {
       const label = cleanWorkspaceName(entry.label);
       if (!label || !workspaceNameAvailable(label)) continue;
       customWorkspaces.push({id: entry.id, label});
-      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set()};
+      savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false};
     }
   }
 
@@ -103,6 +103,7 @@ function readPanelLayouts() {
         if (rect) savedWorkspaces[id].panels[panelId] = rect;
       }
     }
+    savedWorkspaces[id].autoArrange = source.autoArrange === true;
     if (Array.isArray(source.openPanels)) {
       for (const panelId of source.openPanels) {
         if (typeof panelId === 'string' && detachablePanelIds.has(panelId)) {
@@ -132,7 +133,8 @@ function flushPanelLayouts() {
       const profile = savedWorkspaces[id];
       workspaces[id] = {
         panels: profile.panels,
-        openPanels: Array.from(profile.openPanels)
+        openPanels: Array.from(profile.openPanels),
+        autoArrange: profile.autoArrange === true
       };
     }
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -186,9 +188,46 @@ function ensureDetachedPanelVisible(popup) {
 }
 
 function recoverDetachedPanelsAfterDisplayChange() {
+  if (switchingWorkspace || shuttingDownWorkspace) return;
+  readPanelLayouts();
+  if (savedWorkspaces[activeWorkspace]?.autoArrange) {
+    autoArrangeActivePanels();
+    return;
+  }
   for (const popup of guitarPanelWindows.values()) {
     ensureDetachedPanelVisible(popup);
   }
+}
+
+// A profile's automatic mode is opt-in. It reflows only native detached
+// windows, not the score, transport, playback engine or minimized panels.
+function arrangeActiveDetachedPanels() {
+  if (!guitarMainWindow || guitarMainWindow.isDestroyed() ||
+      switchingWorkspace || shuttingDownWorkspace) {
+    return {arranged:0,displays:0};
+  }
+  const windows = Array.from(guitarPanelWindows.entries()).filter(([,popup]) =>
+    !popup.isDestroyed() && !popup.isMinimized?.());
+  const displays = screen.getAllDisplays();
+  const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
+  const layout = distributePanelBounds(
+    windows.map(([panelId]) => panelId), displays, preferred);
+  for (const item of layout) {
+    const popup = guitarPanelWindows.get(item.id);
+    if (!popup || popup.isDestroyed()) continue;
+    if (popup.isMaximized?.()) popup.unmaximize();
+    popup.setBounds(item.bounds);
+    rememberPanelBounds(item.id, popup);
+  }
+  return {arranged:layout.length,
+    displays:new Set(layout.map(item=>item.displayIndex)).size};
+}
+
+function autoArrangeActivePanels() {
+  if (!savedWorkspaces?.[activeWorkspace]?.autoArrange ||
+      switchingWorkspace || shuttingDownWorkspace) return;
+  arrangeActiveDetachedPanels();
+  flushPanelLayouts();
 }
 
 function rememberPanelBounds(id, popup) {
@@ -219,7 +258,8 @@ ipcMain.handle('gl-workspace-get', (event) => {
     throw new Error('Espace de travail non autorisé');
   }
   readPanelLayouts();
-  return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
+  return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds),
+    autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true };
 });
 
 // RÉPARTIR arranges the existing native windows without creating new
@@ -235,25 +275,30 @@ ipcMain.handle('gl-workspace-distribute', (event, workspaceId) => {
       activeWorkspace !== workspaceId) {
     throw new Error('Espace de travail non actif');
   }
-  const windows = Array.from(guitarPanelWindows.entries()).filter(([,popup]) =>
-    !popup.isDestroyed() && !popup.isMinimized?.());
-  const displays = screen.getAllDisplays();
-  const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
-  const layout = distributePanelBounds(
-    windows.map(([panelId]) => panelId), displays, preferred);
-  for (const item of layout) {
-    const popup = guitarPanelWindows.get(item.id);
-    if (!popup || popup.isDestroyed()) continue;
-    if (popup.isMaximized?.()) popup.unmaximize();
-    popup.setBounds(item.bounds);
-    rememberPanelBounds(item.id, popup);
-  }
+  const result = arrangeActiveDetachedPanels();
   if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la répartition');
-  return {
-    id: activeWorkspace,
-    arranged: layout.length,
-    displays: new Set(layout.map(item => item.displayIndex)).size
-  };
+  return {id: activeWorkspace, ...result};
+});
+
+// AUTO ON/OFF belongs to the selected workspace. Older layouts remain
+// manual by default so upgrading never unexpectedly moves saved windows.
+ipcMain.handle('gl-workspace-auto-arrange', (event, workspaceId, enabled) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || activeWorkspace !== workspaceId ||
+      switchingWorkspace || typeof enabled !== 'boolean') {
+    throw new Error('Répartition automatique non autorisée');
+  }
+  const profile = savedWorkspaces[workspaceId];
+  const previous = profile.autoArrange;
+  profile.autoArrange = enabled;
+  const result = enabled ? arrangeActiveDetachedPanels() :
+    {arranged:0,displays:0};
+  if (!flushPanelLayouts()) {
+    profile.autoArrange = previous;
+    throw new Error('Impossible de sauvegarder le mode automatique');
+  }
+  return {id:workspaceId,enabled,...result};
 });
 
 // ENREGISTRER explicitly persists the currently active set of floating
@@ -299,7 +344,7 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
       }));
     }
     await Promise.all(closing);
-    const resetProfile = { panels: {}, openPanels: new Set() };
+    const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false };
     savedWorkspaces[workspaceId] = resetProfile;
     savedPanelLayouts = resetProfile.panels;
     savedDetachedPanelIds = resetProfile.openPanels;
@@ -337,7 +382,7 @@ ipcMain.handle('gl-workspace-create', (event, requestedName) => {
   const id = 'custom-' + index;
   const profile = {id, label};
   customWorkspaces.push(profile);
-  savedWorkspaces[id] = {panels: {}, openPanels: new Set()};
+  savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false};
   if (!flushPanelLayouts()) {
     customWorkspaces.pop();
     delete savedWorkspaces[id];
@@ -389,7 +434,8 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   if (!isWorkspaceId(workspaceId)) throw new Error('Espace de travail non autorisé');
   if (switchingWorkspace) throw new Error('Changement d’espace déjà en cours');
   if (activeWorkspace === workspaceId) {
-    return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
+    return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds),
+      autoArrange: savedWorkspaces[activeWorkspace].autoArrange === true };
   }
   // Save the old workspace before closing its native windows. These closes
   // must not be mistaken for a deliberate RATTACHER.
@@ -413,7 +459,8 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
     savedDetachedPanelIds = savedWorkspaces[workspaceId].openPanels;
     schedulePanelLayoutSave();
     flushPanelLayouts();
-    return { id: workspaceId, openPanels: Array.from(savedDetachedPanelIds) };
+    return { id: workspaceId, openPanels: Array.from(savedDetachedPanelIds),
+      autoArrange: savedWorkspaces[workspaceId].autoArrange === true };
   } finally {
     switchingWorkspace = false;
   }
@@ -460,7 +507,10 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   popup.on('move', () => rememberPanelBounds(panelId, popup));
   popup.on('resize', () => rememberPanelBounds(panelId, popup));
   // A minimized panel is not moved until the guitarist restores it.
-  popup.on('restore', () => ensureDetachedPanelVisible(popup));
+  popup.on('restore', () => {
+    ensureDetachedPanelVisible(popup);
+    autoArrangeActivePanels();
+  });
   popup.on('close', () => {
     rememberPanelBounds(panelId, popup);
     // Closing a floating window manually (or RATTACHER) turns off automatic
@@ -485,12 +535,14 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   });
   popup.on('closed', () => {
     if (guitarPanelWindows.get(panelId) === popup) guitarPanelWindows.delete(panelId);
+    autoArrangeActivePanels();
     if (guitarMainWindow && !guitarMainWindow.isDestroyed()) {
       guitarMainWindow.webContents.send(
         'gl-panel-closed', panelId, popup._glCloseReason || 'manual'
       );
     }
   });
+  if (!restoring) autoArrangeActivePanels();
   return { opened: true, reused: false };
 });
 
@@ -625,6 +677,7 @@ app.whenReady().then(() => {
   createWindow();
   // Electron reports monitor changes at runtime. Keep detached panels
   // reachable even if a second monitor disappears during a session.
+  screen.on('display-added', recoverDetachedPanelsAfterDisplayChange);
   screen.on('display-removed', recoverDetachedPanelsAfterDisplayChange);
   screen.on('display-metrics-changed', recoverDetachedPanelsAfterDisplayChange);
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow());

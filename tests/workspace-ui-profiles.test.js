@@ -52,6 +52,8 @@ function harness(existing={}) {
       disabled:false
     }])),
     distributeLayoutButton:{disabled:false},
+    autoLayoutButton:{disabled:false,textContent:'',attrs:{},
+      setAttribute(name,value){this.attrs[name]=value;}},activeAutoArrange:false,
     saveLayoutButton:{disabled:false},
     resetLayoutButton:{disabled:false},
     renameWorkspaceButton:{disabled:false,hidden:true},

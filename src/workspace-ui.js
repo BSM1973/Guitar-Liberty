@@ -165,6 +165,14 @@
       'Répartir automatiquement les fenêtres détachées sur les écrans disponibles';
     distributeLayoutButton.setAttribute('aria-label',
       'Répartir les fenêtres détachées sur les écrans');
+    const autoLayoutButton = document.createElement('button');
+    autoLayoutButton.type = 'button';
+    autoLayoutButton.className = 'gl-workspace-layout-action gl-workspace-layout-auto';
+    autoLayoutButton.textContent = 'AUTO : NON';
+    autoLayoutButton.title =
+      'Activer la répartition automatique à l’ouverture des fenêtres et lors des changements d’écran';
+    autoLayoutButton.setAttribute('aria-label', 'Répartition automatique des fenêtres détachées');
+    autoLayoutButton.setAttribute('aria-pressed', 'false');
     const saveLayoutButton = document.createElement('button');
     saveLayoutButton.type = 'button';
     saveLayoutButton.className = 'gl-workspace-layout-action';
@@ -193,7 +201,7 @@
     deleteWorkspaceButton.textContent = 'SUPPRIMER';
     deleteWorkspaceButton.title = 'Supprimer cet espace personnalisé';
     deleteWorkspaceButton.hidden = true;
-    presetActions.append(distributeLayoutButton, saveLayoutButton,
+    presetActions.append(distributeLayoutButton, autoLayoutButton, saveLayoutButton,
       resetLayoutButton, renameWorkspaceButton, deleteWorkspaceButton);
     workspacePresetBar.append(presetActions, layoutStatus);
     transportDock.prepend(workspacePresetBar);
@@ -309,6 +317,7 @@
     const groups = new Map();
     let active = null;
     let activeWorkspaceId = 'learning';
+    let activeAutoArrange = false;
     let workspaceSwitchBusy = false;
     let workspaceGeneration = 0;
     // Do not overwrite an existing saved preset with the initial home-button
@@ -483,6 +492,9 @@
       });
       const unavailable = workspaceSwitchBusy || suppressPresetSaving;
       distributeLayoutButton.disabled = unavailable;
+      autoLayoutButton.disabled = unavailable;
+      autoLayoutButton.textContent = activeAutoArrange ? 'AUTO : OUI' : 'AUTO : NON';
+      autoLayoutButton.setAttribute('aria-pressed', String(activeAutoArrange));
       saveLayoutButton.disabled = unavailable;
       resetLayoutButton.disabled = unavailable;
       const isCustom = workspacePresets.some(preset =>
@@ -855,6 +867,7 @@
           throw new Error('Disposition non valide');
         }
         nativeSwitched = true;
+        activeAutoArrange = layout.autoArrange === true;
         // The main process has closed the old windows, preserving their layout.
         groups.forEach(function (group) {
           group.detached = false;
@@ -870,6 +883,10 @@
           const group = groups.get(panelId);
           if (!group || !detachedAllowed.has(panelId)) continue;
           await openDetachedGroup(group, true);
+        }
+        if (activeAutoArrange && window.guitarAudio?.workspaceDistribute) {
+          try { await window.guitarAudio.workspaceDistribute(id); }
+          catch (error) { console.warn('Répartition au changement d’espace :', error); }
         }
         return true;
       } catch (error) {
@@ -1019,6 +1036,30 @@
       }
     });
 
+    autoLayoutButton.addEventListener('click', async function () {
+      if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
+          !window.guitarAudio?.workspaceAutoArrange) return;
+      const next = !activeAutoArrange;
+      workspaceSwitchBusy = true;
+      updatePresetButtons();
+      showWorkspaceStatus('');
+      try {
+        const result = await window.guitarAudio.workspaceAutoArrange(activeWorkspaceId,next);
+        if (!result || result.id !== activeWorkspaceId ||
+            result.enabled !== next) throw new Error('Mode automatique non confirmé');
+        activeAutoArrange = next;
+        showWorkspaceStatus(next
+          ? 'Répartition automatique activée pour cet espace'
+          : 'Répartition automatique désactivée pour cet espace');
+      } catch (error) {
+        console.error('Répartition automatique :', error);
+        showWorkspaceStatus('Impossible de modifier le mode automatique');
+      } finally {
+        workspaceSwitchBusy = false;
+        updatePresetButtons();
+      }
+    });
+
     distributeLayoutButton.addEventListener('click', async function () {
       if (workspace.hidden || workspaceSwitchBusy || suppressPresetSaving ||
           !window.guitarAudio?.workspaceDistribute) return;
@@ -1096,6 +1137,7 @@
           group.selectedTabIndex = 0;
         });
         closePanel();
+        activeAutoArrange = false;
         try { localStorage.removeItem(PRESET_KEY + activeWorkspaceId); } catch (_) {}
         applyPresetView(activeWorkspaceId);
         showWorkspaceStatus('Disposition initiale restaurée');
@@ -1145,6 +1187,7 @@
             if (generation !== workspaceGeneration) return;
             if (layout && workspacePresets.some(preset => preset.id === layout.id)) {
               activeWorkspaceId = layout.id;
+              activeAutoArrange = layout.autoArrange === true;
               applyPresetView(layout.id, Array.isArray(layout.openPanels)
                 ? layout.openPanels : []);
             } else suppressPresetSaving = false;
@@ -1157,12 +1200,19 @@
         }
         // If the guitarist briefly returns to the welcome page, resume any
         // remaining windows on the next workspace entry rather than losing them.
+        let openedDuringRestoration = 0;
         while (!workspace.hidden && generation === workspaceGeneration &&
                pendingRestoredIds?.length) {
           const id = pendingRestoredIds.shift();
           const group = groups.get(id);
           if (!group || !detachedAllowed.has(id) || group.detached) continue;
-          await openDetachedGroup(group, true);
+          if (await openDetachedGroup(group, true)) openedDuringRestoration++;
+        }
+        if (openedDuringRestoration && !workspace.hidden &&
+            generation === workspaceGeneration && !pendingRestoredIds?.length &&
+            activeAutoArrange && window.guitarAudio?.workspaceDistribute) {
+          try { await window.guitarAudio.workspaceDistribute(activeWorkspaceId); }
+          catch (error) { console.warn('Répartition après restauration :', error); }
         }
       } catch (error) {
         // Recover on the next entry if the main process temporarily failed.

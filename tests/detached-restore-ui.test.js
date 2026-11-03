@@ -23,13 +23,18 @@ function boot({ids = ['practice', 'play-with-me'], hidden = true} = {}) {
   ]);
   const allowed = new Set(groups.keys());
   const openings = [];
+  const distributed = [];
   let reads = 0;
   let provider = async () => ids;
   let onOpen = () => {};
   const context = {
     workspace, groups, detachedAllowed: allowed, workspaceGeneration: 0,
+    activeAutoArrange:false,activeWorkspaceId:'learning',
     console: { warn: () => {} },
-    window: {guitarAudio: { panelRestorable: () => { reads++; return provider(); } }},
+    window: {guitarAudio: {
+      panelRestorable: () => { reads++; return provider(); },
+      workspaceDistribute: async id => {distributed.push(id);return {id,arranged:openings.length};}
+    }},
     openDetachedGroup: async (group, restoring) => {
       openings.push({id:group.id, restoring});
       group.detached = true;
@@ -44,6 +49,8 @@ function boot({ids = ['practice', 'play-with-me'], hidden = true} = {}) {
     workspace, groups, openings, restore: () => context.restoreDetachedPanels(),
     reads: () => reads, setProvider: (fn) => {provider=fn;}, onOpen: fn => {onOpen=fn;},
     setGeneration: n => {context.workspaceGeneration = n;},
+    setAuto: enabled => {context.activeAutoArrange=enabled;},
+    distributed,
     state: () => context.__getRestorationState()
   };
 }
@@ -118,4 +125,26 @@ test('workspace entry calls restore; showing home does not restore anything', ()
     rendererSource.indexOf("document.querySelector('#homeStart')"));
   assert.match(entry, /restoreDetachedPanels\?\.\(\)/);
   assert.doesNotMatch(home, /restoreDetachedPanels/);
+});
+
+test('AUTO distributes once after all detached windows finish restoring',async()=>{
+  const app=boot({hidden:false,ids:['coach','practice','play-with-me']});
+  app.setAuto(true);
+  await app.restore();
+  assert.deepEqual(app.openings.map(x=>x.id),['coach','practice','play-with-me']);
+  assert.deepEqual(app.distributed,['learning']);
+  await app.restore();
+  assert.deepEqual(app.distributed,['learning'],
+    'returning to the workspace must not rearrange an unchanged layout');
+});
+
+test('AUTO waits for interrupted restoration and resumes after returning from home',async()=>{
+  const app=boot({hidden:false,ids:['coach','practice']});
+  app.setAuto(true);
+  app.onOpen(id=>{if(id==='coach')app.workspace.hidden=true;});
+  await app.restore();
+  assert.equal(app.distributed.length,0);
+  app.workspace.hidden=false;
+  await app.restore();
+  assert.deepEqual(app.distributed,['learning']);
 });
