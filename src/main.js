@@ -59,6 +59,9 @@ function workspaceNameAvailable(label, exceptId = null) {
     item.label.toLocaleLowerCase('fr') === label.toLocaleLowerCase('fr'));
 }
 let switchingWorkspace = false;
+// Track the display containing the main score window, not its exact bounds.
+// AUTO follows monitor changes without reflowing on every drag pixel.
+let lastMainDisplayKey = null;
 
 // Store only window geometry in Electron's per-user app data folder,
 // never the contents of a lesson or personal journal.
@@ -256,6 +259,13 @@ function ensureDetachedPanelVisible(popup) {
 function recoverDetachedPanelsAfterDisplayChange() {
   if (switchingWorkspace || shuttingDownWorkspace) return;
   readPanelLayouts();
+  // A display hotplug already redistributes AUTO panels below. Refresh the
+  // tracked main display so a subsequent resize cannot trigger a second pass.
+  const currentMainDisplay = guitarMainWindow && !guitarMainWindow.isDestroyed()
+    ? screen.getDisplayMatching(guitarMainWindow.getBounds()) : null;
+  if (currentMainDisplay) {
+    lastMainDisplayKey = displayTopologyKey([currentMainDisplay]);
+  }
   const nextTopology = displayTopologyKey(screen.getAllDisplays());
   const changed = nextTopology !== activeTopologyKey;
   let knownLayout = false;
@@ -324,6 +334,24 @@ function arrangeActiveDetachedPanels() {
   }
   return {arranged:layout.length,
     displays:new Set(layout.map(item=>item.displayIndex)).size};
+}
+
+// When the score window moves to another monitor, the meaning of "main"
+// and "secondary" changes. Only AUTO layouts follow that change. Manual
+// floating-window placements remain untouched.
+function followMainWindowDisplay() {
+  if (!guitarMainWindow || guitarMainWindow.isDestroyed() ||
+      guitarMainWindow.isMinimized?.() ||
+      switchingWorkspace || shuttingDownWorkspace) return;
+  const matching = screen.getDisplayMatching(guitarMainWindow.getBounds());
+  if (!matching) return;
+  const nextKey = displayTopologyKey([matching]);
+  if (nextKey === lastMainDisplayKey) return;
+  lastMainDisplayKey = nextKey;
+  readPanelLayouts();
+  if (savedWorkspaces[activeWorkspace]?.autoArrange) {
+    autoArrangeActivePanels();
+  }
 }
 
 function autoArrangeActivePanels() {
@@ -815,7 +843,13 @@ function createWindow() {
   splash.once('ready-to-show', () => splash.show());
 
   guitarMainWindow = win;
+  // Only a change of monitor, not a move within the same monitor, triggers
+  // automatic redistribution. Restore also handles a minimized main window.
+  win.on('move', followMainWindowDisplay);
+  win.on('resize', followMainWindowDisplay);
+  win.on('restore', followMainWindowDisplay);
   win.on('closed', () => {
+    lastMainDisplayKey = null;
     // Close native child windows without clearing the saved detached selection.
     shuttingDownWorkspace = true;
     if (guitarMainWindow === win) guitarMainWindow = null;
@@ -828,6 +862,9 @@ function createWindow() {
   });
 
   win.maximize();
+  // Establish the initial screen before the user begins dragging the app.
+  const initialDisplay = screen.getDisplayMatching(win.getBounds());
+  if (initialDisplay) lastMainDisplayKey = displayTopologyKey([initialDisplay]);
   win.loadFile(path.join(__dirname, 'index.html'));
 
   const revealApp = () => {
