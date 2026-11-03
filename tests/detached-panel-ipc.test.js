@@ -19,6 +19,7 @@ function bootMain(options = {}) {
     { workArea: {x: 0, y: 0, width: 1920, height: 1040} }
   ];
   const listeners = new Map();
+  const screenListeners = new Map();
   const windows = [];
   class FakeWebContents {
     constructor() { this.sent = []; this.destroyed = false; }
@@ -50,7 +51,7 @@ function bootMain(options = {}) {
     getBounds() { return {...this.bounds}; }
     getNormalBounds() { return {...this.bounds}; }
     setBounds(value) { this.bounds = {...value}; this.emit('move'); this.emit('resize'); }
-    isMinimized() { return false; }
+    isMinimized() { return !!this.minimized; }
     close() {
       if (this.destroyed) return;
       this.emit('close');
@@ -77,7 +78,8 @@ function bootMain(options = {}) {
           screen: {
             getAllDisplays: () => displays,
             getDisplayMatching: () => displays[0],
-            getPrimaryDisplay: () => displays[0]
+            getPrimaryDisplay: () => displays[0],
+            on: (name, callback) => screenListeners.set(name, callback)
           }
         }
       : id === './panel-layout'
@@ -91,13 +93,97 @@ function bootMain(options = {}) {
   }, { filename: 'main.js' });
 
   return {
-    windows, handlers, listeners, layoutDirectory,
+    windows, handlers, listeners, layoutDirectory, displays,
+    emitDisplay: name => {
+      assert.ok(screenListeners.has(name), 'Screen listener missing for ' + name);
+      screenListeners.get(name)();
+    },
     emit: (channel, sender, ...args) => {
       assert.ok(listeners.has(channel), 'Listener missing for ' + channel);
       listeners.get(channel)({ sender }, ...args);
     }
   };
 }
+
+test('unplugging a second monitor moves detached windows back without restarting playback', async t => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-hotplug-'));
+  t.after(() => fs.rmSync(folder, {recursive:true,force:true}));
+  const displays = [
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h = bootMain({layoutDirectory:folder, displays});
+  await Promise.resolve();
+  const sender = h.windows[1].webContents;
+  const open = h.handlers.get('gl-panel-open');
+  await open({sender}, 'practice', 'ENTRAÎNEMENT');
+  await open({sender}, 'play-with-me', 'JOUE AVEC MOI');
+  const practice = h.windows[2];
+  const play = h.windows[3];
+  practice.setBounds({x:1880,y:100,width:580,height:720});
+  play.setBounds({x:2600,y:130,width:620,height:700});
+  const count = h.windows.length;
+  const previousWebContents = [practice.webContents,play.webContents];
+
+  displays.splice(1,1);
+  h.emitDisplay('display-removed');
+  assert.equal(h.windows.length,count,'no duplicate audio or window renderer');
+  assert.equal(practice.webContents,previousWebContents[0]);
+  assert.equal(play.webContents,previousWebContents[1]);
+  for(const popup of [practice,play]) {
+    assert.equal(popup.destroyed,false);
+    const bounds=popup.getBounds();
+    assert.ok(bounds.x>=0 && bounds.x+bounds.width<=1600);
+    assert.ok(bounds.y>=0 && bounds.y+bounds.height<=900);
+  }
+  assert.equal(h.handlers.get('gl-panel-restore-session')({sender}).length,2);
+  h.windows[1].close();
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.equal(saved.openPanels.length,2,
+    'monitor recovery must not mark windows as reattached');
+  assert.deepEqual(saved.panels.practice,practice.getBounds());
+  assert.deepEqual(saved.panels['play-with-me'],play.getBounds());
+});
+
+test('display work-area resize clamps panels without changing their detached state',async()=>{
+  const displays=[{workArea:{x:0,y:0,width:1800,height:1050}}];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACHS');
+  const popup=h.windows[2];
+  popup.setBounds({x:1250,y:300,width:520,height:680});
+  displays[0].workArea={x:0,y:0,width:1400,height:780};
+  h.emitDisplay('display-metrics-changed');
+  assert.deepEqual(popup.getBounds(),{x:880,y:100,width:520,height:680});
+  assert.equal(popup.destroyed,false);
+  assert.deepEqual([...h.handlers.get('gl-panel-restore-session')({sender})],['coach']);
+  const before=popup.getBounds();
+  h.emitDisplay('display-metrics-changed');
+  assert.deepEqual(popup.getBounds(),before,'repeat notifications are idempotent');
+});
+
+test('minimized detached windows recover only on restore, without stealing focus',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1600,height:900}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACHS');
+  const popup=h.windows[2];
+  popup.setBounds({x:1900,y:100,width:500,height:600});
+  popup.minimized=true;
+  displays.pop();
+  h.emitDisplay('display-removed');
+  assert.equal(popup.getBounds().x,1900,'do not unexpectedly restore minimized windows');
+  popup.minimized=false;
+  popup.emit('restore');
+  assert.ok(popup.getBounds().x+popup.getBounds().width<=1600);
+  assert.equal(popup.focused,false,'recovery must not force keyboard focus');
+});
 
 test('floating PLAY/Joue avec moi actions use only the original playback window', async () => {
   const harness = bootMain();

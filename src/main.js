@@ -166,6 +166,31 @@ function setDetachedPreference(id, isDetached) {
   schedulePanelLayoutSave();
 }
 
+// A monitor may be unplugged or its usable area may shrink while the
+// guitarist is working. Recover existing windows in place: do not recreate
+// their renderer, change the detached preference or interrupt playback.
+function ensureDetachedPanelVisible(popup) {
+  if (!popup || popup.isDestroyed() || popup.isMinimized?.()) return false;
+  const current = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+  if (!current) return false;
+  const displays = screen.getAllDisplays();
+  const preferred = guitarMainWindow && !guitarMainWindow.isDestroyed()
+    ? screen.getDisplayMatching(guitarMainWindow.getBounds())
+    : screen.getPrimaryDisplay();
+  const safe = restorePanelBounds(current, displays, preferred);
+  if (['x', 'y', 'width', 'height'].every(key => current[key] === safe[key])) {
+    return false;
+  }
+  popup.setBounds(safe);
+  return true;
+}
+
+function recoverDetachedPanelsAfterDisplayChange() {
+  for (const popup of guitarPanelWindows.values()) {
+    ensureDetachedPanelVisible(popup);
+  }
+}
+
 function rememberPanelBounds(id, popup) {
   if (popup.isDestroyed() || popup.isMinimized?.()) return;
   const rect = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
@@ -400,6 +425,8 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   // Persist independently for every tool, including user move/resize changes.
   popup.on('move', () => rememberPanelBounds(panelId, popup));
   popup.on('resize', () => rememberPanelBounds(panelId, popup));
+  // A minimized panel is not moved until the guitarist restores it.
+  popup.on('restore', () => ensureDetachedPanelVisible(popup));
   popup.on('close', () => {
     rememberPanelBounds(panelId, popup);
     // Closing a floating window manually (or RATTACHER) turns off automatic
@@ -562,6 +589,10 @@ app.on('before-quit', () => {
 
 app.whenReady().then(() => {
   createWindow();
+  // Electron reports monitor changes at runtime. Keep detached panels
+  // reachable even if a second monitor disappears during a session.
+  screen.on('display-removed', recoverDetachedPanelsAfterDisplayChange);
+  screen.on('display-metrics-changed', recoverDetachedPanelsAfterDisplayChange);
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow());
 });
 app.on('window-all-closed', () => process.platform !== 'darwin' && app.quit());
