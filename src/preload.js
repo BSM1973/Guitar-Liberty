@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   workspaceDistribute: (id) => ipcRenderer.invoke('gl-workspace-distribute', id),
   workspaceLayoutStyle: (id, style) =>
     ipcRenderer.invoke('gl-workspace-layout-style', id, style),
+  workspaceScreenMode: (id, mode) =>
+    ipcRenderer.invoke('gl-workspace-screen-mode', id, mode),
   workspaceAutoArrange: (id, enabled) =>
     ipcRenderer.invoke('gl-workspace-auto-arrange', id, Boolean(enabled)),
   workspaceSave: (id) => ipcRenderer.invoke('gl-workspace-save', id),
