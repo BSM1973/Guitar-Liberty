@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { finiteRect, restorePanelBounds, distributePanelBounds,
-  displayTopologyKey } = require('./panel-layout');
+  displayTopologyKey, placePanelOnDisplay } = require('./panel-layout');
 
 // The original workspace stays authoritative. Detached native windows receive
 // visual snapshots and forward user actions to the existing UI controls.
@@ -462,6 +462,63 @@ ipcMain.handle('gl-workspace-focus-panel', (event, workspaceId, panelId) => {
   popup.show();
   popup.focus();
   return {id:panelId,focused:true};
+});
+
+// Explicit placement from PLAN DES ÉCRANS. The requested work area must
+// still match the live monitor: a hotplug cannot silently redirect a drop.
+// A manual placement disables AUTO only in this workspace, preserving the
+// musician's chosen position until the next explicit arrangement.
+ipcMain.handle('gl-workspace-move-panel', (event, workspaceId, panelId,
+  displayIndex, expectedArea, pointX, pointY) => {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || workspaceId !== activeWorkspace ||
+      switchingWorkspace || shuttingDownWorkspace ||
+      typeof panelId !== 'string' || !detachablePanelIds.has(panelId) ||
+      !Number.isInteger(displayIndex) || displayIndex < 0 ||
+      !Number.isFinite(pointX) || !Number.isFinite(pointY) ||
+      pointX < 0 || pointX > 1 || pointY < 0 || pointY > 1) {
+    throw new Error('Déplacement du panneau non autorisé');
+  }
+  const displays = screen.getAllDisplays();
+  const target = displays[displayIndex];
+  const actualArea = finiteRect(target && (target.workArea || target));
+  const claimedArea = finiteRect(expectedArea);
+  if (!actualArea || !claimedArea ||
+      !['x','y','width','height'].every(key => actualArea[key] === claimedArea[key]) ||
+      activeTopologyKey !== displayTopologyKey(displays)) {
+    throw new Error('Écrans modifiés : actualiser le plan');
+  }
+  const popup = guitarPanelWindows.get(panelId);
+  if (!popup || popup.isDestroyed()) throw new Error('Fenêtre détachée indisponible');
+  const previousBounds = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
+  const nextBounds = placePanelOnDisplay(previousBounds,target,{x:pointX,y:pointY});
+  if (!previousBounds || !nextBounds) throw new Error('Position du panneau non valide');
+  const profile = savedWorkspaces[workspaceId];
+  const previousAuto = profile.autoArrange;
+  const wasMinimized = Boolean(popup.isMinimized?.());
+  profile.autoArrange = false;
+  try {
+    if (wasMinimized) {
+      popup.restore();
+      if (popup.isMinimized?.()) throw new Error('Impossible de restaurer le panneau');
+    }
+    if (popup.isMaximized?.()) popup.unmaximize();
+    popup.setBounds(nextBounds);
+    rememberPanelBounds(panelId,popup);
+    if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la position');
+  } catch (error) {
+    profile.autoArrange = previousAuto;
+    popup.setBounds(previousBounds);
+    rememberPanelBounds(panelId,popup);
+    if (wasMinimized) popup.minimize?.();
+    throw error;
+  }
+  // Restoring a minimized panel can bring its window in front of the plan.
+  // Keep the map visible so other panels can be moved without reopening it.
+  if (wasMinimized && !guitarMainWindow.isDestroyed()) guitarMainWindow.focus();
+  return {id:workspaceId,panelId,displayIndex,bounds:nextBounds,
+    autoDisabled:previousAuto === true};
 });
 
 // RÉPARTIR arranges the existing native windows without creating new
