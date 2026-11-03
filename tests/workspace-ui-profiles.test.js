@@ -51,6 +51,7 @@ function harness(existing={}) {
       setAttribute:()=>{},
       disabled:false
     }])),
+    distributeLayoutButton:{disabled:false},
     saveLayoutButton:{disabled:false},
     resetLayoutButton:{disabled:false},
     renameWorkspaceButton:{disabled:false,hidden:true},
