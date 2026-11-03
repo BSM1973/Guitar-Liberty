@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld('guitarAudio', {
   workspacePreviewScreenFavorite: (id, displayIndex, area, slot) =>
     ipcRenderer.invoke('gl-workspace-preview-screen-favorite',
       id, displayIndex, area, slot),
+  workspacePlanScreenOverlapFix: (id, displayIndex, area, slot) =>
+    ipcRenderer.invoke('gl-workspace-plan-screen-overlap-fix',
+      id, displayIndex, area, slot),
+  workspaceApplyScreenOverlapFix: (id, displayIndex, area, slot, token) =>
+    ipcRenderer.invoke('gl-workspace-apply-screen-overlap-fix',
+      id, displayIndex, area, slot, token),
   workspaceRenameScreenFavorite: (id, displayIndex, area, slot, name) =>
     ipcRenderer.invoke('gl-workspace-rename-screen-favorite',
       id, displayIndex, area, slot, name),
