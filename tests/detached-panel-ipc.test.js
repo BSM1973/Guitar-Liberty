@@ -2284,3 +2284,96 @@ test('SCREEN FAVORITES management validates sender, topology and swap target',as
     'changed topology should show no stale favorites');
   assert.deepEqual(coach.getBounds(),original);
 });
+
+test('SCREEN FAVORITES preview shows saved bounds and reports only panels on that monitor as ready',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  await h.handlers.get('gl-panel-open')({sender},'history','HISTORIQUE');
+  const [coach,history]=h.windows.slice(2);
+  const area={...displays[1].workArea};
+  const startA={x:1810,y:90,width:520,height:650};
+  const startB={x:2450,y:110,width:520,height:650};
+  coach.setBounds(startA);
+  history.setBounds(startB);
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',1,area,1);
+  coach.setBounds({x:1950,y:160,width:560,height:670});
+  history.setBounds({x:95,y:80,width:520,height:650});
+  const before=[coach.getBounds(),history.getBounds()];
+  const windowsCount=h.windows.length;
+  const state=h.handlers.get('gl-workspace-get')({sender});
+  const result=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',1,area,1);
+  assert.equal(result.ready,1);
+  assert.equal(result.items.length,2);
+  const items=Array.from(result.items,item=>({
+    id:item.id,title:item.title,bounds:JSON.parse(JSON.stringify(item.bounds)),
+    status:item.status
+  }));
+  assert.deepEqual(items,[
+    {id:'coach',title:'COACH',bounds:startA,status:'ready'},
+    {id:'history',title:'HISTORIQUE',bounds:startB,status:'other-screen'}
+  ]);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],before);
+  assert.equal(h.windows.length,windowsCount);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,
+    state.autoArrange);
+});
+
+test('SCREEN FAVORITES preview identifies minimized and closed panels without restoring them',async()=>{
+  const displays=[{workArea:{x:0,y:0,width:1600,height:900}}];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  await h.handlers.get('gl-panel-open')({sender},'history','HISTO');
+  const [coach,history]=h.windows.slice(2);
+  const area={...displays[0].workArea};
+  coach.setBounds({x:80,y:80,width:500,height:640});
+  history.setBounds({x:700,y:80,width:510,height:640});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,2);
+  const count=h.windows.length,initial=coach.getBounds();
+  coach.minimize();
+  history.close();
+  const result=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,2);
+  assert.equal(result.ready,0);
+  assert.deepEqual(Array.from(result.items,item=>[item.id,item.status]),
+    [['coach','minimized'],['history','closed']]);
+  assert.deepEqual(coach.getBounds(),initial);
+  assert.equal(coach.isMinimized(),true);
+  assert.equal(h.windows.length,count);
+});
+
+test('SCREEN FAVORITES preview rejects invalid slots, stale areas and detached renderers',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const area={...displays[1].workArea};
+  popup.setBounds({x:1800,y:90,width:520,height:660});
+  const preview=h.handlers.get('gl-workspace-preview-screen-favorite');
+  assert.throws(()=>preview({sender},'learning',1,area,1),/non enregistré/);
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',1,area,1);
+  assert.throws(()=>preview({sender:popup.webContents},'learning',1,area,1),
+    /non autorisé/);
+  assert.throws(()=>preview({sender},'practice',1,area,1),/non autorisé/);
+  assert.throws(()=>preview({sender},'learning',1,area,4),/non autorisé/);
+  assert.throws(()=>preview({sender},'learning',1,{...area,width:1800},1),
+    /modifiés/);
+  displays[1].workArea={...area,width:1800};
+  assert.throws(()=>preview({sender},'learning',1,area,1),/modifiés/);
+});
