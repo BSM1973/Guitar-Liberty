@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { finiteRect, restorePanelBounds } = require('./panel-layout');
+const { finiteRect, restorePanelBounds, distributePanelBounds } = require('./panel-layout');
 
 // The original workspace stays authoritative. Detached native windows receive
 // visual snapshots and forward user actions to the existing UI controls.
@@ -220,6 +220,40 @@ ipcMain.handle('gl-workspace-get', (event) => {
   }
   readPanelLayouts();
   return { id: activeWorkspace, openPanels: Array.from(savedDetachedPanelIds) };
+});
+
+// RÉPARTIR arranges the existing native windows without creating new
+// renderers or changing the permanent tablature / playback host. Each profile
+// already persists its own bounds; the new positions survive workspace switches.
+ipcMain.handle('gl-workspace-distribute', (event, workspaceId) => {
+  if (!guitarMainWindow || event.sender !== guitarMainWindow.webContents ||
+      typeof workspaceId !== 'string') {
+    throw new Error('Répartition non autorisée');
+  }
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId) || switchingWorkspace ||
+      activeWorkspace !== workspaceId) {
+    throw new Error('Espace de travail non actif');
+  }
+  const windows = Array.from(guitarPanelWindows.entries()).filter(([,popup]) =>
+    !popup.isDestroyed() && !popup.isMinimized?.());
+  const displays = screen.getAllDisplays();
+  const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
+  const layout = distributePanelBounds(
+    windows.map(([panelId]) => panelId), displays, preferred);
+  for (const item of layout) {
+    const popup = guitarPanelWindows.get(item.id);
+    if (!popup || popup.isDestroyed()) continue;
+    if (popup.isMaximized?.()) popup.unmaximize();
+    popup.setBounds(item.bounds);
+    rememberPanelBounds(item.id, popup);
+  }
+  if (!flushPanelLayouts()) throw new Error('Impossible de sauvegarder la répartition');
+  return {
+    id: activeWorkspace,
+    arranged: layout.length,
+    displays: new Set(layout.map(item => item.displayIndex)).size
+  };
 });
 
 // ENREGISTRER explicitly persists the currently active set of floating
