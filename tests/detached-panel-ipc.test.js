@@ -77,7 +77,18 @@ function bootMain(options = {}) {
           app, ipcMain, dialog: {}, BrowserWindow: FakeBrowserWindow,
           screen: {
             getAllDisplays: () => displays,
-            getDisplayMatching: () => displays[0],
+            getDisplayMatching: bounds => {
+              const visible = area => {
+                const rect = area.workArea || area;
+                return Math.max(0, Math.min(bounds.x+bounds.width,rect.x+rect.width) -
+                  Math.max(bounds.x,rect.x)) *
+                  Math.max(0, Math.min(bounds.y+bounds.height,rect.y+rect.height) -
+                  Math.max(bounds.y,rect.y));
+              };
+              return displays.reduce((best,display) =>
+                !best || visible(display)>visible(best) ? display : best,
+                null) || displays[0];
+            },
             getPrimaryDisplay: () => displays[0],
             on: (name, callback) => screenListeners.set(name, callback)
           }
@@ -1330,4 +1341,99 @@ test('minimized panel returns to its saved monitor after reconnect only on resto
   popup.emit('restore');
   assert.deepEqual(popup.getBounds(),saved);
   assert.equal(popup.focused,false);
+});
+
+test('AUTO follows the main score window across screens, not individual drag pixels',async()=>{
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const main=h.windows[1];
+  const open=h.handlers.get('gl-panel-open');
+  const setAuto=h.handlers.get('gl-workspace-auto-arrange');
+  setAuto({sender},'learning',true);
+  await open({sender},'coach','COACH');
+  await open({sender},'history','HISTORIQUE');
+  const [coach,history]=h.windows.slice(2);
+  assert.ok(coach.getBounds().x>=1600 && history.getBounds().x>=1600);
+  const count=h.windows.length;
+  const originalWebContents=coach.webContents;
+
+  main.setBounds({x:1780,y:60,width:1440,height:900});
+  assert.ok(coach.getBounds().x+coach.getBounds().width<=1600);
+  assert.ok(history.getBounds().x+history.getBounds().width<=1600);
+  const custom={x:85,y:100,width:510,height:640};
+  coach.setBounds(custom);
+  main.setBounds({x:1860,y:90,width:1400,height:870});
+  assert.deepEqual(coach.getBounds(),custom,
+    'a move inside the same screen must not trigger a redundant reflow');
+
+  main.setBounds({x:40,y:30,width:1440,height:850});
+  assert.ok(coach.getBounds().x>=1600 && history.getBounds().x>=1600);
+  assert.equal(h.windows.length,count);
+  assert.equal(coach.webContents,originalWebContents,
+    'no detached renderer or audio playback engine should be recreated');
+  assert.equal(main.destroyed,false);
+});
+
+test('main window display tracking respects each workspace and manual layouts',async()=>{
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const main=h.windows[1];
+  const open=h.handlers.get('gl-panel-open');
+  const setAuto=h.handlers.get('gl-workspace-auto-arrange');
+  const setMode=h.handlers.get('gl-workspace-screen-mode');
+  const switchTo=h.handlers.get('gl-workspace-switch');
+
+  await open({sender},'coach','COACH');
+  const manual=h.windows.at(-1);
+  const manualBounds={x:1790,y:90,width:540,height:690};
+  manual.setBounds(manualBounds);
+  main.setBounds({x:1760,y:40,width:1400,height:900});
+  assert.deepEqual(manual.getBounds(),manualBounds,
+    'manual workspace must not follow the main window');
+  await switchTo({sender},'practice');
+  setAuto({sender},'practice',true);
+  setMode({sender},'practice','primary');
+  await open({sender},'coach','COACH');
+  const training=h.windows.at(-1);
+  assert.ok(training.getBounds().x>=1600,
+    'primary mode follows the current score display');
+  main.setBounds({x:50,y:30,width:1400,height:850});
+  assert.ok(training.getBounds().x+training.getBounds().width<=1600,
+    'primary mode follows the main window back to the first display');
+  await switchTo({sender},'learning');
+  await open({sender},'coach','COACH');
+  assert.deepEqual(h.windows.at(-1).getBounds(),manualBounds,
+    'the original manual workspace retains its independent geometry');
+});
+
+test('minimizing the main window defers AUTO redistribution until restore',async()=>{
+  const displays=[
+    {id:1,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:2,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const main=h.windows[1];
+  h.handlers.get('gl-workspace-auto-arrange')({sender},'learning',true);
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const initial=popup.getBounds();
+  main.minimized=true;
+  main.setBounds({x:1800,y:50,width:1440,height:900});
+  assert.deepEqual(popup.getBounds(),initial);
+  main.minimized=false;
+  main.emit('restore');
+  assert.ok(popup.getBounds().x+popup.getBounds().width<=1600);
+  assert.equal(popup.focused,false,'restore must not steal keyboard focus');
 });
