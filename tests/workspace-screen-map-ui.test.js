@@ -688,11 +688,15 @@ test('PLAN DES ÉCRANS confirms deletion and retains other favorite slots',async
 
 test('PLAN DES ÉCRANS blocks concurrent exchanges and duplicate deletions',async()=>{
   let completeSwap, swapCalls=0, completeDelete,deleteCalls=0;
+  const slots=[
+    {slot:1,count:1,name:'Cours'},
+    {slot:2,count:0,name:''},
+    {slot:3,count:0,name:''}
+  ];
   const h=harness({map:async()=>({
     id:'learning',
     screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
-      favorites:[{slot:1,count:1,name:'Cours'},
-        {slot:2,count:0,name:''},{slot:3,count:0,name:''}]}],
+      favorites:slots.map(x=>({...x}))}],
     panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
       bounds:{x:90,y:80,width:520,height:650}}]
   }),swapFavorite:()=>{swapCalls++;return new Promise(resolve=>{completeSwap=resolve})},
@@ -705,12 +709,16 @@ test('PLAN DES ÉCRANS blocks concurrent exchanges and duplicate deletions',asyn
   first[2].fire('click');
   assert.equal(swapCalls,1);
   assert.equal(deleteCalls,0);
+  // Simulate backend persistence before the refreshed map is requested.
+  slots[0]={slot:1,count:0,name:''};
+  slots[1]={slot:2,count:1,name:'Cours'};
   completeSwap({id:'learning',displayIndex:0,fromSlot:1,toSlot:2,swapped:true});
   await new Promise(resolve=>setImmediate(resolve));
   const after=c.screenMapScreens.children[0].children[5].children[6].children;
   after[2].fire('click');
   after[2].fire('click');
   assert.equal(deleteCalls,1);
+  slots[1]={slot:2,count:0,name:''};
   completeDelete({id:'learning',displayIndex:0,slot:2,deleted:true});
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.screenMapRefresh.disabled,false);
