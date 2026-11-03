@@ -52,6 +52,8 @@ function bootMain(options = {}) {
     getNormalBounds() { return {...this.bounds}; }
     setBounds(value) { this.bounds = {...value}; this.emit('move'); this.emit('resize'); }
     isMinimized() { return !!this.minimized; }
+    restore() { this.minimized=false; this.emit('restore'); }
+    minimize() { this.minimized=true; }
     close() {
       if (this.destroyed) return;
       this.emit('close');
@@ -1531,4 +1533,118 @@ test('PLAN DES ÉCRANS reflects display removal and active workspace changes',as
   await h.handlers.get('gl-workspace-switch')({sender},'practice');
   assert.equal(map({sender},'practice').panels.length,0);
   assert.throws(()=>map({sender},'learning'),/non autorisé/);
+});
+
+test('PLAN DES ÉCRANS moves native panel to selected monitor and persists geometry',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-screen-move-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:-100,width:1920,height:1080}}
+  ];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const renderer=popup.webContents;
+  const area={...displays[1].workArea};
+  const result=h.handlers.get('gl-workspace-move-panel')(
+    {sender},'learning','coach',1,area,.5,.5);
+  assert.equal(result.id,'learning');
+  assert.equal(result.panelId,'coach');
+  assert.equal(result.displayIndex,1);
+  assert.equal(result.autoDisabled,false);
+  assert.deepEqual({...result.bounds},{x:2305,y:60,width:510,height:760});
+  assert.deepEqual(popup.getBounds(),{x:2305,y:60,width:510,height:760});
+  assert.equal(h.handlers.get('gl-workspace-screen-map')({sender},'learning')
+    .panels[0].displayIndex,1);
+  assert.equal(h.windows.length,3,'must not create another native renderer');
+  assert.equal(popup.webContents,renderer);
+  assert.equal(popup.focused,false,'manual move must not steal focus');
+  const saved=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  assert.deepEqual(saved.workspaces.learning.panels.coach,popup.getBounds());
+  assert.deepEqual(saved.workspaces.learning.displayLayouts[
+    Object.keys(saved.workspaces.learning.displayLayouts)[0]].coach,popup.getBounds());
+});
+
+test('PLAN DES ÉCRANS manual relocation disables AUTO only for the active workspace',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const open=h.handlers.get('gl-panel-open');
+  const auto=h.handlers.get('gl-workspace-auto-arrange');
+  const move=h.handlers.get('gl-workspace-move-panel');
+  const get=h.handlers.get('gl-workspace-get');
+  await open({sender},'coach','COACH');
+  auto({sender},'learning',true);
+  const coach=h.windows.at(-1);
+  assert.ok(coach.getBounds().x>=1600);
+  const moved=move({sender},'learning','coach',0,{...displays[0].workArea},.7,.5);
+  assert.equal(moved.autoDisabled,true);
+  assert.equal(get({sender}).autoArrange,false);
+  assert.ok(coach.getBounds().x<1600);
+  const after=coach.getBounds();
+  await open({sender},'history','HISTORIQUE');
+  assert.deepEqual(coach.getBounds(),after,'opening another panel cannot override manual move');
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  assert.equal(get({sender}).autoArrange,false);
+  auto({sender},'practice',true);
+  await h.handlers.get('gl-workspace-switch')({sender},'learning');
+  assert.equal(get({sender}).autoArrange,false);
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  assert.equal(get({sender}).autoArrange,true);
+});
+
+test('PLAN DES ÉCRANS moves minimized panels and keeps the overview accessible',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'history','HISTORIQUE');
+  const popup=h.windows.at(-1);
+  popup.minimized=true;
+  const result=h.handlers.get('gl-workspace-move-panel')(
+    {sender},'learning','history',1,{...displays[1].workArea},.2,.3);
+  assert.equal(result.panelId,'history');
+  assert.equal(popup.isMinimized(),false);
+  assert.ok(popup.getBounds().x>=1600);
+  assert.equal(h.windows[1].focused,true,
+    'map remains in the foreground after a minimized panel is restored');
+});
+
+test('PLAN DES ÉCRANS rejects stale monitor, foreign workspace and malformed move',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const before=popup.getBounds();
+  const move=h.handlers.get('gl-workspace-move-panel');
+  const area={...displays[1].workArea};
+  const args=['learning','coach',1,area,.5,.5];
+  assert.throws(()=>move({sender:popup.webContents},...args),/non autorisé/);
+  assert.throws(()=>move({sender},'practice',...args.slice(1)),/non autorisé/);
+  assert.throws(()=>move({sender},'learning','unknown',1,area,.5,.5),/non autorisé/);
+  assert.throws(()=>move({sender},'learning','coach',10,area,.5,.5),/modifiés/);
+  assert.throws(()=>move({sender},'learning','coach',1,area,-.01,.5),/non autorisé/);
+  assert.throws(()=>move({sender},'learning','coach',1,area,NaN,.5),/non autorisé/);
+  assert.throws(()=>move({sender},'learning','coach',1,{...area,width:1000},.5,.5),
+    /modifiés/);
+  displays[1].workArea={...area,width:1800};
+  assert.throws(()=>move({sender},...args),/modifiés/);
+  assert.deepEqual(popup.getBounds(),before);
+  assert.equal(h.handlers.get('gl-workspace-get')({sender}).autoArrange,false);
 });
