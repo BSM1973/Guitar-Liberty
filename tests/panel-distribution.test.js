@@ -192,8 +192,8 @@ test('display topology identity is order-independent but detects screen geometry
   assert.notEqual(displayTopologyKey([
     displays[0],{id:2,workArea:{x:1600,y:0,width:1440,height:900}}
   ]),original);
-  assert.notEqual(displayTopologyKey([
+  assert.equal(displayTopologyKey([
     displays[0],{id:3,workArea:displays[1].workArea}
-  ]),original);
+  ]),original,'changing the monitor OS ID must not lose its layout');
   assert.equal(displayTopologyKey([]),displayTopologyKey(null));
 });
