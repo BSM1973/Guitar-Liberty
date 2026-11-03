@@ -1124,6 +1124,16 @@
     let screenMapDisplays = [];
     let screenMapPanels = new Set();
     const screenMapFavoriteSlots = new Map();
+    let screenMapFavoritePreview = null;
+    let screenMapFavoritePreviewBusy = false;
+    function clearScreenMapFavoritePreview() {
+      if (screenMapFavoritePreview) {
+        screenMapFavoritePreview.layer.hidden = true;
+        screenMapFavoritePreview.button.textContent = 'APERÇU';
+        screenMapFavoritePreview.button.setAttribute('aria-pressed','false');
+        screenMapFavoritePreview = null;
+      }
+    }
     let screenMapDraggedId = null;
     let screenMapMoving = false;
     function closeScreenMap(restoreFocus = true) {
@@ -1134,6 +1144,7 @@
       screenMapDisplays = [];
       screenMapPanels = new Set();
       screenMapFavoriteSlots.clear();
+      clearScreenMapFavoritePreview();
       screenMapMoving = false;
       if (restoreFocus) screenMapPreviousFocus?.focus?.();
       screenMapPreviousFocus = null;
@@ -1491,6 +1502,92 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
       }
     }
+    async function previewScreenMapFavorite(displayIndex,slot,preview,button) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapFavoritePreviewBusy ||
+          !window.guitarAudio?.workspacePreviewScreenFavorite ||
+          !Number.isInteger(slot) || slot<1 || slot>3) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const chosen=display?.favorites?.find(item=>item.slot===slot);
+      if (!display?.workArea || !chosen || chosen.count<1) return;
+      if (screenMapFavoritePreview &&
+          screenMapFavoritePreview.displayIndex===displayIndex &&
+          screenMapFavoritePreview.slot===slot) {
+        clearScreenMapFavoritePreview();
+        screenMapMessage.textContent='Aperçu masqué. Les fenêtres sont inchangées.';
+        return;
+      }
+      clearScreenMapFavoritePreview();
+      const workspaceId=activeWorkspaceId, generation=screenMapRequest;
+      screenMapFavoritePreviewBusy=true;
+      button.disabled=true;
+      screenMapMessage.textContent='Lecture de l’aperçu du FAVORI '+slot+'…';
+      try {
+        const result=await window.guitarAudio.workspacePreviewScreenFavorite(
+          workspaceId,displayIndex,display.workArea,slot);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex || result.slot!==slot ||
+            !Array.isArray(result.items) ||
+            !Number.isInteger(result.ready) || result.ready<0) {
+          throw new Error('Aperçu non confirmé');
+        }
+        const area=display.workArea;
+        const layer=document.createElement('div');
+        layer.className='gl-workspace-map-favorite-overlay';
+        layer.setAttribute('aria-hidden','true');
+        const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+        let shown=0;
+        for (const item of result.items) {
+          const r=item?.bounds;
+          if (!r || typeof item.title!=='string' ||
+              !['ready','closed','minimized','other-screen'].includes(item.status) ||
+              ![r.x,r.y,r.width,r.height].every(Number.isFinite) ||
+              r.width<=0 || r.height<=0) continue;
+          const left=clamp((r.x-area.x)/area.width*100,0,100);
+          const top=clamp((r.y-area.y)/area.height*100,0,100);
+          const right=clamp((r.x+r.width-area.x)/area.width*100,0,100);
+          const bottom=clamp((r.y+r.height-area.y)/area.height*100,0,100);
+          const ghost=document.createElement('div');
+          ghost.className='gl-workspace-map-favorite-ghost'+
+            (item.status==='ready'?'':' is-unavailable');
+          const unavailable={closed:'FERMÉ',minimized:'RÉDUIT',
+            'other-screen':'AUTRE ÉCRAN'};
+          ghost.textContent=item.title+
+            (item.status==='ready'?'':' — '+unavailable[item.status]);
+          ghost.style.left=left+'%';
+          ghost.style.top=top+'%';
+          ghost.style.width=Math.max(2,right-left)+'%';
+          ghost.style.height=Math.max(4,bottom-top)+'%';
+          layer.append(ghost);
+          shown++;
+        }
+        if (!shown) throw new Error('Aucune position valide à prévisualiser');
+        preview.append(layer);
+        button.disabled=false;
+        button.textContent='MASQUER';
+        button.setAttribute('aria-pressed','true');
+        screenMapFavoritePreview={displayIndex,slot,layer,button};
+        const label=chosen.name||'FAVORI '+slot;
+        const missing=shown-result.ready;
+        screenMapMessage.textContent='Écran '+(displayIndex+1)+
+          ' — '+label+' : '+result.ready+' fenêtre'+
+          (result.ready>1?'s':'')+' prête'+(result.ready>1?'s':'')+
+          (missing>0?' ; '+missing+' indisponible'+(missing>1?'s':''):'')+
+          '. Aperçu uniquement : aucune fenêtre déplacée.';
+      } catch(error) {
+        console.error('Aperçu de favori d’écran :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent='Aperçu impossible. Actualise le plan.';
+        }
+      } finally {
+        screenMapFavoritePreviewBusy=false;
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          button.disabled=false;
+        }
+      }
+    }
     function addScreenMapDropTarget(preview,display) {
       preview.addEventListener('dragover',function (event) {
         if (!screenMapDraggedId || screenMapMoving ||
@@ -1561,6 +1658,7 @@
       if (screenMapOverlay.hidden || workspace.hidden ||
           (screenMapMoving && allowDuringMove !== true) ||
           !window.guitarAudio?.workspaceScreenMap) return;
+      clearScreenMapFavoritePreview();
       const generation = ++screenMapRequest;
       const workspaceId = activeWorkspaceId;
       screenMapRefresh.disabled = true;
@@ -1720,6 +1818,11 @@
               deleteFavorite.disabled=selectedCount()===0;
               moveUpFavorite.disabled=selectedCount()===0 || slot===1;
               moveDownFavorite.disabled=selectedCount()===0 || slot===3;
+              previewFavorite.disabled=selectedCount()===0;
+              if (screenMapFavoritePreview &&
+                  screenMapFavoritePreview.displayIndex===display.index) {
+                clearScreenMapFavoritePreview();
+              }
             }
           });
           saveFavorite.addEventListener('click',function () {
@@ -1792,8 +1895,21 @@
             deleteScreenMapFavorite(display.index,Number(slotSelect.value));
           });
           favoriteManagement.append(moveUpFavorite,moveDownFavorite,deleteFavorite);
+          const previewFavorite=document.createElement('button');
+          previewFavorite.type='button';
+          previewFavorite.className='gl-workspace-map-favorite-preview-action';
+          previewFavorite.textContent='APERÇU';
+          previewFavorite.title='Afficher les positions enregistrées sans déplacer les fenêtres';
+          previewFavorite.setAttribute('aria-label',
+            'Prévisualiser le favori sélectionné sur l’écran '+(display.index+1));
+          previewFavorite.setAttribute('aria-pressed','false');
+          previewFavorite.disabled=selectedCount()===0;
+          previewFavorite.addEventListener('click',function () {
+            previewScreenMapFavorite(display.index,Number(slotSelect.value),
+              preview,previewFavorite);
+          });
           favorites.append(favoritesLabel,slotSelect,saveFavorite,applyFavorite,
-            renameFavorite,quickFavorites,favoriteManagement);
+            renameFavorite,quickFavorites,favoriteManagement,previewFavorite);
           card.append(heading,resolution,preview,list,controls,favorites);
           screenMapScreens.append(card);
         }
