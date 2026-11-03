@@ -754,6 +754,38 @@ ipcMain.handle('gl-workspace-arrange-screen',
 
 
 
+// Find intersections in work-area pixels. Edge contact is not a collision.
+// Keep pair identifiers stable so the comparison can identify new overlaps.
+function favoriteWindowOverlaps(windows,area) {
+  const pairs=[];
+  const clip=rect=>{
+    const r=finiteRect(rect);
+    if (!r) return null;
+    const x=Math.max(r.x,area.x),y=Math.max(r.y,area.y);
+    const right=Math.min(r.x+r.width,area.x+area.width);
+    const bottom=Math.min(r.y+r.height,area.y+area.height);
+    return right>x && bottom>y ?
+      {x,y,width:right-x,height:bottom-y} : null;
+  };
+  for (let a=0;a<windows.length;a++) {
+    const first=clip(windows[a].bounds);
+    if (!first) continue;
+    for (let b=a+1;b<windows.length;b++) {
+      const second=clip(windows[b].bounds);
+      if (!second) continue;
+      const x=Math.max(first.x,second.x),y=Math.max(first.y,second.y);
+      const right=Math.min(first.x+first.width,second.x+second.width);
+      const bottom=Math.min(first.y+first.height,second.y+second.height);
+      if (right<=x || bottom<=y) continue;
+      const ids=[windows[a].id,windows[b].id].sort();
+      pairs.push({ids,titles:[windows[a].title,windows[b].title],
+        bounds:{x,y,width:right-x,height:bottom-y},
+        areaPixels:(right-x)*(bottom-y)});
+    }
+  }
+  return pairs;
+}
+
 // Read-only preview of one favorite on the chosen live monitor. Report which
 // saved panels would actually move before a user chooses APPLIQUER.
 // The exact same "active on this monitor" condition is used by apply.
@@ -791,13 +823,38 @@ ipcMain.handle('gl-workspace-preview-screen-favorite',
             maximizedBefore:Boolean(popup.isMaximized?.()),
             maximizedAfter:Boolean(item.maximized)} : null};
     });
+    // Include active panels absent from the favorite: applying a favorite
+    // leaves those in place and they can create unexpected collisions.
+    const savedIds=new Set(items.map(item=>item.id));
+    const contextPanels=[];
+    const before=[],after=[];
+    for (const [id,popup] of active) {
+      const item=items.find(entry=>entry.id===id);
+      const rawTitle=popup.getTitle?.() || popup.options?.title || id;
+      const title=String(rawTitle).replace(/ — Guitare Liberty$/,'').slice(0,80);
+      const current=popup.isMaximized?.() ?
+        {...area} : finiteRect(popup.getNormalBounds?.()||popup.getBounds());
+      const future=item && item.status==='ready' ?
+        (item.comparison.maximizedAfter ? {...area} : item.bounds) : current;
+      if (current) before.push({id,title,bounds:current});
+      if (future) after.push({id,title,bounds:future});
+      if (!savedIds.has(id) && current) contextPanels.push({id,title,bounds:current});
+    }
+    const prior=favoriteWindowOverlaps(before,area);
+    const projected=favoriteWindowOverlaps(after,area);
+    const key=pair=>pair.ids.join('\u0000');
+    const priorPairs=new Set(prior.map(key));
+    const introduced=projected.filter(pair=>!priorPairs.has(key(pair)));
     return {id:workspaceId,displayIndex,slot,area,items,
       ready:items.filter(item=>item.status==='ready').length,
       moving:items.filter(item=>item.status==='ready' &&
         item.comparison.willChange).length,
       unchanged:items.filter(item=>item.status==='ready' &&
         !item.comparison.willChange).length,
-      unavailable:items.filter(item=>item.status!=='ready').length};
+      unavailable:items.filter(item=>item.status!=='ready').length,
+      contextPanels,
+      overlaps:{before:prior,after:projected,introduced}};
+  
   });
 
 // Only stored favorites can be renamed; no native window is moved.

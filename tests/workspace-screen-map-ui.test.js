@@ -497,6 +497,7 @@ test('PLAN DES ÉCRANS ignores duplicate favorite application while busy',async(
   const apply=c.screenMapScreens.children[0].children[5].children[3];
   apply.fire('click');
   apply.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
   assert.equal(count,1);
   finishApply({id:'learning',displayIndex:0,slot:1,applied:1,
     skipped:0,autoDisabled:false});
@@ -605,6 +606,7 @@ test('PLAN DES ÉCRANS blocks duplicate quick recall while IPC is pending',async
   const quick=h.context.screenMapScreens.children[0].children[5].children[5].children[0];
   quick.fire('click');
   quick.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
   assert.equal(count,1);
   finish({id:'learning',displayIndex:0,slot:1,applied:1,skipped:0,autoDisabled:false});
   await new Promise(resolve=>setImmediate(resolve));
@@ -957,6 +959,12 @@ test('PLAN DES ÉCRANS compares maximization changes and clears on slot selectio
   await new Promise(resolve=>setImmediate(resolve));
   const section=fav.children[9];
   assert.match(section.children[3].children[0].textContent,/Agrandissement/);
+  const actual=section.children[2].children[0].children[1].children[0];
+  const expected=section.children[2].children[1].children[1].children[0];
+  assert.equal(actual.style.left,'4.375%');
+  assert.equal(expected.style.left,'0%');
+  assert.equal(expected.style.width,'100%',
+    'maximized favorite preview should use the entire work area');
   btn.fire('click');
   assert.equal(section.hidden,true);
   assert.equal(btn.textContent,'COMPARER');
@@ -1045,4 +1053,155 @@ test('PLAN DES ÉCRANS rejects stale and concurrent comparison requests',async()
   assert.equal(next.disabled,false);
   assert.equal(c.screenMapOverlay.hidden,false);
   assert.equal(h.favoriteApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS shows collision zones, involved windows and unsaved context',async()=>{
+  const area={x:0,y:0,width:1600,height:900};
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:area,
+      favorites:[{slot:1,count:2,name:'Studio'}]}],
+    panels:[
+      {id:'coach',title:'COACH',displayIndex:0,minimized:false,
+        bounds:{x:70,y:70,width:500,height:500}},
+      {id:'history',title:'HISTORIQUE',displayIndex:0,minimized:false,
+        bounds:{x:1040,y:70,width:500,height:500}},
+      {id:'practice',title:'PRATIQUE',displayIndex:0,minimized:false,
+        bounds:{x:600,y:100,width:400,height:400}}
+    ]
+  }),previewFavorite:async(id,index,selected,slot)=>({
+    id,displayIndex:index,slot,ready:2,moving:2,unchanged:0,unavailable:0,
+    items:[
+      {id:'coach',title:'COACH',status:'ready',
+        bounds:{x:100,y:70,width:500,height:500},
+        comparison:{currentBounds:{x:70,y:70,width:500,height:500},
+          willChange:true,maximizedBefore:false,maximizedAfter:false}},
+      {id:'history',title:'HISTORIQUE',status:'ready',
+        bounds:{x:650,y:70,width:500,height:500},
+        comparison:{currentBounds:{x:1040,y:70,width:500,height:500},
+          willChange:true,maximizedBefore:false,maximizedAfter:false}}
+    ],
+    contextPanels:[{id:'practice',title:'PRATIQUE',
+      bounds:{x:600,y:100,width:400,height:400}}],
+    overlaps:{before:[],
+      after:[{ids:['history','practice'],titles:['HISTORIQUE','PRATIQUE'],
+        bounds:{x:650,y:100,width:350,height:400},areaPixels:140000}],
+      introduced:[{ids:['history','practice'],titles:['HISTORIQUE','PRATIQUE'],
+        bounds:{x:650,y:100,width:350,height:400},areaPixels:140000}]}
+  })});
+  await h.open();
+  const c=h.context,card=c.screenMapScreens.children[0];
+  card.children[5].children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const comparison=card.children[5].children[9];
+  assert.equal(comparison.children.length,6);
+  const grid=comparison.children[2].children;
+  const before=grid[0].children[1].children;
+  const after=grid[1].children[1].children;
+  assert.equal(before.length,3,'includes unchanged unsaved active window');
+  assert.equal(after.length,4,'includes one clipped intersection region');
+  assert.match(after[1].className,/has-overlap/);
+  assert.match(after[2].className,/is-context/);
+  assert.match(after[2].className,/has-overlap/);
+  assert.equal(after[3].className,'gl-workspace-map-compare-intersection');
+  assert.equal(after[3].style.left,'40.625%');
+  assert.equal(after[3].style.width,'21.875%');
+  assert.equal(after[3].style.height,'44.44444444444444%');
+  assert.match(comparison.children[3].children[2].textContent,/Hors favori/);
+  const warning=comparison.children[5];
+  assert.match(warning.className,/has-warning/);
+  assert.match(warning.children[0].textContent,/ACTUEL 0  \/  FAVORI 1  \/  NOUVEAUX 1/);
+  assert.match(warning.children[2].textContent,/HISTORIQUE \/ PRATIQUE/);
+  assert.match(warning.children[2].textContent,/140000 px².*nouveau/);
+  assert.equal(h.favoriteApplies.length,0);
+  assert.equal(h.moves.length,0);
+});
+
+test('PLAN DES ÉCRANS reports a collision-free favorite without a warning',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Solo'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:500}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,moving:0,unchanged:1,unavailable:0,
+    items:[{id:'coach',title:'COACH',status:'ready',
+      bounds:{x:80,y:80,width:500,height:500},
+      comparison:{currentBounds:{x:80,y:80,width:500,height:500},
+        willChange:false,maximizedBefore:false,maximizedAfter:false}}],
+    overlaps:{before:[],after:[],introduced:[]},contextPanels:[]
+  })});
+  await h.open();
+  const fav=h.context.screenMapScreens.children[0].children[5];
+  fav.children[8].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const summary=fav.children[9].children[5];
+  assert.equal(summary.className,'gl-workspace-map-compare-collisions');
+  assert.match(summary.children[1].textContent,/Aucun chevauchement prévu/);
+  assert.equal(h.favoriteApplies.length,0);
+});
+
+test('PLAN DES ÉCRANS requests confirmation before applying overlapping favorites',async()=>{
+  let accepted=false,confirmations=0;
+  const overlaps={before:[],
+    after:[{ids:['coach','history'],titles:['COACH','HISTORIQUE'],
+      bounds:{x:300,y:80,width:240,height:500},areaPixels:120000}],
+    introduced:[{ids:['coach','history'],titles:['COACH','HISTORIQUE'],
+      bounds:{x:300,y:80,width:240,height:500},areaPixels:120000}]};
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:2,name:'Studio'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:500}}]
+  }),previewFavorite:async(id,index,area,slot)=>({
+    id,displayIndex:index,slot,ready:1,items:[{id:'coach',status:'ready'}],
+    overlaps
+  }),confirm:()=>{confirmations++;return accepted}});
+  await h.open();
+  const c=h.context;
+  const apply=c.screenMapScreens.children[0].children[5].children[3];
+  apply.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,1);
+  assert.equal(h.favoriteApplies.length,0);
+  assert.match(c.screenMapMessage.textContent,/Application annulée/);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  accepted=true;
+  c.screenMapScreens.children[0].children[5].children[5].children[0].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,2,'quick recall must also warn');
+  assert.equal(h.favoriteApplies.length,1);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(c.activeAutoArrange,false);
+});
+
+test('PLAN DES ÉCRANS blocks applying when overlap verification fails or becomes stale',async()=>{
+  let reject=true,finish;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+      favorites:[{slot:1,count:1,name:'Solo'}]}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:500}}]
+  }),previewFavorite:()=>{
+    if(reject) return Promise.reject(new Error('read failed'));
+    return new Promise(resolve=>{finish=resolve});
+  }});
+  await h.open();
+  const c=h.context;
+  c.screenMapScreens.children[0].children[5].children[3].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.favoriteApplies.length,0);
+  assert.match(c.screenMapMessage.textContent,/Application impossible/);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  reject=false;
+  c.screenMapScreens.children[0].children[5].children[3].fire('click');
+  c.screenMapClose.fire('click');
+  finish({id:'learning',displayIndex:0,slot:1,items:[],overlaps:{
+    before:[],after:[],introduced:[]}});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.favoriteApplies.length,0);
+  assert.equal(c.screenMapOverlay.hidden,true);
 });
