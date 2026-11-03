@@ -1654,10 +1654,14 @@
           const move=validCurrent && item.comparison.willChange;
           const kind=ready ? (move?'is-moving':'is-unchanged') : 'is-unavailable';
           if (validCurrent) {
-            plot(before,item,current,kind+' is-before');
+            // A maximized native window occupies the screen work area,
+            // not its saved normal (restored) rectangle.
+            plot(before,item,item.comparison.maximizedBefore?area:current,
+              kind+' is-before');
             availableCount++;
           }
-          plot(after,item,item.bounds,kind+' is-after');
+          plot(after,item,ready && item.comparison?.maximizedAfter ?
+            area:item.bounds,kind+' is-after');
           const line=document.createElement('div');
           line.className='gl-workspace-map-compare-detail '+kind;
           const unavailableLabels={closed:'Fermée',minimized:'Réduite',
