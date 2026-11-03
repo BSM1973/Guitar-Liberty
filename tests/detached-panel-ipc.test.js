@@ -1437,3 +1437,98 @@ test('minimizing the main window defers AUTO redistribution until restore',async
   assert.ok(popup.getBounds().x+popup.getBounds().width<=1600);
   assert.equal(popup.focused,false,'restore must not steal keyboard focus');
 });
+
+test('PLAN DES ÉCRANS maps real monitors, native windows and minimized state',async()=>{
+  const displays=[
+    {id:11,workArea:{x:0,y:0,width:1600,height:900}},
+    {id:22,workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const open=h.handlers.get('gl-panel-open');
+  const empty=map({sender},'learning');
+  assert.equal(empty.id,'learning');
+  assert.equal(empty.screens.length,2);
+  assert.equal(empty.screens[0].main,true);
+  assert.equal(empty.screens[1].main,false);
+  assert.deepEqual([...empty.panels],[]);
+  await open({sender},'coach','COACH');
+  await open({sender},'history','HISTORIQUE');
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:1900,y:90,width:510,height:640});
+  history.setBounds({x:100,y:70,width:530,height:670});
+  history.minimized=true;
+  const data=map({sender},'learning');
+  assert.equal(data.panels.length,2);
+  assert.deepEqual(JSON.parse(JSON.stringify(
+    data.panels.map(p=>[p.id,p.title,p.displayIndex,p.minimized]))),[
+    ['coach','COACH',1,false],['history','HISTORIQUE',0,true]
+  ]);
+  assert.deepEqual({...data.panels[0].bounds},coach.getBounds());
+  assert.equal(data.style,'mosaic');
+  assert.equal(data.mode,'secondary-first');
+  assert.equal(data.auto,false);
+  assert.equal(h.windows.length,4,'preview must not open another window');
+  assert.equal(h.windows[1].focused,false,'preview must not steal focus');
+});
+
+test('PLAN DES ÉCRANS locates existing native panels without recreating playback',async()=>{
+  const h=bootMain();
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const renderer=popup.webContents;
+  popup.minimized=true;
+  popup.focused=false;
+  const result=h.handlers.get('gl-workspace-focus-panel')({sender},'learning','coach');
+  assert.deepEqual({...result},{id:'coach',focused:true});
+  assert.equal(popup.focused,true);
+  assert.equal(popup.shown,true);
+  assert.equal(popup.webContents,renderer);
+  assert.equal(h.windows.length,3);
+  assert.equal(h.windows[1].destroyed,false);
+});
+
+test('PLAN DES ÉCRANS blocks detached renderers and foreign workspaces',async()=>{
+  const h=bootMain();
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const popup=h.windows.at(-1);
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const focus=h.handlers.get('gl-workspace-focus-panel');
+  for(const event of [{sender:{}},{sender:popup.webContents}]){
+    assert.throws(()=>map(event,'learning'),/non autorisé/);
+    assert.throws(()=>focus(event,'learning','coach'),/non autorisé/);
+  }
+  assert.throws(()=>map({sender},'practice'),/non autorisé/);
+  assert.throws(()=>focus({sender},'practice','coach'),/non autorisé/);
+  assert.throws(()=>focus({sender},'learning','not-a-panel'),/non autorisé/);
+  assert.throws(()=>focus({sender},'learning','history'),/indisponible/);
+  assert.equal(popup.focused,false);
+});
+
+test('PLAN DES ÉCRANS reflects display removal and active workspace changes',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const open=h.handlers.get('gl-panel-open');
+  await open({sender},'coach','COACH');
+  h.windows.at(-1).setBounds({x:1810,y:70,width:510,height:650});
+  assert.equal(map({sender},'learning').panels[0].displayIndex,1);
+  displays.pop();
+  h.emitDisplay('display-removed');
+  assert.equal(map({sender},'learning').screens.length,1);
+  assert.equal(map({sender},'learning').panels[0].displayIndex,0);
+  await h.handlers.get('gl-workspace-switch')({sender},'practice');
+  assert.equal(map({sender},'practice').panels.length,0);
+  assert.throws(()=>map({sender},'learning'),/non autorisé/);
+});
