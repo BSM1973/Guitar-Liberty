@@ -2,7 +2,7 @@ name: Build Guitar Liberty
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/favorite-overlap-diagnostics-1206']
   workflow_dispatch:
 
 jobs:
