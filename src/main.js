@@ -672,6 +672,177 @@ function canUndoScreenOrganization(workspaceId,displayIndex,area,displays) {
   });
 }
 
+// A bounded, persistent history is stored independently of named favorites.
+// Opening or refreshing PLAN DES ÉCRANS checkpoints changed native geometry;
+// identical layouts never create duplicate snapshots.
+function historyForDisplay(profile,topology,area,create=false) {
+  if (!profile.screenHistory) profile.screenHistory=Object.create(null);
+  let screens=profile.screenHistory[topology];
+  if (!screens && create) {
+    if (Object.keys(profile.screenHistory).length>=MAX_DISPLAY_LAYOUTS)
+      delete profile.screenHistory[Object.keys(profile.screenHistory)[0]];
+    screens=profile.screenHistory[topology]=Object.create(null);
+  }
+  if (!screens) return [];
+  const key=screenFavoriteAreaKey(area);
+  if (!screens[key] && create) {
+    if (Object.keys(screens).length>=MAX_FAVORITE_SCREENS)
+      delete screens[Object.keys(screens)[0]];
+    screens[key]=[];
+  }
+  return screens[key]||[];
+}
+function activeScreenHistoryItems(displayIndex,displays) {
+  return activeWindowsOnFavoriteScreen(displayIndex,displays)
+    .map(([id,popup])=>{
+      const bounds=finiteRect(popup.getNormalBounds?.()||popup.getBounds());
+      const rawTitle=popup.getTitle?.()||popup.options?.title||id;
+      return bounds ? {id,bounds,maximized:Boolean(popup.isMaximized?.()),
+        title:String(rawTitle).replace(/ — Guitare Liberty$/,'').slice(0,80)} : null;
+    }).filter(Boolean).sort((a,b)=>a.id.localeCompare(b.id));
+}
+function screenHistorySignature(items) {
+  return JSON.stringify(items.map(item=>({
+    id:item.id,bounds:item.bounds,maximized:item.maximized
+  })));
+}
+function appendScreenHistory(profile,displayIndex,displays,area,label) {
+  const items=activeScreenHistoryItems(displayIndex,displays);
+  if (!items.length) return false;
+  const history=historyForDisplay(profile,activeTopologyKey,area,true);
+  const signature=screenHistorySignature(items);
+  if (history.length &&
+      screenHistorySignature(history[history.length-1].items)===signature)
+    return false;
+  history.push({id:crypto.randomBytes(8).toString('hex'),at:Date.now(),
+    label:String(label||'Disposition').slice(0,60),items});
+  if (history.length>SCREEN_HISTORY_LIMIT)
+    history.splice(0,history.length-SCREEN_HISTORY_LIMIT);
+  return true;
+}
+function screenHistoryRequest(event,workspaceId,displayIndex,expectedArea) {
+  assertMainWorkspaceSender(event);
+  readPanelLayouts();
+  if (!isWorkspaceId(workspaceId)||workspaceId!==activeWorkspace ||
+      switchingWorkspace||shuttingDownWorkspace||
+      !Number.isInteger(displayIndex)||displayIndex<0)
+    throw new Error('Historique de disposition non autorisé');
+  const displays=screen.getAllDisplays();
+  const monitor=displays[displayIndex];
+  const area=finiteRect(monitor&&(monitor.workArea||monitor));
+  if (!area||!sameScreenBounds(area,expectedArea)||
+      activeTopologyKey!==displayTopologyKey(displays))
+    throw new Error('Écrans modifiés : actualiser le plan');
+  return {profile:savedWorkspaces[workspaceId],displays,area};
+}
+function buildScreenHistoryPreview(profile,workspaceId,displayIndex,
+  area,displays,snapshotId) {
+  if (typeof snapshotId!=='string'||!/^[a-f0-9]{16}$/.test(snapshotId))
+    throw new Error('Disposition historique invalide');
+  const history=historyForDisplay(profile,activeTopologyKey,area);
+  const snapshot=history.find(item=>item.id===snapshotId);
+  if (!snapshot) throw new Error('Disposition historique introuvable');
+  const current=activeScreenHistoryItems(displayIndex,displays);
+  const active=new Map(current.map(item=>[item.id,item]));
+  const matching=snapshot.items.length===current.length &&
+    snapshot.items.every(item=>active.has(item.id));
+  const items=snapshot.items.map(item=>{
+    const now=active.get(item.id);
+    return {id:item.id,title:item.title,bounds:item.bounds,
+      maximized:item.maximized,
+      status:now?'ready':'unavailable',
+      currentBounds:now?.bounds||null,currentMaximized:now?.maximized||false,
+      willChange:now?
+        !sameScreenBounds(now.bounds,item.bounds)||
+        now.maximized!==item.maximized:false};
+  });
+  const token=matching?crypto.createHash('sha256').update(JSON.stringify({
+    workspaceId,displayIndex,area,topology:activeTopologyKey,
+    snapshot,current:screenHistorySignature(current)
+  })).digest('hex'):null;
+  return {id:workspaceId,displayIndex,snapshotId,area,
+    at:snapshot.at,label:snapshot.label,items,
+    applicable:matching,token,activeCount:current.length,
+    ready:items.filter(item=>item.status==='ready').length,
+    unavailable:items.filter(item=>item.status!=='ready').length,
+    reason:matching?'':'Les fenêtres de cet écran ont changé depuis cette disposition.'};
+}
+
+ipcMain.handle('gl-workspace-preview-screen-history',
+  (event,workspaceId,displayIndex,expectedArea,snapshotId)=>{
+    const {profile,displays,area}=screenHistoryRequest(
+      event,workspaceId,displayIndex,expectedArea);
+    return buildScreenHistoryPreview(profile,workspaceId,displayIndex,
+      area,displays,snapshotId);
+  });
+
+ipcMain.handle('gl-workspace-apply-screen-history',
+  (event,workspaceId,displayIndex,expectedArea,snapshotId,expectedToken)=>{
+    const {profile,displays,area}=screenHistoryRequest(
+      event,workspaceId,displayIndex,expectedArea);
+    if (typeof expectedToken!=='string'||!/^[a-f0-9]{64}$/.test(expectedToken))
+      throw new Error('Confirmation historique invalide');
+    const preview=buildScreenHistoryPreview(profile,workspaceId,displayIndex,
+      area,displays,snapshotId);
+    if (!preview.applicable || preview.token!==expectedToken)
+      throw new Error('Disposition modifiée : actualiser la prévisualisation');
+    const active=new Map(activeWindowsOnFavoriteScreen(displayIndex,displays));
+    const savedState=activeScreenHistoryItems(displayIndex,displays);
+    const history=historyForDisplay(profile,activeTopologyKey,area,true);
+    const previousHistory=history.slice();
+    const previousAuto=profile.autoArrange;
+    profile.autoArrange=false;
+    try {
+      for (const item of preview.items) {
+        const popup=active.get(item.id);
+        if (!popup||popup.isDestroyed()||popup.isMinimized?.())
+          throw new Error('Fenêtre historique devenue indisponible');
+        if (popup.isMaximized?.()) popup.unmaximize?.();
+        popup.setBounds(item.bounds);
+        if (item.maximized) popup.maximize?.();
+        rememberPanelBounds(item.id,popup);
+      }
+      const updated=activeScreenHistoryItems(displayIndex,displays);
+      if (updated.length!==preview.items.length ||
+          !preview.items.every(item=>{
+            const found=updated.find(entry=>entry.id===item.id);
+            return found && sameScreenBounds(found.bounds,item.bounds) &&
+              found.maximized===item.maximized;
+          })) throw new Error('Disposition historique non reproduite');
+      // Keep both states in a bounded history so a jump can itself be reversed.
+      // Preserve the source snapshot as the selected restoration target.
+      if (!history.length || screenHistorySignature(history[history.length-1].items)!==
+          screenHistorySignature(savedState)) {
+        history.push({id:crypto.randomBytes(8).toString('hex'),
+          at:Date.now(),label:'Avant restauration',items:savedState});
+      }
+      history.push({id:crypto.randomBytes(8).toString('hex'),
+        at:Date.now(),label:'Restauration historique',items:updated});
+      if (history.length>SCREEN_HISTORY_LIMIT)
+        history.splice(0,history.length-SCREEN_HISTORY_LIMIT);
+      if (!flushPanelLayouts())
+        throw new Error('Impossible de sauvegarder la restauration');
+    } catch(error) {
+      profile.autoArrange=previousAuto;
+      history.splice(0,history.length,...previousHistory);
+      for (const item of savedState) {
+        const popup=guitarPanelWindows.get(item.id);
+        if (!popup||popup.isDestroyed()) continue;
+        if (popup.isMaximized?.()) popup.unmaximize?.();
+        popup.setBounds(item.bounds);
+        if (item.maximized) popup.maximize?.();
+        rememberPanelBounds(item.id,popup);
+      }
+      throw error;
+    }
+    lastOrganizedScreen=null;
+    lastCorrectedScreen=null;
+    lastUndoneScreenCorrection=null;
+    return {id:workspaceId,displayIndex,snapshotId,
+      restored:preview.items.length,favoriteUnchanged:true,
+      autoDisabled:previousAuto===true};
+  });
+
 // Read-only monitor map for the active musical workspace. Only the main
 // renderer may inspect the native screen geometry and floating panel list.
 ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
@@ -685,11 +856,27 @@ ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
   const mainDisplay = screen.getDisplayMatching(guitarMainWindow.getBounds());
   const area = display => finiteRect(display && (display.workArea || display));
   const mainArea = area(mainDisplay);
+  const profile=savedWorkspaces[workspaceId];
+  // Record a checkpoint only when the user opens/refreshes the map with
+  // genuinely changed positions. Do not generate snapshots on every redraw.
+  let changedHistory=false;
+  displays.forEach((display,index)=>{
+    const workArea=area(display);
+    if (workArea && appendScreenHistory(profile,index,displays,workArea,
+        'Disposition observée')) changedHistory=true;
+  });
+  if (changedHistory && !flushPanelLayouts())
+    console.warn('Historique des écrans : sauvegarde reportée');
   const screens = displays.map((display,index) => {
     const workArea = area(display);
     return workArea ? {index,workArea,
-      favorites:screenFavoriteList(savedWorkspaces[workspaceId],
-        activeTopologyKey,workArea),
+      favorites:screenFavoriteList(profile,activeTopologyKey,workArea),
+      history:historyForDisplay(profile,activeTopologyKey,workArea)
+        .slice().reverse().map(entry=>({
+          id:entry.id,at:entry.at,label:entry.label,
+          items:entry.items.map(item=>({...item,bounds:{...item.bounds}})),
+          count:entry.items.length
+        })),
       canUndo:canUndoScreenOrganization(workspaceId,index,workArea,displays),
       canUndoCorrection:canUndoLastScreenCorrection(workspaceId,index,
         workArea,displays),
@@ -709,7 +896,6 @@ ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
       title: String(rawTitle).replace(/ — Guitare Liberty$/, '').slice(0,80),
       bounds,displayIndex,minimized:Boolean(popup.isMinimized?.())});
   }
-  const profile = savedWorkspaces[workspaceId];
   return {id:workspaceId,screens,panels,
     style:profile.layoutStyle,mode:profile.screenMode,
     auto:profile.autoArrange === true};
