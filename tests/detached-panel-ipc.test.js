@@ -3223,3 +3223,228 @@ test('OVERLAP FIX REDO preserves and restores maximization across undo redo cycl
     {sender},'learning',0,area);
   assert.equal(coach.maximized,true);
 });
+
+test('SCREEN HISTORY records distinct visual checkpoints, caps at ten and persists across restart',async t=>{
+  const folder=fs.mkdtempSync(path.join(os.tmpdir(),'gl-history-'));
+  t.after(()=>fs.rmSync(folder,{recursive:true,force:true}));
+  const displays=[{workArea:{x:0,y:0,width:1600,height:900}}];
+  const h=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  const map=h.handlers.get('gl-workspace-screen-map');
+  coach.setBounds({x:100,y:80,width:500,height:600});
+  let result=map({sender},'learning');
+  assert.equal(result.screens[0].history.length,1);
+  assert.equal(result.screens[0].history[0].count,1);
+  const original=result.screens[0].history[0].id;
+  assert.match(original,/^[a-f0-9]{16}$/);
+  result=map({sender},'learning');
+  assert.equal(result.screens[0].history.length,1,
+    'reading a stable monitor must not create duplicate snapshots');
+  for(let i=0;i<13;i++){
+    coach.setBounds({x:110+i*20,y:80,width:500,height:600});
+    result=map({sender},'learning');
+  }
+  assert.equal(result.screens[0].history.length,10);
+  assert.equal(result.screens[0].history[0].items[0].bounds.x,350);
+  assert.equal(result.screens[0].history.some(x=>x.id===original),false,
+    'oldest entries must be pruned');
+  const stored=JSON.parse(fs.readFileSync(
+    path.join(folder,'detached-panel-layouts.json'),'utf8'));
+  const topo=Object.keys(stored.workspaces.learning.screenHistory)[0];
+  const key=JSON.stringify([0,0,1600,900]);
+  assert.equal(stored.workspaces.learning.screenHistory[topo][key].length,10);
+  const rebooted=bootMain({layoutDirectory:folder,displays});
+  await Promise.resolve();
+  const sender2=rebooted.windows[1].webContents;
+  const recovered=rebooted.handlers.get('gl-workspace-screen-map')(
+    {sender:sender2},'learning');
+  assert.equal(recovered.screens[0].history.length,10);
+  assert.equal(recovered.screens[0].history[0].items[0].bounds.x,350);
+  assert.equal(recovered.screens[0].history[0].id,result.screens[0].history[0].id);
+});
+
+test('SCREEN HISTORY independently records each monitor without moving windows',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1920,height:1080}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  await h.handlers.get('gl-panel-open')({sender},'history','HISTORIQUE');
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:80,width:500,height:600});
+  history.setBounds({x:1830,y:90,width:530,height:620});
+  const map=h.handlers.get('gl-workspace-screen-map');
+  let result=map({sender},'learning');
+  assert.deepEqual(Array.from(result.screens,x=>x.history.length),[1,1]);
+  const secondId=result.screens[1].history[0].id;
+  coach.setBounds({x:250,y:120,width:500,height:600});
+  result=map({sender},'learning');
+  assert.deepEqual(Array.from(result.screens,x=>x.history.length),[2,1]);
+  assert.equal(result.screens[1].history[0].id,secondId);
+  assert.deepEqual(history.getBounds(),{x:1830,y:90,width:530,height:620});
+});
+
+test('SCREEN HISTORY previews and safely restores a previous state without overwriting favorites',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1600,height:900}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents;
+  for(const id of ['coach','history','practice'])
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  const [coach,history,practice]=h.windows.slice(2);
+  const area={...displays[0].workArea};
+  coach.setBounds({x:100,y:80,width:520,height:620});
+  history.setBounds({x:700,y:80,width:520,height:620});
+  practice.setBounds({x:1700,y:90,width:500,height:610});
+  const before=[coach.getBounds(),history.getBounds()];
+  const remote=practice.getBounds();
+  const count=h.windows.length;
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const initial=map({sender},'learning');
+  const id=initial.screens[0].history[0].id;
+  coach.setBounds({x:210,y:100,width:520,height:620});
+  history.setBounds({x:850,y:100,width:520,height:620});
+  map({sender},'learning');
+  const changed=[coach.getBounds(),history.getBounds()];
+  const preview=h.handlers.get('gl-workspace-preview-screen-history');
+  const target=preview({sender},'learning',0,area,id);
+  assert.equal(target.applicable,true);
+  assert.equal(target.items.length,2);
+  assert.equal(target.items.filter(x=>x.willChange).length,2);
+  assert.match(target.token,/^[a-f0-9]{64}$/);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],changed,
+    'preview must not modify native windows');
+  const applied=h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,id,target.token);
+  assert.deepEqual({restored:applied.restored,favoriteUnchanged:applied.favoriteUnchanged},
+    {restored:2,favoriteUnchanged:true});
+  assert.deepEqual([coach.getBounds(),history.getBounds()],before);
+  assert.deepEqual(practice.getBounds(),remote,
+    'a restoration of screen 1 never moves screen 2');
+  assert.equal(h.windows.length,count,'no renderer or audio host added');
+  const historyAfter=map({sender},'learning').screens[0].history;
+  assert.ok(historyAfter.length>=3,'previous and restored states must both be visible');
+  assert.ok(historyAfter.some(entry=>
+    entry.items.some(item=>item.id==='coach'&&item.bounds.x===210)));
+  const favorite=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,1);
+  assert.equal(favorite.items[0].bounds.x,100);
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,id,target.token),
+    /actualiser la prévisualisation/,
+    'one-time confirmation token is invalid after applying');
+});
+
+test('SCREEN HISTORY rejects stale previews even after geometry is moved back',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  coach.setBounds({x:100,y:80,width:520,height:620});
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const id=map({sender},'learning').screens[0].history[0].id;
+  const preview=h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,area,id);
+  assert.equal(preview.applicable,true);
+  coach.setBounds({x:120,y:80,width:520,height:620});
+  coach.setBounds({x:100,y:80,width:520,height:620});
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,id,preview.token),
+    /actualiser la prévisualisation/);
+  assert.deepEqual(coach.getBounds(),{x:100,y:80,width:520,height:620});
+  assert.throws(()=>h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender:coach.webContents},'learning',0,area,id),/non autorisé/);
+  assert.throws(()=>h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,{...area,width:1800},id),/Écrans modifiés/);
+});
+
+test('SCREEN HISTORY blocks restoration when its original panel set changed',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  coach.setBounds({x:100,y:80,width:520,height:620});
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const id=map({sender},'learning').screens[0].history[0].id;
+  await h.handlers.get('gl-panel-open')({sender},'history','HISTO');
+  const history=h.windows.at(-1);
+  history.setBounds({x:830,y:80,width:520,height:620});
+  const preview=h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,area,id);
+  assert.equal(preview.applicable,false);
+  assert.equal(preview.token,null);
+  assert.equal(preview.activeCount,2);
+  const before=[coach.getBounds(),history.getBounds()];
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,id,'a'.repeat(64)),
+    /actualiser la prévisualisation/);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],before);
+  history.minimize();
+  assert.equal(h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,area,id).applicable,true,
+    'reduced extra windows are not silently awakened by restoring history');
+});
+
+test('SCREEN HISTORY restores all original window bounds on a native failure',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  for(const id of ['coach','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:80,width:520,height:620});
+  history.setBounds({x:730,y:80,width:520,height:620});
+  const map=h.handlers.get('gl-workspace-screen-map');
+  const id=map({sender},'learning').screens[0].history[0].id;
+  coach.setBounds({x:150,y:100,width:520,height:620});
+  history.setBounds({x:850,y:100,width:520,height:620});
+  map({sender},'learning');
+  const before=[coach.getBounds(),history.getBounds()];
+  const preview=h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,area,id);
+  const original=history.setBounds.bind(history);
+  let fail=true;
+  history.setBounds=rect=>{
+    if(fail){fail=false;throw new Error('native window restore failed')}
+    original(rect);
+  };
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,id,preview.token),
+    /native window restore failed/);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],before);
+  assert.equal(map({sender},'learning').screens[0].history.length,2,
+    'a failed restoration must not append history entries');
+});
+
+test('SCREEN HISTORY invalidates an old preview after a maximize/unmaximize cycle',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  coach.setBounds({x:100,y:80,width:500,height:600});
+  const snapshot=h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].history[0];
+  const token=h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,area,snapshot.id).token;
+  coach.emit('maximize');
+  coach.emit('unmaximize');
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,snapshot.id,token),
+    /actualiser la prévisualisation/,
+    'native state transitions cannot silently reuse a stale confirmation');
+  assert.deepEqual(coach.getBounds(),{x:100,y:80,width:500,height:600});
+});

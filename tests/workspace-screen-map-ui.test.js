@@ -53,6 +53,8 @@ function harness(overrides={}) {
   const overlapApplies=[];
   const undoCorrections=[];
   const redoCorrections=[];
+  const historyPreviews=[];
+  const historyApplies=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -133,6 +135,20 @@ function harness(overrides={}) {
     return Promise.resolve({id,displayIndex:index,restored:2,
       autoDisabled:true,favoriteUnchanged:true,undoAvailable:true});
   });
+  const previewHistory=overrides.previewHistory||((id,index,area,snapshotId)=>{
+    historyPreviews.push({id,index,area,snapshotId});
+    return Promise.resolve({id,displayIndex:index,snapshotId,
+      applicable:true,token:'b'.repeat(64),ready:1,unavailable:0,
+      items:[{id:'coach',title:'COACH',status:'ready',
+        bounds:{x:100,y:80,width:510,height:640},
+        currentBounds:{x:700,y:80,width:510,height:640},
+        maximized:false,currentMaximized:false,willChange:true}]});
+  });
+  const applyHistory=overrides.applyHistory||((id,index,area,snapshotId,token)=>{
+    historyApplies.push({id,index,area,snapshotId,token});
+    return Promise.resolve({id,displayIndex:index,snapshotId,restored:1,
+      favoriteUnchanged:true,autoDisabled:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -153,7 +169,9 @@ function harness(overrides={}) {
       workspacePlanScreenOverlapFix:planOverlapFix,
       workspaceApplyScreenOverlapFix:applyOverlapFix,
       workspaceUndoScreenOverlapFix:undoCorrection,
-      workspaceRedoScreenOverlapFix:redoCorrection},
+      workspaceRedoScreenOverlapFix:redoCorrection,
+      workspacePreviewScreenHistory:previewHistory,
+      workspaceApplyScreenHistory:applyHistory},
       confirm:overrides.confirm||(()=>true),
       prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
@@ -163,7 +181,8 @@ function harness(overrides={}) {
   return {context,calls,moves,organizations,undos,
     favoriteSaves,favoriteApplies,favoriteRenames,
     favoriteDeletes,favoriteSwaps,favoritePreviews,
-    overlapPlans,overlapApplies,undoCorrections,redoCorrections,errors,
+    overlapPlans,overlapApplies,undoCorrections,redoCorrections,
+    historyPreviews,historyApplies,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -1638,4 +1657,146 @@ test('PLAN DES ÉCRANS reports refused redo without claiming positions were rest
   assert.equal(c.screenMapRefresh.disabled,false);
   assert.equal(c.screenMapOverlay.hidden,false);
   assert.equal(h.errors.length,1);
+});
+
+test('PLAN DES ÉCRANS renders historical thumbnails and compares states without moving windows',async()=>{
+  const area={x:0,y:0,width:1600,height:900};
+  const items=[{id:'coach',title:'COACH',
+    bounds:{x:100,y:80,width:510,height:640},maximized:false}];
+  const snapshots=[
+    {id:'a'.repeat(16),at:1762000000000,label:'Disposition observée',items,count:1},
+    {id:'b'.repeat(16),at:1761990000000,label:'Avant restauration',items,count:1}
+  ];
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,workArea:area,history:snapshots}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:700,y:80,width:510,height:640}}]
+  })});
+  await h.open();
+  const c=h.context;
+  const card=c.screenMapScreens.children[0];
+  assert.equal(card.children.length,7);
+  const history=card.children[6];
+  assert.match(history.children[0].textContent,/2 \/ 10/);
+  const gallery=history.children[2];
+  assert.equal(gallery.children.length,2);
+  assert.equal(gallery.children[0].children[2].children.length,1);
+  assert.equal(gallery.children[0].children[2].children[0].style.left,'6.25%');
+  assert.equal(h.historyPreviews.length,0);
+  gallery.children[0].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.historyPreviews.length,1);
+  assert.equal(h.historyApplies.length,0,'read-only selection');
+  assert.equal(gallery.children[0].attrs['aria-pressed'],'true');
+  const preview=history.children[3];
+  assert.equal(preview.className,'gl-workspace-map-history-detail');
+  assert.match(preview.children[0].textContent,/COMPARAISON HISTORIQUE/);
+  assert.equal(preview.children[1].children.length,2);
+  assert.equal(preview.children[1].children[0].children[1].children.length,1);
+  assert.equal(preview.children[1].children[1].children[1].children.length,1);
+  assert.match(preview.children[2].textContent,/1 fenêtre à déplacer/);
+  assert.equal(preview.children[3].textContent,'RESTAURER CETTE DISPOSITION');
+  assert.equal(h.moves.length,0);
+  assert.equal(h.favoriteApplies.length,0);
+  assert.match(c.screenMapMessage.textContent,/Aucune fenêtre déplacée/);
+});
+
+test('PLAN DES ÉCRANS refuses historical restore if the window set changed',async()=>{
+  const area={x:0,y:0,width:1600,height:900};
+  const history=[{id:'a'.repeat(16),at:1762000000000,
+    label:'Ancien écran',items:[{id:'coach',title:'COACH',
+      bounds:{x:100,y:80,width:500,height:600},maximized:false}]}];
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,workArea:area,history}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:700,y:80,width:500,height:600}}]
+  }),previewHistory:async(id,index,area,snapshotId)=>({
+    id,displayIndex:index,snapshotId,applicable:false,token:null,
+    reason:'Les fenêtres de cet écran ont changé.',items:[
+      {id:'coach',title:'COACH',status:'unavailable',
+        bounds:{x:100,y:80,width:500,height:600},maximized:false}
+    ]
+  })});
+  await h.open();
+  const panel=h.context.screenMapScreens.children[0].children[6];
+  panel.children[2].children[0].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const preview=panel.children[3];
+  assert.equal(preview.children.length,3,'no restore action is available');
+  assert.match(preview.children[2].textContent,/fenêtres de cet écran ont changé/);
+  assert.equal(h.historyApplies.length,0);
+  assert.match(h.context.screenMapMessage.textContent,/indisponible/);
+});
+
+test('PLAN DES ÉCRANS requires confirmation before historical restore and refreshes afterwards',async()=>{
+  let approve=false,asked=0,maps=0;
+  const area={x:0,y:0,width:1600,height:900};
+  const history=[{id:'a'.repeat(16),at:1762000000000,
+    label:'Arrangement précédent',items:[{id:'coach',title:'COACH',
+      bounds:{x:100,y:80,width:500,height:600},maximized:false}]}];
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,workArea:area,history}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:700,y:80,width:500,height:600}}],
+    sequence:++maps
+  }),confirm:()=>{asked++;return approve}});
+  await h.open();
+  const c=h.context;
+  const panel=c.screenMapScreens.children[0].children[6];
+  panel.children[2].children[0].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  const button=panel.children[3].children[3];
+  button.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(asked,1);
+  assert.equal(h.historyApplies.length,0);
+  approve=true;
+  button.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(asked,2);
+  assert.equal(h.historyApplies.length,1);
+  assert.equal(h.historyApplies[0].snapshotId,'a'.repeat(16));
+  assert.equal(h.historyApplies[0].token,'b'.repeat(64));
+  assert.equal(c.activeAutoArrange,false);
+  assert.match(c.screenMapMessage.textContent,/disposition historique restaurée/);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.ok(maps>=2,'map refreshed to show saved and restored states');
+});
+
+test('PLAN DES ÉCRANS ignores stale historical preview and failed restores',async()=>{
+  let finishPreview;
+  const area={x:0,y:0,width:1600,height:900};
+  const history=[{id:'a'.repeat(16),at:1762000000000,
+    label:'Studio',items:[{id:'coach',title:'COACH',
+      bounds:{x:100,y:80,width:500,height:600},maximized:false}]}];
+  const map=async()=>({
+    id:'learning',screens:[{index:0,main:true,workArea:area,history}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:700,y:80,width:500,height:600}}]
+  });
+  const slow=harness({map,previewHistory:()=>new Promise(resolve=>{
+    finishPreview=resolve;
+  })});
+  await slow.open();
+  const section=slow.context.screenMapScreens.children[0].children[6];
+  section.children[2].children[0].fire('click');
+  slow.context.screenMapClose.fire('click');
+  finishPreview({id:'learning',displayIndex:0,snapshotId:'a'.repeat(16),
+    applicable:true,token:'b'.repeat(64),items:[]});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(section.children.length,3);
+  assert.equal(slow.context.screenMapOverlay.hidden,true);
+  assert.equal(slow.historyApplies.length,0);
+  const rejected=harness({map,applyHistory:()=>Promise.reject(
+    new Error('snapshot stale'))});
+  await rejected.open();
+  const target=rejected.context.screenMapScreens.children[0].children[6];
+  target.children[2].children[0].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  target.children[3].children[3].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(rejected.context.screenMapMessage.textContent,/Restauration refusée/);
+  assert.equal(rejected.context.activeAutoArrange,true);
+  assert.equal(rejected.context.screenMapRefresh.disabled,false);
+  assert.equal(rejected.errors.length,1);
 });
