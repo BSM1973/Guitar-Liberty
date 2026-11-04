@@ -77,6 +77,8 @@ const SCREEN_FAVORITE_NAME_LIMIT = 28;
 let activeTopologyKey = null;
 // One-level undo for the last explicit organization of one monitor.
 let lastOrganizedScreen = null;
+// One-session, one-step undo for the most recent successful overlap fix.
+let lastCorrectedScreen = null;
 
 function copyPanelBounds(source) {
   const result = {};
@@ -542,6 +544,29 @@ function sameScreenBounds(a, b) {
     ['x','y','width','height'].every(k=>left[k]===right[k]));
 }
 
+
+// Undo is offered only while every active panel on the corrected monitor
+// still has the exact geometry and maximization produced by the correction.
+// A new window, minimization, drag, resize, workspace/display change or AUTO
+// activation invalidates it, rather than overwriting subsequent work.
+function canUndoLastScreenCorrection(workspaceId,displayIndex,area,displays) {
+  const prior=lastCorrectedScreen;
+  if (!prior || prior.workspaceId!==workspaceId ||
+      workspaceId!==activeWorkspace ||
+      prior.displayIndex!==displayIndex ||
+      prior.topologyKey!==displayTopologyKey(displays) ||
+      !sameScreenBounds(prior.area,area) ||
+      savedWorkspaces[workspaceId]?.autoArrange!==false) return false;
+  const live=new Map(activeWindowsOnFavoriteScreen(displayIndex,displays));
+  if (live.size!==prior.items.length) return false;
+  return prior.items.every(item=>{
+    const popup=live.get(item.id);
+    return popup && !popup.isDestroyed() && !popup.isMinimized?.() &&
+      sameScreenBounds(popup.getNormalBounds?.()||popup.getBounds(),item.after) &&
+      Boolean(popup.isMaximized?.())===item.afterMaximized;
+  });
+}
+
 // Only undo if every active panel is still in exactly the position produced
 // by ORGANISER. A drag, close, minimize, display change or profile change
 // makes the old arrangement invalid rather than overwriting later work.
@@ -587,6 +612,8 @@ ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
       favorites:screenFavoriteList(savedWorkspaces[workspaceId],
         activeTopologyKey,workArea),
       canUndo:canUndoScreenOrganization(workspaceId,index,workArea,displays),
+      canUndoCorrection:canUndoLastScreenCorrection(workspaceId,index,
+        workArea,displays),
       main: Boolean(mainArea &&
         ['x','y','width','height'].every(k => mainArea[k] === workArea[k]))} : null;
   }).filter(Boolean);
@@ -1048,9 +1075,73 @@ ipcMain.handle('gl-workspace-apply-screen-overlap-fix',
       throw error;
     }
     lastOrganizedScreen=null;
+    const targetsById=new Map(targets.map(item=>[item.id,item]));
+    lastCorrectedScreen={
+      workspaceId,displayIndex,area:{...area},topologyKey:activeTopologyKey,
+      previousAuto,
+      items:Array.from(active.entries(),([id,popup])=>{
+        const target=targetsById.get(id);
+        const bounds=finiteRect(popup.getNormalBounds?.()||popup.getBounds());
+        return {id,before:target?{...target.before}:{...bounds},
+          beforeMaximized:target?target.wasMaximized:
+            Boolean(popup.isMaximized?.()),
+          after:{...bounds},afterMaximized:Boolean(popup.isMaximized?.())};
+      })
+    };
     return {id:workspaceId,displayIndex,slot,applied:targets.length,
       moved:plan.moved,collisions:0,autoDisabled:previousAuto===true,
-      favoriteUnchanged:true};
+      favoriteUnchanged:true,undoAvailable:true};
+  });
+
+
+// Restore only the most recently corrected monitor, not the saved favorite.
+// If anything changed in the meantime, do not touch native windows or audio.
+ipcMain.handle('gl-workspace-undo-screen-overlap-fix',
+  (event,workspaceId,displayIndex,expectedArea)=>{
+    assertMainWorkspaceSender(event);
+    readPanelLayouts();
+    if (!isWorkspaceId(workspaceId) || workspaceId!==activeWorkspace ||
+        switchingWorkspace || shuttingDownWorkspace ||
+        !Number.isInteger(displayIndex) || displayIndex<0) {
+      throw new Error('Annulation de correction non autorisée');
+    }
+    const displays=screen.getAllDisplays();
+    const display=displays[displayIndex];
+    const area=finiteRect(display&&(display.workArea||display));
+    if (!area || !sameScreenBounds(area,expectedArea) ||
+        activeTopologyKey!==displayTopologyKey(displays) ||
+        !canUndoLastScreenCorrection(workspaceId,displayIndex,area,displays)) {
+      throw new Error('Disposition modifiée : annulation de correction indisponible');
+    }
+    const prior=lastCorrectedScreen;
+    const profile=savedWorkspaces[workspaceId];
+    const wasAuto=profile.autoArrange;
+    try {
+      for (const item of prior.items) {
+        const popup=guitarPanelWindows.get(item.id);
+        if (popup.isMaximized?.()) popup.unmaximize?.();
+        popup.setBounds(item.before);
+        if (item.beforeMaximized) popup.maximize?.();
+        rememberPanelBounds(item.id,popup);
+      }
+      profile.autoArrange=prior.previousAuto;
+      if (!flushPanelLayouts()) throw new Error('Annulation non sauvegardée');
+    } catch(error) {
+      profile.autoArrange=wasAuto;
+      for (const item of prior.items) {
+        const popup=guitarPanelWindows.get(item.id);
+        if (!popup || popup.isDestroyed()) continue;
+        if (popup.isMaximized?.()) popup.unmaximize?.();
+        popup.setBounds(item.after);
+        if (item.afterMaximized) popup.maximize?.();
+        rememberPanelBounds(item.id,popup);
+      }
+      throw error;
+    }
+    lastCorrectedScreen=null;
+    lastOrganizedScreen=null;
+    return {id:workspaceId,displayIndex,restored:prior.items.length,
+      autoRestored:prior.previousAuto===true,favoriteUnchanged:true};
   });
 
 function isInsideScreenCorrection(bounds,area) {

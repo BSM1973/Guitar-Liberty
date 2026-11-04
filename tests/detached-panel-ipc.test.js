@@ -2826,3 +2826,183 @@ test('OVERLAP FIX unmaximizes only affected favorite windows',async()=>{
   assert.equal(coach.maximized,false);
   assert.equal(history.destroyed,false);
 });
+
+test('OVERLAP FIX UNDO restores all previous positions without changing the saved favorite',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  const open=h.handlers.get('gl-panel-open');
+  await open({sender},'coach','COACH');
+  await open({sender},'history','HISTORIQUE');
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:80,width:540,height:620});
+  history.setBounds({x:520,y:80,width:540,height:620});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  history.setBounds({x:1060,y:80,width:540,height:620});
+  await open({sender},'practice','PRATIQUE');
+  const practice=h.windows.at(-1);
+  practice.setBounds({x:610,y:110,width:400,height:620});
+  const before=[coach.getBounds(),history.getBounds(),practice.getBounds()];
+  const windowCount=h.windows.length;
+  const plan=h.handlers.get('gl-workspace-plan-screen-overlap-fix')(
+    {sender},'learning',0,area,1);
+  assert.equal(plan.possible,true);
+  const applied=h.handlers.get('gl-workspace-apply-screen-overlap-fix')(
+    {sender},'learning',0,area,1,plan.token);
+  assert.equal(applied.undoAvailable,true);
+  const changed=[coach.getBounds(),history.getBounds(),practice.getBounds()];
+  assert.notDeepEqual(changed,before);
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,true);
+  const returned=h.handlers.get('gl-workspace-undo-screen-overlap-fix')(
+    {sender},'learning',0,area);
+  assert.deepEqual({restored:returned.restored,autoRestored:returned.autoRestored,
+    favoriteUnchanged:returned.favoriteUnchanged},
+    {restored:3,autoRestored:false,favoriteUnchanged:true});
+  assert.deepEqual([coach.getBounds(),history.getBounds(),practice.getBounds()],before);
+  assert.equal(h.windows.length,windowCount);
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,false);
+  const favorite=h.handlers.get('gl-workspace-preview-screen-favorite')(
+    {sender},'learning',0,area,1);
+  assert.deepEqual(Array.from(favorite.items,item=>JSON.parse(JSON.stringify(item.bounds))),
+    [{x:100,y:80,width:540,height:620},{x:520,y:80,width:540,height:620}]);
+  assert.throws(()=>h.handlers.get('gl-workspace-undo-screen-overlap-fix')(
+    {sender},'learning',0,area),/indisponible/,'undo is one-step only');
+});
+
+test('OVERLAP FIX UNDO refuses stale geometry, detached renderer and wrong monitor',async()=>{
+  const displays=[
+    {workArea:{x:0,y:0,width:1600,height:900}},
+    {workArea:{x:1600,y:0,width:1600,height:900}}
+  ];
+  const h=bootMain({displays});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={...displays[0].workArea};
+  for(const id of ['coach','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:80,width:540,height:620});
+  history.setBounds({x:510,y:80,width:540,height:620});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  const plan=h.handlers.get('gl-workspace-plan-screen-overlap-fix')(
+    {sender},'learning',0,area,1);
+  assert.equal(plan.possible,true);
+  h.handlers.get('gl-workspace-apply-screen-overlap-fix')(
+    {sender},'learning',0,area,1,plan.token);
+  const undo=h.handlers.get('gl-workspace-undo-screen-overlap-fix');
+  assert.throws(()=>undo({sender:coach.webContents},'learning',0,area),
+    /non autorisé/);
+  assert.throws(()=>undo({sender},'practice',0,area),/non autorisé/);
+  assert.throws(()=>undo({sender},'learning',1,displays[1].workArea),
+    /indisponible/);
+  assert.throws(()=>undo({sender},'learning',0,{...area,width:1800}),
+    /indisponible/);
+  const afterApply=[coach.getBounds(),history.getBounds()];
+  coach.setBounds({...afterApply[0],x:afterApply[0].x+12});
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,false);
+  assert.throws(()=>undo({sender},'learning',0,area),/indisponible/);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],
+    [coach.getBounds(),afterApply[1]]);
+});
+
+test('OVERLAP FIX UNDO refuses closed, minimized or additional panel',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  for(const id of ['coach','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:80,width:540,height:620});
+  history.setBounds({x:510,y:80,width:540,height:620});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  const plan=h.handlers.get('gl-workspace-plan-screen-overlap-fix')(
+    {sender},'learning',0,area,1);
+  assert.equal(plan.possible,true);
+  h.handlers.get('gl-workspace-apply-screen-overlap-fix')(
+    {sender},'learning',0,area,1,plan.token);
+  history.minimize();
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,false);
+  assert.throws(()=>h.handlers.get('gl-workspace-undo-screen-overlap-fix')(
+    {sender},'learning',0,area),/indisponible/);
+  history.restore();
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,true);
+  await h.handlers.get('gl-panel-open')({sender},'practice','PRATIQUE');
+  h.windows.at(-1).setBounds({x:400,y:50,width:510,height:620});
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,false);
+  assert.throws(()=>h.handlers.get('gl-workspace-undo-screen-overlap-fix')(
+    {sender},'learning',0,area),/indisponible/);
+  h.windows.at(-1).close();
+  history.close();
+  assert.throws(()=>h.handlers.get('gl-workspace-undo-screen-overlap-fix')(
+    {sender},'learning',0,area),/indisponible/);
+});
+
+test('OVERLAP FIX UNDO rolls back failed restoration without losing the undo',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  for(const id of ['coach','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:100,y:80,width:540,height:620});
+  history.setBounds({x:510,y:80,width:540,height:620});
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  const plan=h.handlers.get('gl-workspace-plan-screen-overlap-fix')(
+    {sender},'learning',0,area,1);
+  assert.equal(plan.possible,true);
+  h.handlers.get('gl-workspace-apply-screen-overlap-fix')(
+    {sender},'learning',0,area,1,plan.token);
+  const after=[coach.getBounds(),history.getBounds()];
+  const set=history.setBounds.bind(history);
+  let failOnce=true;
+  history.setBounds=r=>{
+    if(failOnce){failOnce=false;throw new Error('restore native failed')}
+    set(r);
+  };
+  const undo=h.handlers.get('gl-workspace-undo-screen-overlap-fix');
+  assert.throws(()=>undo({sender},'learning',0,area),/restore native failed/);
+  assert.deepEqual([coach.getBounds(),history.getBounds()],after,
+    'partial native restoration must roll back');
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,true);
+  assert.equal(undo({sender},'learning',0,area).restored,2);
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,false);
+});
+
+test('OVERLAP FIX UNDO restores original maximization state',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  for(const id of ['coach','history'])
+    await h.handlers.get('gl-panel-open')({sender},id,id.toUpperCase());
+  const [coach,history]=h.windows.slice(2);
+  coach.setBounds({x:90,y:90,width:520,height:610});
+  history.setBounds({x:680,y:90,width:520,height:610});
+  coach.isMaximized=()=>Boolean(coach.maximized);
+  coach.unmaximize=()=>{coach.maximized=false};
+  coach.maximized=true;
+  h.handlers.get('gl-workspace-save-screen-favorite')(
+    {sender},'learning',0,area,1);
+  const plan=h.handlers.get('gl-workspace-plan-screen-overlap-fix')(
+    {sender},'learning',0,area,1);
+  assert.equal(plan.possible,true);
+  h.handlers.get('gl-workspace-apply-screen-overlap-fix')(
+    {sender},'learning',0,area,1,plan.token);
+  assert.equal(coach.maximized,false);
+  assert.equal(h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].canUndoCorrection,true);
+  const result=h.handlers.get('gl-workspace-undo-screen-overlap-fix')(
+    {sender},'learning',0,area);
+  assert.equal(result.restored,2);
+  assert.equal(coach.maximized,true);
+});
