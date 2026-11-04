@@ -81,6 +81,8 @@ let lastOrganizedScreen = null;
 // One-session, one-step undo for the most recent successful overlap fix.
 let lastCorrectedScreen = null;
 let lastUndoneScreenCorrection = null;
+// Invalidate a history preview when geometry changes even if moved back.
+let screenHistoryRevision = 0;
 
 function copyPanelBounds(source) {
   const result = {};
@@ -502,6 +504,7 @@ function rememberPanelBounds(id, popup) {
   if (activeTopologyKey !== displayTopologyKey(screen.getAllDisplays())) return;
   const rect = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
   if (!rect) return;
+  screenHistoryRevision++;
   if (lastUndoneScreenCorrection) {
     const expected=lastUndoneScreenCorrection.items.find(item=>item.id===id);
     if (!expected || !sameScreenBounds(rect,expected.before)) {
@@ -758,7 +761,7 @@ function buildScreenHistoryPreview(profile,workspaceId,displayIndex,
   });
   const token=matching?crypto.createHash('sha256').update(JSON.stringify({
     workspaceId,displayIndex,area,topology:activeTopologyKey,
-    snapshot,current:screenHistorySignature(current)
+    snapshot,current:screenHistorySignature(current),revision:screenHistoryRevision
   })).digest('hex'):null;
   return {id:workspaceId,displayIndex,snapshotId,area,
     at:snapshot.at,label:snapshot.label,items,
