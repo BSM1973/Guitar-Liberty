@@ -52,6 +52,7 @@ function harness(overrides={}) {
   const overlapPlans=[];
   const overlapApplies=[];
   const undoCorrections=[];
+  const redoCorrections=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -127,6 +128,11 @@ function harness(overrides={}) {
     return Promise.resolve({id,displayIndex:index,restored:2,
       autoRestored:false,favoriteUnchanged:true});
   });
+  const redoCorrection=overrides.redoCorrection||((id,index,area)=>{
+    redoCorrections.push({id,index,area});
+    return Promise.resolve({id,displayIndex:index,restored:2,
+      autoDisabled:true,favoriteUnchanged:true,undoAvailable:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -146,7 +152,8 @@ function harness(overrides={}) {
       workspacePreviewScreenFavorite:previewFavorite,
       workspacePlanScreenOverlapFix:planOverlapFix,
       workspaceApplyScreenOverlapFix:applyOverlapFix,
-      workspaceUndoScreenOverlapFix:undoCorrection},
+      workspaceUndoScreenOverlapFix:undoCorrection,
+      workspaceRedoScreenOverlapFix:redoCorrection},
       confirm:overrides.confirm||(()=>true),
       prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
@@ -156,7 +163,7 @@ function harness(overrides={}) {
   return {context,calls,moves,organizations,undos,
     favoriteSaves,favoriteApplies,favoriteRenames,
     favoriteDeletes,favoriteSwaps,favoritePreviews,
-    overlapPlans,overlapApplies,undoCorrections,errors,
+    overlapPlans,overlapApplies,undoCorrections,redoCorrections,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -1518,6 +1525,115 @@ test('PLAN DES ÉCRANS reports unavailable undo without claiming restoration',as
   c.screenMapScreens.children[0].children[4].children[2].fire('click');
   await new Promise(resolve=>setImmediate(resolve));
   assert.match(c.screenMapMessage.textContent,/Annulation indisponible/);
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(h.errors.length,1);
+});
+
+test('PLAN DES ÉCRANS shows RÉTABLIR LA CORRECTION only on the undone monitor',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[
+      {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+        canRedoCorrection:false,canUndoCorrection:false},
+      {index:1,main:false,workArea:{x:1600,y:0,width:1920,height:1080},
+        canRedoCorrection:true,canUndoCorrection:false}
+    ],
+    panels:[{id:'coach',title:'COACH',displayIndex:1,minimized:false,
+      bounds:{x:1800,y:100,width:500,height:620}}]
+  })});
+  await h.open();
+  const c=h.context;
+  assert.equal(c.screenMapScreens.children[0].children[4].children.length,2);
+  const second=c.screenMapScreens.children[1].children[4];
+  assert.equal(second.children.length,3);
+  const redo=second.children[2];
+  assert.equal(redo.className,'gl-workspace-map-redo-correction');
+  assert.equal(redo.textContent,'RÉTABLIR LA CORRECTION');
+  assert.match(redo.attrs['aria-label'],/écran 2/);
+  assert.equal(h.redoCorrections.length,0);
+});
+
+test('PLAN DES ÉCRANS requires consent before redo and restores undo availability',async()=>{
+  let confirmed=false,confirmations=0,canRedo=true,canUndo=false;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      canRedoCorrection:canRedo,canUndoCorrection:canUndo}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:620}}]
+  }),confirm:()=>{confirmations++;return confirmed},
+  redoCorrection:async(id,index,area)=>{
+    canRedo=false;
+    canUndo=true;
+    return {id,displayIndex:index,restored:2,
+      autoDisabled:true,favoriteUnchanged:true,undoAvailable:true};
+  }});
+  await h.open();
+  const c=h.context;
+  const redo=c.screenMapScreens.children[0].children[4].children[2];
+  redo.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,1);
+  assert.equal(canRedo,true,'refusal leaves the stored redo intact');
+  assert.equal(c.screenMapRefresh.disabled,false);
+  confirmed=true;
+  redo.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmations,2);
+  assert.equal(canRedo,false);
+  assert.equal(canUndo,true);
+  assert.equal(c.activeAutoArrange,false);
+  assert.equal(c.updated,true);
+  assert.match(c.screenMapMessage.textContent,/correction rétablie/);
+  assert.match(c.screenMapMessage.textContent,/Aucun favori modifié/);
+  assert.equal(c.screenMapScreens.children[0].children[4].children.length,3);
+  assert.equal(c.screenMapScreens.children[0].children[4].children[2].textContent,
+    'ANNULER CORRECTION');
+  assert.equal(c.screenMapOverlay.hidden,false);
+});
+
+test('PLAN DES ÉCRANS ignores duplicate redo clicks and stale reply after closing',async()=>{
+  let resolveRedo,count=0;
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},canRedoCorrection:true}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:620}}]
+  }),redoCorrection:()=>{
+    count++;
+    return new Promise(resolve=>{resolveRedo=resolve});
+  }});
+  await h.open();
+  const c=h.context;
+  const button=c.screenMapScreens.children[0].children[4].children[2];
+  button.fire('click');button.fire('click');
+  assert.equal(count,1,'only one native redo request may be outstanding');
+  c.screenMapClose.fire('click');
+  resolveRedo({id:'learning',displayIndex:0,restored:2,
+    autoDisabled:true,favoriteUnchanged:true,undoAvailable:true});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapOverlay.hidden,true);
+  assert.equal(c.updated,undefined);
+  assert.equal(count,1);
+});
+
+test('PLAN DES ÉCRANS reports refused redo without claiming positions were restored',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',
+    screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},canRedoCorrection:true}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:620}}]
+  }),redoCorrection:()=>Promise.reject(new Error('stale panel geometry'))});
+  await h.open();
+  const c=h.context;
+  c.screenMapScreens.children[0].children[4].children[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(c.screenMapMessage.textContent,/Rétablissement indisponible/);
   assert.equal(c.activeAutoArrange,true);
   assert.equal(c.screenMapRefresh.disabled,false);
   assert.equal(c.screenMapOverlay.hidden,false);
