@@ -3428,3 +3428,23 @@ test('SCREEN HISTORY restores all original window bounds on a native failure',as
   assert.equal(map({sender},'learning').screens[0].history.length,2,
     'a failed restoration must not append history entries');
 });
+
+test('SCREEN HISTORY invalidates an old preview after a maximize/unmaximize cycle',async()=>{
+  const h=bootMain({displays:[{workArea:{x:0,y:0,width:1600,height:900}}]});
+  await Promise.resolve();
+  const sender=h.windows[1].webContents,area={x:0,y:0,width:1600,height:900};
+  await h.handlers.get('gl-panel-open')({sender},'coach','COACH');
+  const coach=h.windows.at(-1);
+  coach.setBounds({x:100,y:80,width:500,height:600});
+  const snapshot=h.handlers.get('gl-workspace-screen-map')(
+    {sender},'learning').screens[0].history[0];
+  const token=h.handlers.get('gl-workspace-preview-screen-history')(
+    {sender},'learning',0,area,snapshot.id).token;
+  coach.emit('maximize');
+  coach.emit('unmaximize');
+  assert.throws(()=>h.handlers.get('gl-workspace-apply-screen-history')(
+    {sender},'learning',0,area,snapshot.id,token),
+    /actualiser la prévisualisation/,
+    'native state transitions cannot silently reuse a stale confirmation');
+  assert.deepEqual(coach.getBounds(),{x:100,y:80,width:500,height:600});
+});
