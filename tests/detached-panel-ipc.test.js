@@ -3021,7 +3021,7 @@ test('OVERLAP FIX REDO restores the corrected layout after undo and supports und
   favorite({sender},'learning',0,area,1);
   await open({sender},'practice','PRATIQUE');
   const practice=h.windows.at(-1);
-  practice.setBounds({x:1090,y:90,width:400,height:620});
+  practice.setBounds({x:1220,y:90,width:350,height:620});
   const before=[coach.getBounds(),history.getBounds(),practice.getBounds()];
   const count=h.windows.length;
   const plan=h.handlers.get('gl-workspace-plan-screen-overlap-fix')(
