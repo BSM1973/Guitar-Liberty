@@ -2,7 +2,7 @@ name: Build Guitar Liberty
 
 on:
   push:
-    branches: [main, 'feature/undo-last-overlap-correction-1213']
+    branches: [main]
   workflow_dispatch:
 
 jobs:
