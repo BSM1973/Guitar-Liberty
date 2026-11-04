@@ -51,6 +51,7 @@ function harness(overrides={}) {
   const favoritePreviews=[];
   const overlapPlans=[];
   const overlapApplies=[];
+  const undoCorrections=[];
   const map=overrides.map||(()=>Promise.resolve({
     id:'learning',screens:[
       {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900}},
@@ -121,6 +122,11 @@ function harness(overrides={}) {
     return Promise.resolve({id,displayIndex:index,slot,applied:1,moved:1,
       collisions:0,autoDisabled:true,favoriteUnchanged:true});
   });
+  const undoCorrection=overrides.undoCorrection||((id,index,area)=>{
+    undoCorrections.push({id,index,area});
+    return Promise.resolve({id,displayIndex:index,restored:2,
+      autoRestored:false,favoriteUnchanged:true});
+  });
   const errors=[];
   const context={
     screenMapOverlay,screenMapButton,screenMapClose,screenMapRefresh,
@@ -139,7 +145,8 @@ function harness(overrides={}) {
       workspaceSwapScreenFavorites:swapFavorite,
       workspacePreviewScreenFavorite:previewFavorite,
       workspacePlanScreenOverlapFix:planOverlapFix,
-      workspaceApplyScreenOverlapFix:applyOverlapFix},
+      workspaceApplyScreenOverlapFix:applyOverlapFix,
+      workspaceUndoScreenOverlapFix:undoCorrection},
       confirm:overrides.confirm||(()=>true),
       prompt:overrides.prompt||(()=>null)},
     activeAutoArrange:true,updatePresetButtons:()=>{context.updated=true},
@@ -149,7 +156,7 @@ function harness(overrides={}) {
   return {context,calls,moves,organizations,undos,
     favoriteSaves,favoriteApplies,favoriteRenames,
     favoriteDeletes,favoriteSwaps,favoritePreviews,
-    overlapPlans,overlapApplies,errors,
+    overlapPlans,overlapApplies,undoCorrections,errors,
     open:async()=>{screenMapButton.fire('click');await Promise.resolve();await Promise.resolve()},
     refresh:async()=>{screenMapRefresh.fire('click');await Promise.resolve();await Promise.resolve()}
   };
@@ -1415,4 +1422,104 @@ test('PLAN DES ÉCRANS rejects stale correction token without claiming success',
   assert.equal(c.activeAutoArrange,true);
   assert.equal(h.favoriteApplies.length,0);
   assert.equal(c.screenMapRefresh.disabled,false);
+});
+
+test('PLAN DES ÉCRANS offers ANNULER CORRECTION only on the corrected monitor',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',screens:[
+      {index:0,main:true,workArea:{x:0,y:0,width:1600,height:900},
+        canUndoCorrection:false},
+      {index:1,main:false,workArea:{x:1600,y:0,width:1920,height:1080},
+        canUndoCorrection:true}
+    ],panels:[{id:'coach',title:'COACH',
+      bounds:{x:1800,y:80,width:500,height:620},
+      displayIndex:1,minimized:false}]
+  })});
+  await h.open();
+  const c=h.context;
+  const first=c.screenMapScreens.children[0].children[4];
+  const second=c.screenMapScreens.children[1].children[4];
+  assert.equal(first.children.length,2,'no undo on another monitor');
+  assert.equal(second.children.length,3);
+  assert.equal(second.children[2].textContent,'ANNULER CORRECTION');
+  assert.match(second.children[2].attrs['aria-label'],/écran 2/);
+  assert.equal(h.undoCorrections.length,0);
+});
+
+test('PLAN DES ÉCRANS requires confirmation and restores an overlap correction',async()=>{
+  let approval=false,confirmCalls=0,canUndo=true;
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},
+      canUndoCorrection:canUndo}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,
+      bounds:{x:80,y:80,width:500,height:620},minimized:false}]
+  }),confirm:()=>{confirmCalls++;return approval},
+  undoCorrection:async(id,index,area)=>{
+    canUndo=false;
+    return {id,displayIndex:index,restored:2,
+      autoRestored:true,favoriteUnchanged:true};
+  }});
+  await h.open();
+  const c=h.context;
+  const original=c.screenMapScreens.children[0].children[4].children[2];
+  original.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmCalls,1);
+  assert.equal(canUndo,true);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  approval=true;
+  original.fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(confirmCalls,2);
+  assert.equal(canUndo,false);
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(c.updated,true);
+  assert.match(c.screenMapMessage.textContent,/correction annulée/);
+  assert.match(c.screenMapMessage.textContent,/Favori conservé/);
+  assert.equal(c.screenMapScreens.children[0].children[4].children.length,2);
+  assert.equal(c.screenMapOverlay.hidden,false);
+});
+
+test('PLAN DES ÉCRANS prevents duplicate and stale overlap correction undos',async()=>{
+  let resolveUndo,ipcCount=0;
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},canUndoCorrection:true}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:620}}]
+  }),undoCorrection:()=>{
+    ipcCount++;
+    return new Promise(resolve=>{resolveUndo=resolve});
+  }});
+  await h.open();
+  const c=h.context;
+  const button=c.screenMapScreens.children[0].children[4].children[2];
+  button.fire('click');button.fire('click');
+  assert.equal(ipcCount,1,'only one undo IPC may be pending');
+  c.screenMapClose.fire('click');
+  resolveUndo({id:'learning',displayIndex:0,restored:1,
+    autoRestored:false,favoriteUnchanged:true});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.screenMapOverlay.hidden,true);
+  assert.equal(c.updated,undefined);
+  assert.equal(ipcCount,1);
+});
+
+test('PLAN DES ÉCRANS reports unavailable undo without claiming restoration',async()=>{
+  const h=harness({map:async()=>({
+    id:'learning',screens:[{index:0,main:true,
+      workArea:{x:0,y:0,width:1600,height:900},canUndoCorrection:true}],
+    panels:[{id:'coach',title:'COACH',displayIndex:0,minimized:false,
+      bounds:{x:80,y:80,width:500,height:620}}]
+  }),undoCorrection:()=>Promise.reject(new Error('stale native bounds'))});
+  await h.open();
+  const c=h.context;
+  c.screenMapScreens.children[0].children[4].children[2].fire('click');
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(c.screenMapMessage.textContent,/Annulation indisponible/);
+  assert.equal(c.activeAutoArrange,true);
+  assert.equal(c.screenMapRefresh.disabled,false);
+  assert.equal(c.screenMapOverlay.hidden,false);
+  assert.equal(h.errors.length,1);
 });
