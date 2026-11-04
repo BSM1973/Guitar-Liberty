@@ -1129,6 +1129,14 @@
     let screenMapFavoriteComparison = null;
     let screenMapFavoriteCompareBusy = false;
     let screenMapOverlapFixBusy = false;
+    let screenMapHistoryView = null;
+    let screenMapHistoryBusy = false;
+    function clearScreenMapHistoryView() {
+      if (!screenMapHistoryView) return;
+      screenMapHistoryView.section.hidden=true;
+      screenMapHistoryView.button.setAttribute('aria-pressed','false');
+      screenMapHistoryView=null;
+    }
     function clearScreenMapFavoriteComparison() {
       if (!screenMapFavoriteComparison) return;
       screenMapFavoriteComparison.section.hidden = true;
@@ -1156,6 +1164,7 @@
       screenMapFavoriteSlots.clear();
       clearScreenMapFavoritePreview();
       clearScreenMapFavoriteComparison();
+      clearScreenMapHistoryView();
       screenMapMoving = false;
       if (restoreFocus) screenMapPreviousFocus?.focus?.();
       screenMapPreviousFocus = null;
@@ -2200,12 +2209,172 @@
       });
       container.append(button);
     }
+    function plotScreenHistoryMiniature(miniature,item,area,kind) {
+      const r=item?.maximized?area:item?.bounds;
+      if (!r || ![r.x,r.y,r.width,r.height].every(Number.isFinite) ||
+          r.width<=0 || r.height<=0 || !area?.width || !area?.height) return;
+      const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+      const left=clamp((r.x-area.x)/area.width*100,0,100);
+      const top=clamp((r.y-area.y)/area.height*100,0,100);
+      const right=clamp((r.x+r.width-area.x)/area.width*100,0,100);
+      const bottom=clamp((r.y+r.height-area.y)/area.height*100,0,100);
+      const box=document.createElement('span');
+      box.className='gl-workspace-map-history-window '+kind;
+      box.style.left=left+'%';
+      box.style.top=top+'%';
+      box.style.width=Math.max(0,right-left)+'%';
+      box.style.height=Math.max(0,bottom-top)+'%';
+      box.title=item.title||item.id;
+      box.textContent=item.title||item.id;
+      miniature.append(box);
+    }
+    async function applyScreenMapHistory(displayIndex,snapshotId,token) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapHistoryBusy ||
+          !window.guitarAudio?.workspaceApplyScreenHistory ||
+          !/^[a-f0-9]{64}$/.test(token||'')) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      if (!display?.workArea || screenMapHistoryView?.snapshotId!==snapshotId ||
+          screenMapHistoryView.displayIndex!==displayIndex ||
+          screenMapHistoryView.token!==token) return;
+      if (!window.confirm('Restaurer la disposition historique sur l’écran '+
+          (displayIndex+1)+' ? Les fenêtres actives seront repositionnées. '+
+          'Les favoris resteront inchangés.')) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Restauration de la disposition historique…';
+      try {
+        const result=await window.guitarAudio.workspaceApplyScreenHistory(
+          workspaceId,displayIndex,display.workArea,snapshotId,token);
+        if (screenMapOverlay.hidden||generation!==screenMapRequest||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result||result.id!==workspaceId||
+            result.displayIndex!==displayIndex||
+            result.snapshotId!==snapshotId||result.favoriteUnchanged!==true||
+            !Number.isInteger(result.restored)||result.restored<1)
+          throw new Error('Restauration historique non confirmée');
+        if (result.autoDisabled) {
+          activeAutoArrange=false;updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden&&workspaceId===activeWorkspaceId)
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : disposition historique restaurée ('+result.restored+
+            ' fenêtre'+(result.restored>1?'s':'')+
+            '). Les dispositions précédentes restent dans l’historique.';
+      } catch(error) {
+        console.error('Restauration historique :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest)
+          screenMapMessage.textContent=
+            'Restauration refusée : disposition modifiée ou inaccessible. Actualise le plan.';
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
+    async function previewScreenMapHistory(displayIndex,snapshotId,button,container) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapHistoryBusy ||
+          !window.guitarAudio?.workspacePreviewScreenHistory) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      const saved=display?.history?.find(item=>item.id===snapshotId);
+      if (!saved || !display?.workArea) return;
+      if (screenMapHistoryView?.snapshotId===snapshotId &&
+          screenMapHistoryView.displayIndex===displayIndex) {
+        clearScreenMapHistoryView();
+        screenMapMessage.textContent='Aperçu historique masqué. Aucune fenêtre déplacée.';
+        return;
+      }
+      clearScreenMapHistoryView();
+      clearScreenMapFavoriteComparison();
+      clearScreenMapFavoritePreview();
+      screenMapHistoryBusy=true;
+      button.disabled=true;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMessage.textContent='Prévisualisation de la disposition historique…';
+      try {
+        const result=await window.guitarAudio.workspacePreviewScreenHistory(
+          workspaceId,displayIndex,display.workArea,snapshotId);
+        if (screenMapOverlay.hidden||generation!==screenMapRequest||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result||result.id!==workspaceId||
+            result.displayIndex!==displayIndex||
+            result.snapshotId!==snapshotId||!Array.isArray(result.items)||
+            typeof result.applicable!=='boolean')
+          throw new Error('Aperçu historique invalide');
+        const area=display.workArea;
+        const section=document.createElement('section');
+        section.className='gl-workspace-map-history-detail';
+        const heading=document.createElement('strong');
+        heading.textContent='COMPARAISON HISTORIQUE';
+        const columns=document.createElement('div');
+        columns.className='gl-workspace-map-history-columns';
+        const actual=document.createElement('div');
+        const historic=document.createElement('div');
+        for (const [parent,title] of [[actual,'ACTUELLE'],
+          [historic,'DISPOSITION ENREGISTRÉE']]) {
+          parent.className='gl-workspace-map-history-column';
+          const label=document.createElement('span');
+          label.textContent=title;
+          const mini=document.createElement('div');
+          mini.className='gl-workspace-map-history-miniature is-large';
+          mini.style.aspectRatio=area.width+' / '+area.height;
+          parent.append(label,mini);
+        }
+        let changes=0;
+        for (const item of result.items) {
+          if (item.status==='ready' && item.currentBounds) {
+            plotScreenHistoryMiniature(actual.children[1],{
+              id:item.id,title:item.title,bounds:item.currentBounds,
+              maximized:item.currentMaximized},area,
+              item.willChange?'is-moving':'is-unchanged');
+            if (item.willChange) changes++;
+          }
+          plotScreenHistoryMiniature(historic.children[1],item,area,
+            item.status==='ready'?
+              item.willChange?'is-moving':'is-unchanged':'is-unavailable');
+        }
+        columns.append(actual,historic);
+        const details=document.createElement('p');
+        details.textContent=result.applicable ?
+          changes+' fenêtre'+(changes>1?'s':'')+
+          ' à déplacer, '+result.items.length+' dans cette disposition.' :
+          (result.reason||'Les fenêtres de cet écran ont changé.');
+        section.append(heading,columns,details);
+        if (result.applicable && /^[a-f0-9]{64}$/.test(result.token||'')) {
+          const restore=document.createElement('button');
+          restore.type='button';
+          restore.className='gl-workspace-map-history-restore';
+          restore.textContent='RESTAURER CETTE DISPOSITION';
+          restore.addEventListener('click',function () {
+            applyScreenMapHistory(displayIndex,snapshotId,result.token);
+          });
+          section.append(restore);
+        }
+        container.append(section);
+        button.setAttribute('aria-pressed','true');
+        screenMapHistoryView={displayIndex,snapshotId,section,button,
+          token:result.token};
+        screenMapMessage.textContent=result.applicable ?
+          'Aperçu historique prêt. Aucune fenêtre déplacée.' :
+          'Restauration indisponible : les fenêtres de cet écran ont changé.';
+      } catch(error) {
+        console.error('Aperçu historique :',error);
+        if (!screenMapOverlay.hidden&&generation===screenMapRequest)
+          screenMapMessage.textContent='Aperçu historique impossible. Actualise le plan.';
+      } finally {
+        screenMapHistoryBusy=false;
+        if (!screenMapOverlay.hidden&&generation===screenMapRequest)
+          button.disabled=false;
+      }
+    }
     async function refreshScreenMap(allowDuringMove = false) {
       if (screenMapOverlay.hidden || workspace.hidden ||
           (screenMapMoving && allowDuringMove !== true) ||
           !window.guitarAudio?.workspaceScreenMap) return;
       clearScreenMapFavoritePreview();
       clearScreenMapFavoriteComparison();
+      clearScreenMapHistoryView();
       const generation = ++screenMapRequest;
       const workspaceId = activeWorkspaceId;
       screenMapRefresh.disabled = true;
@@ -2504,6 +2673,53 @@
             renameFavorite,quickFavorites,favoriteManagement,previewFavorite,
             compareFavorite);
           card.append(heading,resolution,preview,list,controls,favorites);
+          const snapshots=Array.isArray(display.history)?
+            display.history.filter(item=>
+              item&&typeof item.id==='string'&&
+              /^[a-f0-9]{16}$/.test(item.id)&&
+              Number.isSafeInteger(item.at)&&Array.isArray(item.items)): [];
+          if (snapshots.length) {
+            const historyPanel=document.createElement('section');
+            historyPanel.className='gl-workspace-map-history';
+            const title=document.createElement('strong');
+            title.textContent='HISTORIQUE DES DISPOSITIONS — '+
+              snapshots.length+' / 10';
+            const explanation=document.createElement('p');
+            explanation.textContent='Choisis une miniature pour comparer avant de restaurer. Les dix dernières dispositions sont conservées.';
+            const gallery=document.createElement('div');
+            gallery.className='gl-workspace-map-history-gallery';
+            for (const snapshot of snapshots.slice(0,10)) {
+              const button=document.createElement('button');
+              button.type='button';
+              button.className='gl-workspace-map-history-entry';
+              button.setAttribute('aria-pressed','false');
+              const when=document.createElement('span');
+              when.className='gl-workspace-map-history-date';
+              when.textContent=new Date(snapshot.at).toLocaleString('fr-FR',{
+                day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+              const label=document.createElement('span');
+              label.className='gl-workspace-map-history-entry-label';
+              label.textContent=snapshot.label+' — '+snapshot.items.length+
+                ' fenêtre'+(snapshot.items.length>1?'s':'');
+              const mini=document.createElement('div');
+              mini.className='gl-workspace-map-history-miniature';
+              mini.style.aspectRatio=area.width+' / '+area.height;
+              for (const item of snapshot.items) {
+                if (item&&typeof item.id==='string'&&
+                    typeof item.title==='string')
+                  plotScreenHistoryMiniature(mini,item,area,'is-recorded');
+              }
+              button.append(when,label,mini);
+              button.title='Prévisualiser cette disposition de l’écran '+
+                (display.index+1);
+              button.addEventListener('click',function () {
+                previewScreenMapHistory(display.index,snapshot.id,button,historyPanel);
+              });
+              gallery.append(button);
+            }
+            historyPanel.append(title,explanation,gallery);
+            card.append(historyPanel);
+          }
           screenMapScreens.append(card);
         }
         const offscreen = panels.filter(panel => panel.displayIndex < 0);
