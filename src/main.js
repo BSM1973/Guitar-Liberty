@@ -393,6 +393,7 @@ function ensureDetachedPanelVisible(popup) {
 function recoverDetachedPanelsAfterDisplayChange() {
   if (switchingWorkspace || shuttingDownWorkspace) return;
   lastUndoneScreenCorrection=null;
+  screenHistoryRevision++;
   readPanelLayouts();
   // A display hotplug already redistributes AUTO panels below. Refresh the
   // tracked main display so a subsequent resize cannot trigger a second pass.
@@ -1929,6 +1930,7 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   // Save the old workspace before closing its native windows. These closes
   // must not be mistaken for a deliberate RATTACHER.
   lastUndoneScreenCorrection=null;
+  screenHistoryRevision++;
   switchingWorkspace = true;
   try {
     const closing = [];
@@ -2003,8 +2005,14 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
   // Persist independently for every tool, including user move/resize changes.
   popup.on('move', () => rememberPanelBounds(panelId, popup));
   popup.on('resize', () => rememberPanelBounds(panelId, popup));
+  // Geometry revisions also track intermediate native window-state changes,
+  // even when normal bounds stay identical after maximize/unmaximize.
+  popup.on('maximize', () => { screenHistoryRevision++; });
+  popup.on('unmaximize', () => { screenHistoryRevision++; });
+  popup.on('minimize', () => { screenHistoryRevision++; });
   // A minimized panel is not moved until the guitarist restores it.
   popup.on('restore', () => {
+    screenHistoryRevision++;
     // Minimized panels are not moved during a display change. Apply their
     // saved bounds only when restored, without stealing keyboard focus.
     const stored = readPanelLayouts()[panelId];
@@ -2043,6 +2051,7 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
     }
   });
   popup.on('closed', () => {
+    screenHistoryRevision++;
     if (guitarPanelWindows.get(panelId) === popup) guitarPanelWindows.delete(panelId);
     autoArrangeActivePanels();
     if (guitarMainWindow && !guitarMainWindow.isDestroyed()) {
