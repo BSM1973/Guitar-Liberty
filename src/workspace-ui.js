@@ -1312,6 +1312,51 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
       }
     }
+    async function undoScreenMapOverlapFix(displayIndex) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapOverlapFixBusy ||
+          !window.guitarAudio?.workspaceUndoScreenOverlapFix) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      if (!display?.workArea || display.canUndoCorrection!==true) return;
+      if (!window.confirm('Annuler la dernière correction sur l’écran '+
+          (displayIndex+1)+' et restaurer les positions précédentes ?')) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Restauration de la disposition précédente…';
+      try {
+        const result=await window.guitarAudio.workspaceUndoScreenOverlapFix(
+          workspaceId,displayIndex,display.workArea);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex ||
+            result.favoriteUnchanged!==true ||
+            !Number.isInteger(result.restored) || result.restored<1) {
+          throw new Error('Restauration non confirmée');
+        }
+        if (result.autoRestored) {
+          activeAutoArrange=true;
+          updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : correction annulée. '+result.restored+' fenêtre'+
+            (result.restored>1?'s':'')+' restaurée'+
+            (result.restored>1?'s':'')+'. Favori conservé.';
+        }
+      } catch(error) {
+        console.error('Annulation de correction :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent=
+            'Annulation indisponible : disposition modifiée. Actualise le plan.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
     async function saveScreenMapFavorite(displayIndex,slot) {
       if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
           screenMapMoving || !window.guitarAudio?.workspaceSaveScreenFavorite ||
@@ -2219,6 +2264,19 @@
             organizeScreenMapDisplay(display.index);
           });
           controls.append(count,organize);
+          if (display.canUndoCorrection === true) {
+            const undoCorrection=document.createElement('button');
+            undoCorrection.type='button';
+            undoCorrection.className='gl-workspace-map-undo-correction';
+            undoCorrection.textContent='ANNULER CORRECTION';
+            undoCorrection.title='Retrouver les positions précédant la dernière correction de chevauchements';
+            undoCorrection.setAttribute('aria-label',
+              'Annuler la dernière correction de l’écran '+(display.index+1));
+            undoCorrection.addEventListener('click',function () {
+              undoScreenMapOverlapFix(display.index);
+            });
+            controls.append(undoCorrection);
+          }
           if (display.canUndo === true) {
             const undo=document.createElement('button');
             undo.type='button';
