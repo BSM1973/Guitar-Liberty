@@ -1357,6 +1357,51 @@
         if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
       }
     }
+    async function redoScreenMapOverlapFix(displayIndex) {
+      if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
+          screenMapMoving || screenMapOverlapFixBusy ||
+          !window.guitarAudio?.workspaceRedoScreenOverlapFix) return;
+      const display=screenMapDisplays.find(item=>item.index===displayIndex);
+      if (!display?.workArea || display.canRedoCorrection!==true) return;
+      if (!window.confirm('Rétablir la dernière correction sur l’écran '+
+          (displayIndex+1)+' et replacer les fenêtres dans la disposition sans chevauchement ?')) return;
+      const workspaceId=activeWorkspaceId,generation=screenMapRequest;
+      screenMapMoving=true;
+      screenMapRefresh.disabled=true;
+      screenMapMessage.textContent='Rétablissement de la disposition corrigée…';
+      try {
+        const result=await window.guitarAudio.workspaceRedoScreenOverlapFix(
+          workspaceId,displayIndex,display.workArea);
+        if (screenMapOverlay.hidden || generation!==screenMapRequest ||
+            workspaceId!==activeWorkspaceId) return;
+        if (!result || result.id!==workspaceId ||
+            result.displayIndex!==displayIndex ||
+            result.favoriteUnchanged!==true || result.undoAvailable!==true ||
+            !Number.isInteger(result.restored) || result.restored<1) {
+          throw new Error('Rétablissement non confirmé');
+        }
+        if (result.autoDisabled) {
+          activeAutoArrange=false;
+          updatePresetButtons();
+        }
+        await refreshScreenMap(true);
+        if (!screenMapOverlay.hidden && workspaceId===activeWorkspaceId) {
+          screenMapMessage.textContent='Écran '+(displayIndex+1)+
+            ' : correction rétablie ('+result.restored+' fenêtre'+
+            (result.restored>1?'s':'')+'). Aucun favori modifié. '+
+            'ANNULER CORRECTION est de nouveau disponible.';
+        }
+      } catch(error) {
+        console.error('Rétablissement de correction :',error);
+        if (!screenMapOverlay.hidden && generation===screenMapRequest) {
+          screenMapMessage.textContent=
+            'Rétablissement indisponible : disposition modifiée. Actualise le plan.';
+        }
+      } finally {
+        screenMapMoving=false;
+        if (!screenMapOverlay.hidden) screenMapRefresh.disabled=false;
+      }
+    }
     async function saveScreenMapFavorite(displayIndex,slot) {
       if (screenMapOverlay.hidden || workspace.hidden || workspaceSwitchBusy ||
           screenMapMoving || !window.guitarAudio?.workspaceSaveScreenFavorite ||
@@ -2264,6 +2309,19 @@
             organizeScreenMapDisplay(display.index);
           });
           controls.append(count,organize);
+          if (display.canRedoCorrection === true) {
+            const redoCorrection=document.createElement('button');
+            redoCorrection.type='button';
+            redoCorrection.className='gl-workspace-map-redo-correction';
+            redoCorrection.textContent='RÉTABLIR LA CORRECTION';
+            redoCorrection.title='Remettre la dernière disposition corrigée après annulation';
+            redoCorrection.setAttribute('aria-label',
+              'Rétablir la dernière correction de l’écran '+(display.index+1));
+            redoCorrection.addEventListener('click',function () {
+              redoScreenMapOverlapFix(display.index);
+            });
+            controls.append(redoCorrection);
+          }
           if (display.canUndoCorrection === true) {
             const undoCorrection=document.createElement('button');
             undoCorrection.type='button';

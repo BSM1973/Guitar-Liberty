@@ -79,6 +79,7 @@ let activeTopologyKey = null;
 let lastOrganizedScreen = null;
 // One-session, one-step undo for the most recent successful overlap fix.
 let lastCorrectedScreen = null;
+let lastUndoneScreenCorrection = null;
 
 function copyPanelBounds(source) {
   const result = {};
@@ -338,6 +339,7 @@ function ensureDetachedPanelVisible(popup) {
 
 function recoverDetachedPanelsAfterDisplayChange() {
   if (switchingWorkspace || shuttingDownWorkspace) return;
+  lastUndoneScreenCorrection=null;
   readPanelLayouts();
   // A display hotplug already redistributes AUTO panels below. Refresh the
   // tracked main display so a subsequent resize cannot trigger a second pass.
@@ -449,6 +451,12 @@ function rememberPanelBounds(id, popup) {
   if (activeTopologyKey !== displayTopologyKey(screen.getAllDisplays())) return;
   const rect = finiteRect(popup.getNormalBounds?.() || popup.getBounds());
   if (!rect) return;
+  if (lastUndoneScreenCorrection) {
+    const expected=lastUndoneScreenCorrection.items.find(item=>item.id===id);
+    if (!expected || !sameScreenBounds(rect,expected.before)) {
+      lastUndoneScreenCorrection=null;
+    }
+  }
   if (layouts[id] && ['x','y','width','height'].every(k => layouts[id][k] === rect[k])) return;
   layouts[id] = rect;
   snapshotActiveTopology();
@@ -567,6 +575,26 @@ function canUndoLastScreenCorrection(workspaceId,displayIndex,area,displays) {
   });
 }
 
+// Redo is available only while the full set of live panels and their native
+// geometry match the state recorded after the previous safe undo.
+function canRedoLastScreenCorrection(workspaceId,displayIndex,area,displays) {
+  const prior=lastUndoneScreenCorrection;
+  if (!prior || prior.workspaceId!==workspaceId ||
+      workspaceId!==activeWorkspace ||
+      prior.displayIndex!==displayIndex ||
+      prior.topologyKey!==displayTopologyKey(displays) ||
+      !sameScreenBounds(prior.area,area) ||
+      savedWorkspaces[workspaceId]?.autoArrange!==prior.previousAuto) return false;
+  const live=new Map(activeWindowsOnFavoriteScreen(displayIndex,displays));
+  if (live.size!==prior.items.length) return false;
+  return prior.items.every(item=>{
+    const popup=live.get(item.id);
+    return popup && !popup.isDestroyed() && !popup.isMinimized?.() &&
+      sameScreenBounds(popup.getNormalBounds?.()||popup.getBounds(),item.before) &&
+      Boolean(popup.isMaximized?.())===item.beforeMaximized;
+  });
+}
+
 // Only undo if every active panel is still in exactly the position produced
 // by ORGANISER. A drag, close, minimize, display change or profile change
 // makes the old arrangement invalid rather than overwriting later work.
@@ -613,6 +641,8 @@ ipcMain.handle('gl-workspace-screen-map', (event, workspaceId) => {
         activeTopologyKey,workArea),
       canUndo:canUndoScreenOrganization(workspaceId,index,workArea,displays),
       canUndoCorrection:canUndoLastScreenCorrection(workspaceId,index,
+        workArea,displays),
+      canRedoCorrection:canRedoLastScreenCorrection(workspaceId,index,
         workArea,displays),
       main: Boolean(mainArea &&
         ['x','y','width','height'].every(k => mainArea[k] === workArea[k]))} : null;
@@ -1075,6 +1105,7 @@ ipcMain.handle('gl-workspace-apply-screen-overlap-fix',
       throw error;
     }
     lastOrganizedScreen=null;
+    lastUndoneScreenCorrection=null;
     const targetsById=new Map(targets.map(item=>[item.id,item]));
     lastCorrectedScreen={
       workspaceId,displayIndex,area:{...area},topologyKey:activeTopologyKey,
@@ -1139,9 +1170,81 @@ ipcMain.handle('gl-workspace-undo-screen-overlap-fix',
       throw error;
     }
     lastCorrectedScreen=null;
+    lastUndoneScreenCorrection=prior;
     lastOrganizedScreen=null;
     return {id:workspaceId,displayIndex,restored:prior.items.length,
-      autoRestored:prior.previousAuto===true,favoriteUnchanged:true};
+      autoRestored:prior.previousAuto===true,favoriteUnchanged:true,
+      redoAvailable:true};
+  });
+
+// The original favorite is never rewritten. Reapply only the last undone
+// correction, with the same strict screen, workspace and geometry guards as
+// undo. Failure rolls native bounds and maximization back to the undo state.
+ipcMain.handle('gl-workspace-redo-screen-overlap-fix',
+  (event,workspaceId,displayIndex,expectedArea)=>{
+    assertMainWorkspaceSender(event);
+    readPanelLayouts();
+    if (!isWorkspaceId(workspaceId) || workspaceId!==activeWorkspace ||
+        switchingWorkspace || shuttingDownWorkspace ||
+        !Number.isInteger(displayIndex) || displayIndex<0) {
+      throw new Error('Rétablissement de correction non autorisé');
+    }
+    const displays=screen.getAllDisplays();
+    const monitor=displays[displayIndex];
+    const area=finiteRect(monitor&&(monitor.workArea||monitor));
+    if (!area || !sameScreenBounds(area,expectedArea) ||
+        activeTopologyKey!==displayTopologyKey(displays) ||
+        !canRedoLastScreenCorrection(workspaceId,displayIndex,area,displays)) {
+      throw new Error('Disposition modifiée : rétablissement de correction indisponible');
+    }
+    const prior=lastUndoneScreenCorrection;
+    const profile=savedWorkspaces[workspaceId];
+    const previousAuto=profile.autoArrange;
+    // Do not count the native move/resize events from redo as user edits.
+    lastUndoneScreenCorrection=null;
+    profile.autoArrange=false;
+    try {
+      for (const item of prior.items) {
+        const popup=guitarPanelWindows.get(item.id);
+        if (popup.isMaximized?.()) popup.unmaximize?.();
+        popup.setBounds(item.after);
+        if (item.afterMaximized) popup.maximize?.();
+        rememberPanelBounds(item.id,popup);
+      }
+      const current=activeWindowsOnFavoriteScreen(displayIndex,displays);
+      if (current.length!==prior.items.length ||
+          !prior.items.every(item=>{
+            const popup=guitarPanelWindows.get(item.id);
+            return popup && !popup.isDestroyed() && !popup.isMinimized?.() &&
+              sameScreenBounds(popup.getNormalBounds?.()||popup.getBounds(),item.after) &&
+              Boolean(popup.isMaximized?.())===item.afterMaximized;
+          })) throw new Error('Correction non reproduite exactement');
+      if (!flushPanelLayouts()) throw new Error('Rétablissement non sauvegardé');
+    } catch(error) {
+      profile.autoArrange=previousAuto;
+      for (const item of prior.items) {
+        const popup=guitarPanelWindows.get(item.id);
+        if (!popup || popup.isDestroyed()) continue;
+        if (popup.isMaximized?.()) popup.unmaximize?.();
+        popup.setBounds(item.before);
+        if (item.beforeMaximized) popup.maximize?.();
+        rememberPanelBounds(item.id,popup);
+      }
+      const live=new Map(activeWindowsOnFavoriteScreen(displayIndex,displays));
+      if (live.size===prior.items.length &&
+          prior.items.every(item=>{
+            const popup=live.get(item.id);
+            return popup && !popup.isDestroyed() && !popup.isMinimized?.() &&
+              sameScreenBounds(popup.getNormalBounds?.()||popup.getBounds(),item.before) &&
+              Boolean(popup.isMaximized?.())===item.beforeMaximized;
+          })) lastUndoneScreenCorrection=prior;
+      throw error;
+    }
+    lastOrganizedScreen=null;
+    lastCorrectedScreen=prior;
+    return {id:workspaceId,displayIndex,restored:prior.items.length,
+      autoDisabled:previousAuto===true,favoriteUnchanged:true,
+      undoAvailable:true};
   });
 
 function isInsideScreenCorrection(bounds,area) {
@@ -1585,6 +1688,7 @@ ipcMain.handle('gl-workspace-switch', async (event, workspaceId) => {
   }
   // Save the old workspace before closing its native windows. These closes
   // must not be mistaken for a deliberate RATTACHER.
+  lastUndoneScreenCorrection=null;
   switchingWorkspace = true;
   try {
     const closing = [];
@@ -1630,6 +1734,7 @@ ipcMain.handle('gl-panel-open', async (event, panelId, panelTitle, restoring = f
     setDetachedPreference(panelId, true);
     return { opened: true, reused: true };
   }
+  lastUndoneScreenCorrection=null;
   const title = typeof panelTitle === 'string' ? panelTitle.slice(0, 80) : 'Panneau';
   const currentDisplays = screen.getAllDisplays();
   const preferred = screen.getDisplayMatching(guitarMainWindow.getBounds());
