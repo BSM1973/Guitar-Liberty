@@ -72,6 +72,7 @@ let layoutSaveTimer = null;
 let shuttingDownWorkspace = false;
 const MAX_DISPLAY_LAYOUTS = 8;
 const SCREEN_FAVORITE_SLOTS = 3;
+const SCREEN_HISTORY_LIMIT = 10;
 const MAX_FAVORITE_SCREENS = 8;
 const SCREEN_FAVORITE_NAME_LIMIT = 28;
 let activeTopologyKey = null;
@@ -125,7 +126,7 @@ function readPanelLayouts() {
   for (const id of workspaceIds) {
     savedWorkspaces[id] = { panels: {}, openPanels: new Set(), autoArrange: false,
       layoutStyle: 'mosaic', screenMode: 'secondary-first',
-      displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null) };
+      displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null), screenHistory: Object.create(null) };
   }
   let parsed = null;
   try {
@@ -148,7 +149,7 @@ function readPanelLayouts() {
       customWorkspaces.push({id: entry.id, label});
       savedWorkspaces[entry.id] = {panels: {}, openPanels: new Set(), autoArrange: false,
         layoutStyle: 'mosaic', screenMode: 'secondary-first',
-        displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null)};
+        displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null), screenHistory: Object.create(null)};
     }
   }
 
@@ -248,6 +249,55 @@ function readPanelLayouts() {
         topologyCount++;
       }
     }
+    // Sanitize persisted layout history, keeping at most ten snapshots per
+    // screen and at most eight screen keys per topology.
+    if (source.screenHistory && typeof source.screenHistory==='object' &&
+        !Array.isArray(source.screenHistory)) {
+      let topologies=0;
+      for (const [topology,screens] of Object.entries(source.screenHistory)) {
+        if (topologies>=MAX_DISPLAY_LAYOUTS) break;
+        if (topology.length>2048 || !topology.startsWith('[[') ||
+            !screens || typeof screens!=='object' || Array.isArray(screens)) continue;
+        const cleanScreens=Object.create(null);
+        let areas=0;
+        for (const [key,history] of Object.entries(screens)) {
+          if (areas>=MAX_FAVORITE_SCREENS) break;
+          let tuple;try{tuple=JSON.parse(key)}catch(_){continue}
+          if (!Array.isArray(tuple)||tuple.length!==4) continue;
+          const area=finiteRect({x:tuple[0],y:tuple[1],
+            width:tuple[2],height:tuple[3]});
+          if (!area || screenFavoriteAreaKey(area)!==key ||
+              !Array.isArray(history)) continue;
+          const used=new Set(),clean=[];
+          for (const entry of history.slice(-SCREEN_HISTORY_LIMIT)) {
+            if (!entry || typeof entry.id!=='string' ||
+                !/^[a-f0-9]{16}$/.test(entry.id)||used.has(entry.id) ||
+                !Number.isSafeInteger(entry.at) || entry.at<0 ||
+                typeof entry.label!=='string' || entry.label.length>60 ||
+                !Array.isArray(entry.items)) continue;
+            const itemIds=new Set(),items=[];
+            for (const item of entry.items.slice(0,detachablePanelIds.size)) {
+              if (!item || typeof item.id!=='string' ||
+                  !detachablePanelIds.has(item.id)||itemIds.has(item.id)) continue;
+              const bounds=finiteRect(item.bounds);
+              if (!bounds || findPanelDisplayIndex(bounds,[{workArea:area}])!==0)
+                continue;
+              itemIds.add(item.id);
+              items.push({id:item.id,bounds,maximized:item.maximized===true,
+                title:typeof item.title==='string' ?
+                  item.title.replace(/[\x00-\x1f\x7f]/g,'').slice(0,80) : item.id});
+            }
+            if (items.length!==entry.items.length||!items.length) continue;
+            used.add(entry.id);
+            clean.push({id:entry.id,at:entry.at,label:entry.label,items});
+          }
+          cleanScreens[key]=clean;
+          areas++;
+        }
+        savedWorkspaces[id].screenHistory[topology]=cleanScreens;
+        topologies++;
+      }
+    }
     if (Array.isArray(source.openPanels)) {
       for (const panelId of source.openPanels) {
         if (typeof panelId === 'string' && detachablePanelIds.has(panelId)) {
@@ -284,7 +334,8 @@ function flushPanelLayouts() {
         screenMode: profile.screenMode,
         displayLayouts: profile.displayLayouts,
         screenFavorites: profile.screenFavorites,
-        screenFavoriteNames: profile.screenFavoriteNames
+        screenFavoriteNames: profile.screenFavoriteNames,
+        screenHistory: profile.screenHistory
       };
     }
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -1589,7 +1640,7 @@ ipcMain.handle('gl-workspace-reset', async (event, workspaceId) => {
     await Promise.all(closing);
     const resetProfile = { panels: {}, openPanels: new Set(), autoArrange: false,
       layoutStyle: 'mosaic', screenMode: 'secondary-first',
-      displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null) };
+      displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null), screenHistory: Object.create(null) };
     savedWorkspaces[workspaceId] = resetProfile;
     savedPanelLayouts = resetProfile.panels;
     savedDetachedPanelIds = resetProfile.openPanels;
@@ -1629,7 +1680,7 @@ ipcMain.handle('gl-workspace-create', (event, requestedName) => {
   customWorkspaces.push(profile);
   savedWorkspaces[id] = {panels: {}, openPanels: new Set(), autoArrange: false,
     layoutStyle: 'mosaic', screenMode: 'secondary-first',
-    displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null)};
+    displayLayouts: Object.create(null), screenFavorites: Object.create(null), screenFavoriteNames: Object.create(null), screenHistory: Object.create(null)};
   if (!flushPanelLayouts()) {
     customWorkspaces.pop();
     delete savedWorkspaces[id];
